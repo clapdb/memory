@@ -21,7 +21,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 
 add_library(arena ${MEMORY_SRC})
+target_link_libraries(arena glog)
 set(ARENA_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
-
-add_subdirectory(googletest)
-add_subdirectory(test)
+add_subdirectory(test EXCLUDE_FROM_ALL)
