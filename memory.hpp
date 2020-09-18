@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 hurricane <hurricane1026@gmail.com>. All rights reserved.
+ * Copyright (C) 2020 hurricane <l@stdb.io>. All rights reserved.
  */
 /* +------------------------------------------------------------------+
    |                                                                  |
