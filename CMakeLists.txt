@@ -27,8 +27,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-include (cmake/FindGtest.cmake)
-include (cmake/FindGmock.cmake)
+include (cmake/FindGTest.cmake)
+include (cmake/FindGMock.cmake)
 
 find_package(GTest REQUIRED)
 find_package(GMock REQUIRED)
