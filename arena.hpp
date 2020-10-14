@@ -185,7 +185,8 @@ class Arena {
   // the type T should have the tag:
   template <typename T, typename... Args>
   T* Create(Args&&... args) {
-    static_assert(is_arena_constructable<T>::value || std::is_pod<T>::value,
+    static_assert(is_arena_constructable<T>::value ||
+        (std::is_standard_layout<T>::value && std::is_trivial<T>::value),
                   "New requires a constructible type");
     char* ptr = allocateAligned(sizeof(T));
     if (ptr != nullptr) {
@@ -202,7 +203,7 @@ class Arena {
   // new array from arena, and register cleanup function if need
   template <typename T>
   T* CreateArray(uint64_t num) {
-    static_assert(std::is_pod<T>::value,
+    static_assert(std::is_standard_layout<T>::value && std::is_trivial<T>::value,
                   "NewArray requires a trivially constructible type");
     static_assert(std::is_trivially_destructible<T>::value,
                   "NewArray requires a trivially destructible type");
