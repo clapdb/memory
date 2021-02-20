@@ -30,7 +30,7 @@
 
 #include "arenahelper.hpp"
 
-namespace starriness {
+namespace stdb {
 namespace memory {
 
 using align::AlignUpTo;
@@ -356,6 +356,6 @@ static const uint64_t kCleanupFuncSize =
     align::AlignUpTo<8>(sizeof(std::function<void()>));
 
 }  // namespace memory
-}  // namespace starriness
+}  // namespace stdb
 
 #endif  // MEMORY_ARENA_HPP_

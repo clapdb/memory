@@ -38,7 +38,7 @@
 #define FRIEND_TEST(test_case_name, test_name)
 #endif
 
-namespace starriness {
+namespace stdb {
 namespace memory {
 namespace align {
 // Align to next 8 multiple
@@ -120,6 +120,6 @@ template <typename T>
 struct is_destructor_skippable : ArenaHelper<T>::is_destructor_skippable {};
 
 }  // namespace memory
-}  // namespace starriness
+}  // namespace stdb
 
 #endif  // MEMORY_ARENAHELPER_HPP_

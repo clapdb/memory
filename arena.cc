@@ -21,7 +21,7 @@
 #include <algorithm>
 #include <limits>
 
-using starriness::memory::Arena;
+using stdb::memory::Arena;
 
 Arena::Block::Block(uint64_t size, Block* prev)
     : prev_(prev), pos_(kBlockHeaderSize), size_(size) {}

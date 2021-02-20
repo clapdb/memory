@@ -25,11 +25,11 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-using starriness::memory::Arena;
-using starriness::memory::kBlockHeaderSize;
-using starriness::memory::align::AlignUp;
-using starriness::memory::align::AlignUpTo;
-namespace starriness {
+using stdb::memory::Arena;
+using stdb::memory::kBlockHeaderSize;
+using stdb::memory::align::AlignUp;
+using stdb::memory::align::AlignUpTo;
+namespace stdb {
 namespace memory {
 
 using std::string;
@@ -672,4 +672,4 @@ TEST_F(ArenaTest, NullTest) {
   delete a;
 }
 }  // namespace memory
-}  // namespace starriness
+}  // namespace stdb
