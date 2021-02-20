@@ -76,7 +76,8 @@ class Arena {
     void* (*on_arena_destruction)(Arena* arena, void* cookie,
                                   uint64_t space_used);
 
-    Options()
+    [[gnu::always_inline]]
+    inline Options()
         : normal_block_size(4096),  // 4k is the normal pagesize of modern os
           huge_block_size(2 * 1024 *
                           1024),  // TODO(hurricane1026): maybe support 1G
@@ -90,7 +91,8 @@ class Arena {
       init();
     }
 
-    explicit Options(const Options& options)
+    [[gnu::always_inline]]
+    inline explicit Options(const Options& options)
         : normal_block_size(options.normal_block_size),
           huge_block_size(options.huge_block_size),
           suggested_initblock_size(options.suggested_initblock_size),
@@ -103,11 +105,13 @@ class Arena {
       init();
     }
 
-    inline ALWAYS_INLINE void init() {
+    [[gnu::always_inline]]
+    inline void init() {
       assert(normal_block_size > 0);
       if (suggested_initblock_size == 0)
         suggested_initblock_size = normal_block_size;
-      if (huge_block_size == 0) huge_block_size = normal_block_size;
+      if (huge_block_size == 0)
+        huge_block_size = normal_block_size;
     }
   };  // struct Options
 
@@ -115,21 +119,27 @@ class Arena {
    public:
     Block(uint64_t size, Block* prev);
 
-    inline ALWAYS_INLINE char* Pointer() {
+    [[gnu::always_inline]]
+    inline char* Pointer() {
       return reinterpret_cast<char*>(this) + pos_;
     }
 
-    inline char* ALWAYS_INLINE alloc(uint64_t size) {
+    [[gnu::always_inline]]
+    inline char* alloc(uint64_t size) {
       assert(size <= (size_ - pos_));
       char* p = Pointer();
       pos_ += size;
       return p;
     }
 
-    inline ALWAYS_INLINE Block* prev() const { return prev_; }
-    inline ALWAYS_INLINE uint64_t size() const { return size_; }
+    [[gnu::always_inline]]
+    inline Block* prev() const { return prev_; }
 
-    uint64_t remain() {
+    [[gnu::always_inline]]
+    inline uint64_t size() const { return size_; }
+
+    [[gnu::always_inline]]
+    inline uint64_t remain() {
       assert(size_ >= pos_);
       return size_ - pos_;
     }
@@ -166,7 +176,8 @@ class Arena {
   }
 
   template <typename T>
-  ALWAYS_NOINLINE void Own(T* obj) {
+  [[gnu::noinline]]
+  void Own(T* obj) {
     static_assert(!is_arena_constructable<T>::value,
                   "Own requires a type can not create in arean");
     std::function<void()> cleaner = [obj] { delete obj; };
@@ -176,7 +187,8 @@ class Arena {
 
   uint64_t Reset();
 
-  inline ALWAYS_INLINE uint64_t SpaceAllocated() const {
+  [[gnu::always_inline]]
+  inline uint64_t SpaceAllocated() const {
     return space_allocated_;
   }
 
@@ -223,7 +235,8 @@ class Arena {
   }
 
   // if return nullptr means failure
-  inline ALWAYS_INLINE char* AllocateAligned(uint64_t bytes) {
+  [[gnu::always_inline]]
+  inline char* AllocateAligned(uint64_t bytes) {
     char* ptr = allocateAligned(bytes);
     if (ptr != nullptr) {
       if (options_.on_arena_allocation != nullptr)
@@ -235,7 +248,8 @@ class Arena {
   }
 
   // if return nullptr means failure
-  inline ALWAYS_INLINE char* AllocateAlignedAndAddCleanup(
+  [[gnu::always_inline]]
+  inline char* AllocateAlignedAndAddCleanup(
       uint64_t bytes, const std::function<void()> c) {
     char* ptr = allocateAligned(bytes);
     if (ptr != nullptr) {
@@ -247,7 +261,8 @@ class Arena {
     return nullptr;
   }
 
-  inline ALWAYS_INLINE void Init() {
+  [[gnu::always_inline]]
+  inline void Init() {
     if (options_.on_arena_init != nullptr)
       cookie_ = options_.on_arena_init(this);
   }
@@ -259,39 +274,46 @@ class Arena {
   char* allocateAligned(uint64_t);
 
   // AddCleanup will never check the exist memory
-  inline ALWAYS_INLINE void AddCleanup(const std::function<void()>& c) {
+  [[gnu::always_inline]]
+  inline void AddCleanup(const std::function<void()>& c) {
     cleanups_->push_back(c);
     return;
   }
 
-  static ALWAYS_INLINE inline uint64_t align_size(uint64_t n) {
+  [[gnu::always_inline]]
+  static inline uint64_t align_size(uint64_t n) {
     return align::AlignUpTo<8>(n);
   }
 
   template <typename T>
-  inline ALWAYS_INLINE void RegisterDestructor(T* ptr) {
+  [[gnu::always_inline]]
+  inline void RegisterDestructor(T* ptr) {
     RegisterDestructorInternal(
         ptr, typename ArenaHelper<T>::is_destructor_skippable::type());
   }
 
   template <typename T>
-  inline ALWAYS_INLINE void RegisterDestructorInternal(T* /*ptr*/,
+  [[gnu::always_inline]]
+  inline void RegisterDestructorInternal(T* /*ptr*/,
                                                        std::true_type) {}
 
   template <typename T>
-  inline ALWAYS_INLINE void RegisterDestructorInternal(T* ptr,
+  [[gnu::always_inline]]
+  inline void RegisterDestructorInternal(T* ptr,
                                                        std::false_type) {
     std::function<void()> cleaner = [ptr] { ptr->~T(); };
     AddCleanup(cleaner);
   }
 
-  inline ALWAYS_INLINE void DoCleanup() {
+  [[gnu::always_inline]]
+  inline void DoCleanup() {
     for (auto f : *cleanups_) {
       f();
     }
   }
 
-  inline ALWAYS_INLINE void FreeBlocks() {
+  [[gnu::always_inline]]
+  inline void FreeBlocks() {
     Block* curr = last_block_;
     Block* prev;
     while (curr != nullptr) {
