@@ -32,4 +32,6 @@
 *.app
 
 build
+compile_commands.json
+.ccls-cache/
 .DS_Store
