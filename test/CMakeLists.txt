@@ -28,7 +28,7 @@ if (${GTEST_FOUND} AND ${GMOCK_FOUND})
   target_include_directories(test PRIVATE ${GTEST_INCLUDE_DIRS})
   target_include_directories(test PRIVATE ${GMOCK_INCLUDE_DIRS})
 
-  set(TEST_FLAGS "-D__UNITTEST -DSTAR_ENABLE_FORCE_INLINE -D_MULTI_THREAD_")
+  set(TEST_FLAGS "-D__UNITTEST -D_MULTI_THREAD_")
 
   target_compile_options(test PRIVATE ${TEST_FLAGS})
   target_link_libraries(test glog arena GTest::GTest GTest::Main ${GMOCK_LIBRARIES})
