@@ -36,7 +36,7 @@ using std::string;
 
 class alloc_class {
  public:
-  MOCK_METHOD1(alloc, void*(std::uint64_t));
+  MOCK_METHOD1(alloc, void*(uint64_t));
   MOCK_METHOD1(dealloc, void(void*));
   ~alloc_class() {};
 };
@@ -109,7 +109,7 @@ TEST(AlignTest, AlignUpTest) {
 
 // class alloc_class {
 //  public:
-//   MOCK_METHOD1(alloc, void*(std::uint64_t));
+//   MOCK_METHOD1(alloc, void*(uint64_t));
 //    MOCK_METHOD1(dealloc, void(void*));
 // };
 
@@ -120,7 +120,7 @@ class ArenaTest : public ::testing::Test {
 
   static alloc_class* mock;
 
-  static void* mock_alloc(std::uint64_t size) { return mock->alloc(size); }
+  static void* mock_alloc(uint64_t size) { return mock->alloc(size); }
 
   static void mock_dealloc(void* ptr) { return mock->dealloc(ptr); }
 
