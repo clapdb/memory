@@ -318,22 +318,27 @@ class Arena {
   inline void FreeBlocks() {
     Block* curr = last_block_;
     Block* prev;
+
     while (curr != nullptr) {
       prev = curr->prev();
       options_.block_dealloc(curr);
       curr = prev;
     }
+    return;
   }
 
   Options options_;
   Block* last_block_;
+
+  // should be initialized by on_arena_init
+  // and should be destroy by on_arena_destruction
   void* cookie_;
 
   std::vector<std::function<void()>>* cleanups_;
 
   uint64_t space_allocated_;
 
-  const uint64_t kThresholdHuge = 4;
+  inline static constexpr uint64_t kThresholdHuge = 4;
 
   // FRIEND_TEST will not generate code in release binary.
   FRIEND_TEST(ArenaTest, CtorTest);
