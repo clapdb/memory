@@ -41,6 +41,7 @@
 namespace stdb {
 namespace memory {
 namespace align {
+
 // Align to next 8 multiple
 template <uint64_t N>
 [[gnu::always_inline]]

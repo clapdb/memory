@@ -117,7 +117,9 @@ class Arena {
 
   class Block {
    public:
+
     Block(uint64_t size, Block* prev);
+
 
     [[gnu::always_inline]]
     inline char* Pointer() {
@@ -147,6 +149,7 @@ class Arena {
     Block* prev_;
     uint64_t pos_;
     uint64_t size_;
+
   };
 
   // Arena constructor
