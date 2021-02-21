@@ -96,12 +96,14 @@ class ArenaHelper {
       is_arena_constructable;
 
   template <typename... Args>
-  static T* Construct(void* ptr, Args&&... args) {
+  [[gnu::always_inline]]
+  inline static T* Construct(void* ptr, Args&&... args) {
     // placement new make the new Object T is in the ptr-> memory.
     return new (ptr) T(std::forward<Args>(args)...);
   }
 
-  static Arena* GetArena(const T* p) { return p->GetArena(); }
+  [[gnu::always_inline]]
+  inline static Arena* GetArena(const T* p) { return p->GetArena(); }
 
   friend class Arena;
 };
