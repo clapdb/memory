@@ -159,7 +159,7 @@ class Arena {
         cookie_(nullptr),
         space_allocated_(0) {
     cleanups_ = new std::vector<std::function<void()>>();
-    if (options_.default_cleanup_list_size > 0) {
+    if (options_.default_cleanup_list_size > 0) [[likely]] {
       cleanups_->reserve(options_.default_cleanup_list_size);
     }
   }
@@ -172,7 +172,7 @@ class Arena {
     FreeBlocks();
     delete cleanups_;
     // make sure the on_arena_destruction was set.
-    if (options_.on_arena_destruction != nullptr) {
+    if (options_.on_arena_destruction != nullptr) [[likely]] {
       options_.on_arena_destruction(this, cookie_, space_allocated_);
     }
   }
@@ -203,15 +203,16 @@ class Arena {
         (std::is_standard_layout<T>::value && std::is_trivial<T>::value),
                   "New requires a constructible type");
     char* ptr = allocateAligned(sizeof(T));
-    if (ptr != nullptr) {
+    if (ptr != nullptr) [[likely]] {
       ArenaHelper<T>::Construct(ptr, std::forward<Args>(args)...);
       T* result = reinterpret_cast<T*>(ptr);
       RegisterDestructor<T>(result);
-      if (options_.on_arena_allocation != nullptr)
+      if (options_.on_arena_allocation != nullptr) [[likely]]
         options_.on_arena_allocation(&typeid(T), sizeof(T), cookie_);
       return result;
+    } else {
+      return nullptr;
     }
-    return nullptr;
   }
 
   // new array from arena, and register cleanup function if need
@@ -224,13 +225,14 @@ class Arena {
     CHECK_LE(num, std::numeric_limits<uint64_t>::max() / sizeof(T));
     const uint64_t n = sizeof(T) * num;
     char* p = allocateAligned(n);
-    if (p != nullptr) {
+    if (p != nullptr) [[likely]]{
       T* curr = reinterpret_cast<T*>(p);
       for (uint64_t i = 0; i < num; ++i) {
         ArenaHelper<T>::Construct(curr++);
       }
-      if (options_.on_arena_allocation != nullptr)
+      if (options_.on_arena_allocation != nullptr) [[likely]] {
         options_.on_arena_allocation(&typeid(T), n, cookie_);
+      }
       return reinterpret_cast<T*>(p);
     }
     return nullptr;
@@ -239,25 +241,24 @@ class Arena {
   // if return nullptr means failure
   [[gnu::always_inline]]
   inline char* AllocateAligned(uint64_t bytes) {
-    char* ptr = allocateAligned(bytes);
-    if (ptr != nullptr) {
-      if (options_.on_arena_allocation != nullptr)
+    if ( char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]]{
+      if (options_.on_arena_allocation != nullptr) [[likely]] {
         options_.on_arena_allocation(nullptr, bytes, cookie_);
-    } else {
-      return nullptr;
+      }
+      return ptr;
     }
-    return ptr;
+    return nullptr;
   }
 
   // if return nullptr means failure
   [[gnu::always_inline]]
   inline char* AllocateAlignedAndAddCleanup(
       uint64_t bytes, const std::function<void()> c) {
-    char* ptr = allocateAligned(bytes);
-    if (ptr != nullptr) {
+    if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
       AddCleanup(c);
-      if (options_.on_arena_allocation)
+      if (options_.on_arena_allocation != nullptr) [[likely]] {
         options_.on_arena_allocation(nullptr, bytes, cookie_);
+      }
       return ptr;
     }
     return nullptr;
@@ -265,8 +266,9 @@ class Arena {
 
   [[gnu::always_inline]]
   inline void Init() {
-    if (options_.on_arena_init != nullptr)
+    if (options_.on_arena_init != nullptr) [[likely]] {
       cookie_ = options_.on_arena_init(this);
+    }
   }
 
  private:
