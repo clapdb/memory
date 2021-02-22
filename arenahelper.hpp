@@ -31,31 +31,6 @@
 #define ADstrSkipTag typedef void DestructionSkippable_
 
 
-// the macro to declare the inline forcing compiler hint.
-#ifdef STAR_ENABLE_FORCE_INLINE
-#ifdef __has_attribute
-#if __has_attribute(always_inline)
-#define ALWAYS_INLINE __attribute__((always_inline))
-#endif  // __has_attribute(always_inline)
-#if __has_attribute(noinline)
-#define ALWAYS_NOINLINE __attribute__((noinline))
-#endif  // __has_attribute(noinline)
-#endif  // __has_attribute
-#endif
-
-#ifndef ALWAYS_INLINE
-#define ALWAYS_INLINE
-#endif  // ALWAYS_INLINE
-
-#ifndef ALWAYS_NOINLINE
-#define ALWAYS_NOINLINE
-#endif  // ALWAYS_NOINLINE
-
-#ifdef _MSC_VER
-#error DO NOT SUPPORT Microsoft Visual C++
-#endif
-
-
 #ifdef __UNITTEST
 #define FRIEND_TEST(test_case_name, test_name) \
   friend class test_case_name##_##test_name##_Test
@@ -63,14 +38,14 @@
 #define FRIEND_TEST(test_case_name, test_name)
 #endif
 
-
-
-namespace starriness {
+namespace stdb {
 namespace memory {
 namespace align {
+
 // Align to next 8 multiple
 template <uint64_t N>
-inline ALWAYS_INLINE uint64_t AlignUpTo(uint64_t n) {
+[[gnu::always_inline]]
+inline uint64_t AlignUpTo(uint64_t n) {
   // Align n to next multiple of N
   // (from <Hacker's Delight 2rd edtion>,Chapter 3.)
   // -----------------------------------------------
@@ -81,7 +56,8 @@ inline ALWAYS_INLINE uint64_t AlignUpTo(uint64_t n) {
   return (n + N - 1) & static_cast<uint64_t>(-N);
 }
 
-inline ALWAYS_INLINE uint64_t AlignUp(uint64_t n, uint64_t block_size) {
+[[gnu::always_inline]]
+inline uint64_t AlignUp(uint64_t n, uint64_t block_size) {
   uint64_t m = n % block_size;
   return n - m + (static_cast<int>(static_cast<bool>(m))) * block_size;
 }
@@ -120,12 +96,14 @@ class ArenaHelper {
       is_arena_constructable;
 
   template <typename... Args>
-  static T* Construct(void* ptr, Args&&... args) {
+  [[gnu::always_inline]]
+  inline static T* Construct(void* ptr, Args&&... args) {
     // placement new make the new Object T is in the ptr-> memory.
     return new (ptr) T(std::forward<Args>(args)...);
   }
 
-  static Arena* GetArena(const T* p) { return p->GetArena(); }
+  [[gnu::always_inline]]
+  inline static Arena* GetArena(const T* p) { return p->GetArena(); }
 
   friend class Arena;
 };
@@ -145,6 +123,6 @@ template <typename T>
 struct is_destructor_skippable : ArenaHelper<T>::is_destructor_skippable {};
 
 }  // namespace memory
-}  // namespace starriness
+}  // namespace stdb
 
 #endif  // MEMORY_ARENAHELPER_HPP_

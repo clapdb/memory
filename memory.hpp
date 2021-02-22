@@ -21,7 +21,7 @@
 
 #include <unistd.h>
 
-namespace starriness {
+namespace stdb {
 namespace memory {
 
 class memblock {
@@ -59,6 +59,6 @@ class memblock {
 };
 
 }  // namespace memory
-}  // namespace starriness
+}  // namespace stdb
 
 #endif  // MEMORY_MEMORY_HPP_

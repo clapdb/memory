@@ -21,7 +21,7 @@
 #include <algorithm>
 #include <limits>
 
-using starriness::memory::Arena;
+using stdb::memory::Arena;
 
 Arena::Block::Block(uint64_t size, Block* prev)
     : prev_(prev), pos_(kBlockHeaderSize), size_(size) {}
@@ -34,7 +34,7 @@ Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) {
   // verify not overflow, with glog
   CHECK_LE(min_bytes, std::numeric_limits<uint64_t>::max() - kBlockHeaderSize);
 
-  if (prev_block != nullptr) {
+  if (prev_block != nullptr) [[likely]] {
     // not the first block "New" action.
     if (required_bytes <= options_.normal_block_size) {
       size = options_.normal_block_size;
@@ -66,7 +66,8 @@ Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) {
   // if the size over the huge_block_size, the block will be monoplolized.
   void* mem = options_.block_alloc(size);
   // if mem == nullptr, means no memory available for current os status.
-  if (mem == nullptr) return nullptr;
+  if (mem == nullptr) [[unlikely]]
+    return nullptr;
   // if mem == nullptr, placement new will trigger a segmentfault
   Block* b = new (mem) Block(size, prev_block);
   space_allocated_ += size;
@@ -78,7 +79,7 @@ char* Arena::allocateAligned(uint64_t bytes) {
   uint64_t needed = align_size(bytes);
   if (last_block_ == nullptr || needed > last_block_->remain()) {
     Block* curr = NewBlock(needed, last_block_);
-    if (curr != nullptr)
+    if (curr != nullptr) [[likely]]
       last_block_ = curr;
     else
       return nullptr;
