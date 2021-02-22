@@ -340,7 +340,7 @@ class Arena {
 
   uint64_t space_allocated_;
 
-  inline static constexpr uint64_t kThresholdHuge = 4;
+  static constexpr uint64_t kThresholdHuge = 4;
 
   // FRIEND_TEST will not generate code in release binary.
   FRIEND_TEST(ArenaTest, CtorTest);
