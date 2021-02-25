@@ -129,8 +129,9 @@ class Arena {
     [[gnu::always_inline]]
     inline char* alloc(uint64_t size) {
       assert(size <= (size_ - pos_));
-      //char* p = Pointer();
-      return Pointer() + size;
+      char* p = Pointer();
+      pos_ += size;
+      return p;
     }
 
     [[gnu::always_inline]]
