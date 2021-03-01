@@ -121,12 +121,12 @@ class Arena {
     Block(uint64_t size, Block* prev);
 
 
-    [[gnu::always_inline]]
+    [[nodiscard, gnu::always_inline]]
     inline char* Pointer() noexcept {
       return reinterpret_cast<char*>(this) + pos_;
     }
 
-    [[gnu::always_inline]]
+    [[nodiscard, gnu::always_inline]]
     inline char* alloc(uint64_t size) noexcept {
       assert(size <= (size_ - pos_));
       char* p = Pointer();
@@ -199,6 +199,7 @@ class Arena {
   // always allocating in the arena memory
   // the type T should have the tag:
   template <typename T, typename... Args>
+  [[nodiscard]]
   T* Create(Args&&... args) noexcept {
     static_assert(is_arena_constructable<T>::value ||
         (std::is_standard_layout<T>::value && std::is_trivial<T>::value),
@@ -218,6 +219,7 @@ class Arena {
 
   // new array from arena, and register cleanup function if need
   template <typename T>
+  [[nodiscard]]
   T* CreateArray(uint64_t num) noexcept {
     static_assert(std::is_standard_layout<T>::value && std::is_trivial<T>::value,
                   "NewArray requires a trivially constructible type");
@@ -240,7 +242,7 @@ class Arena {
   }
 
   // if return nullptr means failure
-  [[gnu::always_inline]]
+  [[nodiscard, gnu::always_inline]]
   inline char* AllocateAligned(uint64_t bytes) noexcept {
     if ( char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]]{
       if (options_.on_arena_allocation != nullptr) [[likely]] {
@@ -252,7 +254,7 @@ class Arena {
   }
 
   // if return nullptr means failure
-  [[gnu::always_inline]]
+  [[nodiscard, gnu::always_inline]]
   inline char* AllocateAlignedAndAddCleanup(
       uint64_t bytes, const std::function<void()> c) noexcept {
     if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
@@ -274,8 +276,10 @@ class Arena {
 
  private:
   // New Block while current Block has not enough memory.
+  [[nodiscard]]
   Block* NewBlock(uint64_t min_bytes, Block* prev_block) noexcept;
 
+  [[nodiscard]]
   char* allocateAligned(uint64_t) noexcept;
 
   // AddCleanup will never check the exist memory

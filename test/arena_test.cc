@@ -409,7 +409,8 @@ TEST_F(ArenaTest, CreateTest) {
   EXPECT_CALL(*cstr, destruct("fuck the world")).Times(0);
   EXPECT_CALL(*mock, dealloc(x)).Times(1);
   auto r1 = a->last_block_->remain();
-  a->Create<mock_struct>();
+  auto r = a->Create<mock_struct>();
+  ASSERT_TRUE(r != nullptr);
   auto r2 = a->last_block_->remain();
   ASSERT_EQ(r1 - r2, sizeof(mock_struct));
 
@@ -427,7 +428,8 @@ TEST_F(ArenaTest, CreateArrayTest) {
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(x));
   Arena* a = new Arena(ops_complex);
 
-  a->CreateArray<uint64_t>(10);
+  auto r = a->CreateArray<uint64_t>(10);
+  ASSERT_TRUE(r != nullptr);
   uint64_t s2 = a->last_block_->remain();
   ASSERT_EQ(s2, 4096 - kBlockHeaderSize - 10 * sizeof(uint64_t));
 
@@ -437,7 +439,8 @@ TEST_F(ArenaTest, CreateArrayTest) {
     double d;
   };
 
-  a->CreateArray<test_struct>(10);
+  auto r1 = a->CreateArray<test_struct>(10);
+  ASSERT_TRUE(r1 != nullptr);
   uint64_t s3 = a->last_block_->remain();
 
   ASSERT_EQ(s3, 4096ULL - kBlockHeaderSize - 10ULL * sizeof(uint64_t) -
@@ -588,21 +591,26 @@ TEST_F(ArenaTest, HookTest) {
   ASSERT_EQ(a->cookie_, cookie);
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(mem));
   EXPECT_CALL(*hook_instance, arena_allocate_hook(nullptr, 30, cookie));
-  a->AllocateAligned(30);
+  auto r = a->AllocateAligned(30);
+  ASSERT_TRUE(r != nullptr);
 
   EXPECT_CALL(*hook_instance, arena_allocate_hook(nullptr, 60, cookie));
-  a->AllocateAligned(60);
+  r = a->AllocateAligned(60);
+  ASSERT_TRUE(r != nullptr);
 
   EXPECT_CALL(*hook_instance, arena_allocate_hook(nullptr, 150, cookie));
-  a->AllocateAlignedAndAddCleanup(150, c1);
+  auto rr = a->AllocateAlignedAndAddCleanup(150, c1);
+  ASSERT_TRUE(rr != nullptr);
 
   EXPECT_CALL(*hook_instance,
               arena_allocate_hook(&typeid(xx), sizeof(xx), cookie));
-  a->Create<xx>();
+  auto rrr = a->Create<xx>();
+  ASSERT_TRUE(rrr != nullptr);
 
   EXPECT_CALL(*hook_instance,
               arena_allocate_hook(&typeid(xx), sizeof(xx) * 10, cookie));
-  a->CreateArray<xx>(10);
+  auto rrrr = a->CreateArray<xx>(10);
+  ASSERT_TRUE(rrrr != nullptr);
 
   EXPECT_CALL(*hook_instance,
               arena_destruction_hook(a, cookie, a->SpaceAllocated()))
