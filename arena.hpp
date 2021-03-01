@@ -159,6 +159,7 @@ class Arena {
         last_block_(nullptr),
         cookie_(nullptr),
         space_allocated_(0) {
+    // this new will throw bad_alloc occasionally
     cleanups_ = new std::vector<std::function<void()>>();
     if (options_.default_cleanup_list_size > 0) [[likely]] {
       cleanups_->reserve(options_.default_cleanup_list_size);
@@ -285,6 +286,8 @@ class Arena {
   // AddCleanup will never check the exist memory
   [[gnu::always_inline]]
   inline void AddCleanup(const std::function<void()>& c) noexcept {
+    // the push_back invoke realloc in sometimes
+    // so it will throw bad_alloc occasionlly
     cleanups_->push_back(c);
     return;
   }
