@@ -27,7 +27,7 @@ Arena::Block::Block(uint64_t size, Block* prev)
     : prev_(prev), pos_(kBlockHeaderSize), size_(size) {}
 
 // generate a new memory Block.
-Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) {
+Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) noexcept {
   uint64_t required_bytes = min_bytes + kBlockHeaderSize;
   uint64_t size = 0;
 
@@ -75,7 +75,7 @@ Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) {
 }
 
 // if return nullptr means failure
-char* Arena::allocateAligned(uint64_t bytes) {
+char* Arena::allocateAligned(uint64_t bytes) noexcept {
   uint64_t needed = align_size(bytes);
   if (last_block_ == nullptr || needed > last_block_->remain()) {
     Block* curr = NewBlock(needed, last_block_);

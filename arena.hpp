@@ -106,7 +106,7 @@ class Arena {
     }
 
     [[gnu::always_inline]]
-    inline void init() {
+    inline void init() noexcept {
       assert(normal_block_size > 0);
       if (suggested_initblock_size == 0)
         suggested_initblock_size = normal_block_size;
@@ -122,12 +122,12 @@ class Arena {
 
 
     [[gnu::always_inline]]
-    inline char* Pointer() {
+    inline char* Pointer() noexcept {
       return reinterpret_cast<char*>(this) + pos_;
     }
 
     [[gnu::always_inline]]
-    inline char* alloc(uint64_t size) {
+    inline char* alloc(uint64_t size) noexcept {
       assert(size <= (size_ - pos_));
       char* p = Pointer();
       pos_ += size;
@@ -135,13 +135,13 @@ class Arena {
     }
 
     [[gnu::always_inline]]
-    inline Block* prev() const { return prev_; }
+    inline Block* prev() const noexcept { return prev_; }
 
     [[gnu::always_inline]]
-    inline uint64_t size() const { return size_; }
+    inline uint64_t size() const noexcept { return size_; }
 
     [[gnu::always_inline]]
-    inline uint64_t remain() {
+    inline uint64_t remain() noexcept {
       assert(size_ >= pos_);
       return size_ - pos_;
     }
@@ -180,7 +180,7 @@ class Arena {
 
   template <typename T>
   [[gnu::noinline]]
-  void Own(T* obj) {
+  void Own(T* obj) noexcept {
     static_assert(!is_arena_constructable<T>::value,
                   "Own requires a type can not create in arean");
     std::function<void()> cleaner = [obj] { delete obj; };
@@ -188,10 +188,10 @@ class Arena {
     return;
   }
 
-  uint64_t Reset();
+  uint64_t Reset() noexcept;
 
   [[gnu::always_inline]]
-  inline uint64_t SpaceAllocated() const {
+  inline uint64_t SpaceAllocated() const noexcept {
     return space_allocated_;
   }
 
@@ -199,7 +199,7 @@ class Arena {
   // always allocating in the arena memory
   // the type T should have the tag:
   template <typename T, typename... Args>
-  T* Create(Args&&... args) {
+  T* Create(Args&&... args) noexcept {
     static_assert(is_arena_constructable<T>::value ||
         (std::is_standard_layout<T>::value && std::is_trivial<T>::value),
                   "New requires a constructible type");
@@ -218,7 +218,7 @@ class Arena {
 
   // new array from arena, and register cleanup function if need
   template <typename T>
-  T* CreateArray(uint64_t num) {
+  T* CreateArray(uint64_t num) noexcept {
     static_assert(std::is_standard_layout<T>::value && std::is_trivial<T>::value,
                   "NewArray requires a trivially constructible type");
     static_assert(std::is_trivially_destructible<T>::value,
@@ -241,7 +241,7 @@ class Arena {
 
   // if return nullptr means failure
   [[gnu::always_inline]]
-  inline char* AllocateAligned(uint64_t bytes) {
+  inline char* AllocateAligned(uint64_t bytes) noexcept {
     if ( char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]]{
       if (options_.on_arena_allocation != nullptr) [[likely]] {
         options_.on_arena_allocation(nullptr, bytes, cookie_);
@@ -254,7 +254,7 @@ class Arena {
   // if return nullptr means failure
   [[gnu::always_inline]]
   inline char* AllocateAlignedAndAddCleanup(
-      uint64_t bytes, const std::function<void()> c) {
+      uint64_t bytes, const std::function<void()> c) noexcept {
     if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
       AddCleanup(c);
       if (options_.on_arena_allocation != nullptr) [[likely]] {
@@ -266,7 +266,7 @@ class Arena {
   }
 
   [[gnu::always_inline]]
-  inline void Init() {
+  inline void Init() noexcept {
     if (options_.on_arena_init != nullptr) [[likely]] {
       cookie_ = options_.on_arena_init(this);
     }
@@ -274,51 +274,49 @@ class Arena {
 
  private:
   // New Block while current Block has not enough memory.
-  Block* NewBlock(uint64_t min_bytes, Block* prev_block);
+  Block* NewBlock(uint64_t min_bytes, Block* prev_block) noexcept;
 
-  char* allocateAligned(uint64_t);
+  char* allocateAligned(uint64_t) noexcept;
 
   // AddCleanup will never check the exist memory
   [[gnu::always_inline]]
-  inline void AddCleanup(const std::function<void()>& c) {
+  inline void AddCleanup(const std::function<void()>& c) noexcept {
     cleanups_->push_back(c);
     return;
   }
 
   [[gnu::always_inline]]
-  static inline uint64_t align_size(uint64_t n) {
+  static inline uint64_t align_size(uint64_t n) noexcept {
     return align::AlignUpTo<8>(n);
   }
 
   template <typename T>
   [[gnu::always_inline]]
-  inline void RegisterDestructor(T* ptr) {
+  inline void RegisterDestructor(T* ptr) noexcept {
     RegisterDestructorInternal(
         ptr, typename ArenaHelper<T>::is_destructor_skippable::type());
   }
 
   template <typename T>
   [[gnu::always_inline]]
-  inline void RegisterDestructorInternal(T* /*ptr*/,
-                                                       std::true_type) {}
+  inline void RegisterDestructorInternal(T*, std::true_type) noexcept {}
 
   template <typename T>
   [[gnu::always_inline]]
-  inline void RegisterDestructorInternal(T* ptr,
-                                                       std::false_type) {
+  inline void RegisterDestructorInternal(T* ptr, std::false_type) noexcept {
     std::function<void()> cleaner = [ptr] { ptr->~T(); };
     AddCleanup(cleaner);
   }
 
   [[gnu::always_inline]]
-  inline void DoCleanup() {
+  inline void DoCleanup() noexcept {
     for (auto f : *cleanups_) {
       f();
     }
   }
 
   [[gnu::always_inline]]
-  inline void FreeBlocks() {
+  inline void FreeBlocks() noexcept {
     Block* curr = last_block_;
     Block* prev;
 
