@@ -364,10 +364,10 @@ class Arena {
   FRIEND_TEST(ArenaTest, HookTest);
 };  // class Arena
 
-static const uint64_t kBlockHeaderSize =
+static constexpr uint64_t kBlockHeaderSize =
     align::AlignUpTo<8>(sizeof(memory::Arena::Block));
 
-static const uint64_t kCleanupFuncSize =
+static constexpr uint64_t kCleanupFuncSize =
     align::AlignUpTo<8>(sizeof(std::function<void()>));
 
 }  // namespace memory

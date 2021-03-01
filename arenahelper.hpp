@@ -45,7 +45,7 @@ namespace align {
 // Align to next 8 multiple
 template <uint64_t N>
 [[gnu::always_inline]]
-inline uint64_t AlignUpTo(uint64_t n) noexcept {
+constexpr uint64_t AlignUpTo(uint64_t n) noexcept {
   // Align n to next multiple of N
   // (from <Hacker's Delight 2rd edtion>,Chapter 3.)
   // -----------------------------------------------
