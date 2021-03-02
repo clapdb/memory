@@ -74,6 +74,10 @@ Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) noexcept {
   return b;
 }
 
+void Arena::Block::Reset() noexcept {
+  pos_ = kBlockHeaderSize;
+}
+
 // if return nullptr means failure
 char* Arena::allocateAligned(uint64_t bytes) noexcept {
   uint64_t needed = align_size(bytes);

@@ -77,6 +77,18 @@ TEST_F(BlockTest, Alloc_Test) {
   ASSERT_EQ(b->Pointer() - x, 200LL);
 }
 
+TEST_F(BlockTest, Reset_Test) {
+  auto b = new (Pointer()) Arena::Block(1024, nullptr);
+  char* x = b->alloc(200);
+  ASSERT_NE(x, nullptr);
+  ASSERT_EQ(b->remain(), 800ULL);
+  ASSERT_EQ(b->Pointer() - x, 200LL);
+  b->Reset();
+  ASSERT_EQ(b->remain(), 1024ULL - kBlockHeaderSize);
+  ASSERT_EQ(b->Pointer() - x, 0LL);
+}
+
+
 TEST(AlignTest, AlignUpToTest8) {
   ASSERT_EQ(AlignUpTo<8>(15), 16ULL);
   ASSERT_EQ(AlignUpTo<8>(1), 8ULL);
@@ -251,6 +263,66 @@ TEST_F(ArenaTest, AddCleanupTest) {
   delete a;
 }
 
+TEST_F(ArenaTest, FreeBlocks_except_first_Test) {
+  void* x1 = std::malloc(1024);
+  void* x2 = std::malloc(2048);
+  void* x3 = std::malloc(4096);
+
+  Arena* a = new Arena(ops_simple);
+  mock = new alloc_class;
+  EXPECT_CALL(*mock, alloc(1024)).WillOnce(Return(x1));
+  EXPECT_CALL(*mock, alloc(2048)).WillOnce(Return(x2));
+  EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(x3));
+
+  a->last_block_ = a->NewBlock(1024 - kBlockHeaderSize, nullptr);
+  a->last_block_ = a->NewBlock(2048 - kBlockHeaderSize, a->last_block_);
+  a->last_block_ = a->NewBlock(4096 - kBlockHeaderSize, a->last_block_);
+
+  //EXPECT_CALL(*mock, dealloc(x1)).Times(0);
+  EXPECT_CALL(*mock, dealloc(x2)).Times(1);
+  EXPECT_CALL(*mock, dealloc(x3)).Times(1);
+  // FreeBlocks should not be call out of the class, just use ~Arena
+  a->FreeBlocks_except_head();
+  //delete a;
+
+  ASSERT_EQ(a->last_block_, x1);
+  std::free(x1);
+  std::free(x2);
+  std::free(x3);
+  delete mock;
+}
+
+TEST_F(ArenaTest, ResetTest) {
+  void* x1 = std::malloc(1024);
+  void* x2 = std::malloc(2048);
+  void* x3 = std::malloc(4096);
+
+  Arena* a = new Arena(ops_simple);
+  mock = new alloc_class;
+  EXPECT_CALL(*mock, alloc(1024)).WillOnce(Return(x1));
+  EXPECT_CALL(*mock, alloc(2048)).WillOnce(Return(x2));
+  EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(x3));
+
+  a->last_block_ = a->NewBlock(1024 - kBlockHeaderSize, nullptr);
+  a->last_block_ = a->NewBlock(2048 - kBlockHeaderSize, a->last_block_);
+  a->last_block_ = a->NewBlock(4096 - kBlockHeaderSize, a->last_block_);
+
+  //EXPECT_CALL(*mock, dealloc(x1)).Times(0);
+  EXPECT_CALL(*mock, dealloc(x2)).Times(1);
+  EXPECT_CALL(*mock, dealloc(x3)).Times(1);
+  // FreeBlocks should not be call out of the class, just use ~Aren
+  a->Reset();
+  //delete a;
+
+  ASSERT_EQ(a->last_block_, x1);
+  ASSERT_EQ(a->space_allocated_, 1024);
+  ASSERT_EQ(a->last_block_->remain(), 1024 - kBlockHeaderSize);
+  std::free(x1);
+  std::free(x2);
+  std::free(x3);
+  delete mock;
+}
+
 TEST_F(ArenaTest, FreeBlocksTest) {
   void* x1 = std::malloc(1024);
   void* x2 = std::malloc(2048);
@@ -270,8 +342,8 @@ TEST_F(ArenaTest, FreeBlocksTest) {
   EXPECT_CALL(*mock, dealloc(x2)).Times(1);
   EXPECT_CALL(*mock, dealloc(x3)).Times(1);
   // FreeBlocks should not be call out of the class, just use ~Arena
-  // a->FreeBlocks();
-  delete a;
+  a->FreeAllBlocks();
+  //delete a;
 
   std::free(x1);
   std::free(x2);
@@ -554,6 +626,7 @@ class mock_hook {
   MOCK_METHOD3(arena_allocate_hook,
                void(const std::type_info*, uint64_t, void*));
   MOCK_METHOD3(arena_destruction_hook, void*(Arena*, void*, uint64_t));
+  MOCK_METHOD3(arena_reset_hook, void(Arena*, void*, uint64_t));
 };
 
 mock_hook* hook_instance;
@@ -567,6 +640,11 @@ void allocate_hook(const std::type_info* t, uint64_t s, void* c) {
 void* destruction_hook(Arena* a, void* c, uint64_t s) {
   return hook_instance->arena_destruction_hook(a, c, s);
 }
+
+void reset_hook(Arena* a, void* cookie, uint64_t space_used) {
+  return hook_instance->arena_reset_hook(a, cookie, space_used);
+}
+
 
 TEST_F(ArenaTest, HookTest) {
   struct xx {
@@ -582,6 +660,7 @@ TEST_F(ArenaTest, HookTest) {
   ops_hook.on_arena_init = &init_hook;
   ops_hook.on_arena_allocation = &allocate_hook;
   ops_hook.on_arena_destruction = &destruction_hook;
+  ops_hook.on_arena_reset = &reset_hook;
   Arena* a = new Arena(ops_hook);
   mock = new alloc_class;
   mock_cleaners = new cleanup_mock;
@@ -612,11 +691,15 @@ TEST_F(ArenaTest, HookTest) {
   auto rrrr = a->CreateArray<xx>(10);
   ASSERT_TRUE(rrrr != nullptr);
 
+  EXPECT_CALL(*hook_instance, arena_reset_hook(a, cookie, a->SpaceAllocated()));
+  EXPECT_CALL(*mock_cleaners, cleanup1()).Times(1);
+  a->Reset();
+
   EXPECT_CALL(*hook_instance,
               arena_destruction_hook(a, cookie, a->SpaceAllocated()))
       .WillOnce(Return(cookie));
   EXPECT_CALL(*mock, dealloc(mem)).Times(1);
-  EXPECT_CALL(*mock_cleaners, cleanup1()).Times(1);
+  //EXPECT_CALL(*mock_cleaners, cleanup1()).Times(1);
   delete a;
   delete mock;
   delete mock_cleaners;

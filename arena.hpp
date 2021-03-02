@@ -71,6 +71,7 @@ class Arena {
     // on_arena_reset and on_arena_destruction also receive the space used in
     // the arena just before the reset.
     void* (*on_arena_init)(Arena* arena);
+    void (*on_arena_reset)(Arena* arena, void* cookie, uint64_t space_used);
     void (*on_arena_allocation)(const std::type_info* alloc_type,
                                 uint64_t alloc_size, void* cookie);
     void* (*on_arena_destruction)(Arena* arena, void* cookie,
@@ -86,6 +87,7 @@ class Arena {
           block_dealloc(nullptr),
           default_cleanup_list_size(16),
           on_arena_init(nullptr),
+          on_arena_reset(nullptr),
           on_arena_allocation(nullptr),
           on_arena_destruction(nullptr) {
       init();
@@ -100,6 +102,7 @@ class Arena {
           block_dealloc(options.block_dealloc),
           default_cleanup_list_size(options.default_cleanup_list_size),
           on_arena_init(options.on_arena_init),
+          on_arena_reset(options.on_arena_reset),
           on_arena_allocation(options.on_arena_allocation),
           on_arena_destruction(options.on_arena_destruction) {
       init();
@@ -120,6 +123,7 @@ class Arena {
 
     Block(uint64_t size, Block* prev);
 
+    void Reset() noexcept;
 
     [[nodiscard, gnu::always_inline]]
     inline char* Pointer() noexcept {
@@ -158,7 +162,7 @@ class Arena {
       : options_(op),
         last_block_(nullptr),
         cookie_(nullptr),
-        space_allocated_(0) {
+        space_allocated_(0ULL) {
     // this new will throw bad_alloc occasionally
     cleanups_ = new std::vector<std::function<void()>>();
     if (options_.default_cleanup_list_size > 0) [[likely]] {
@@ -169,9 +173,9 @@ class Arena {
   // Arena desctructor
   ~Arena() {
     // execute all cleanup functions.
-    DoCleanup();
+    DoCleanups();
     // free blocks
-    FreeBlocks();
+    FreeAllBlocks();
     delete cleanups_;
     // make sure the on_arena_destruction was set.
     if (options_.on_arena_destruction != nullptr) [[likely]] {
@@ -189,7 +193,21 @@ class Arena {
     return;
   }
 
-  uint64_t Reset() noexcept;
+  inline uint64_t Reset() noexcept {
+    // execute all cleanup functions;
+    DoCleanups();
+    // free all blocks except the first block
+    FreeBlocks_except_head();
+    if (options_.on_arena_reset != nullptr) [[likely]] {
+      options_.on_arena_reset(this, cookie_, space_allocated_);
+    }
+    // reset all internal status.
+    cleanups_->clear();
+    uint64_t reset_size = space_allocated_;
+    space_allocated_ = last_block_->size();
+    last_block_->Reset();
+    return reset_size;
+  }
 
   [[gnu::always_inline]]
   inline uint64_t SpaceAllocated() const noexcept {
@@ -316,14 +334,15 @@ class Arena {
   }
 
   [[gnu::always_inline]]
-  inline void DoCleanup() noexcept {
+  inline void DoCleanups() noexcept {
     for (auto f : *cleanups_) {
       f();
     }
   }
 
+
   [[gnu::always_inline]]
-  inline void FreeBlocks() noexcept {
+  inline void FreeAllBlocks() noexcept {
     Block* curr = last_block_;
     Block* prev;
 
@@ -335,6 +354,22 @@ class Arena {
     return;
   }
 
+  [[gnu::always_inline]]
+  inline void FreeBlocks_except_head() noexcept {
+    Block* curr = last_block_;
+    Block* prev;
+
+    while (curr != nullptr && curr->prev() != nullptr) {
+        prev = curr->prev();
+        options_.block_dealloc(curr);
+        curr = prev;
+    }
+    // reset the last_block_ to the first block
+    last_block_ = curr;
+    return;
+  }
+
+ private:
   Options options_;
   Block* last_block_;
 
@@ -353,6 +388,7 @@ class Arena {
   FRIEND_TEST(ArenaTest, NewBlockTest);
   FRIEND_TEST(ArenaTest, AddCleanupTest);
   FRIEND_TEST(ArenaTest, FreeBlocksTest);
+  FRIEND_TEST(ArenaTest, FreeBlocks_except_first_Test);
   FRIEND_TEST(ArenaTest, DoCleanupTest);
   FRIEND_TEST(ArenaTest, OwnTest);
   FRIEND_TEST(ArenaTest, SpaceTest);
@@ -362,6 +398,7 @@ class Arena {
   FRIEND_TEST(ArenaTest, DstrTest);
   FRIEND_TEST(ArenaTest, NullTest);
   FRIEND_TEST(ArenaTest, HookTest);
+  FRIEND_TEST(ArenaTest, ResetTest);
 };  // class Arena
 
 static constexpr uint64_t kBlockHeaderSize =
