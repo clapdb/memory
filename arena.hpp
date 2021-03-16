@@ -152,6 +152,7 @@ class Arena {
       return p;
     }
 
+    [[nodiscard, gnu::always_inline]]
     inline char* alloc_Cleanup() noexcept {
       assert(pos_ + kCleanupNodeSize <= limit_);
       char* p = CleanupPos();
@@ -159,7 +160,7 @@ class Arena {
       return p;
     }
 
-    [[gnu::always_inline]]
+    [[nodiscard, gnu::always_inline]]
     inline Block* prev() const noexcept { return prev_; }
 
     [[gnu::always_inline]]

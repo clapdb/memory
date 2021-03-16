@@ -76,7 +76,6 @@ Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) noexcept {
 
 void Arena::Block::Reset() noexcept {
   pos_ = kBlockHeaderSize;
-  // FIXME: the cleanup functions will be ignore, it will be dangerous.
   limit_ = size_;
 }
 
