@@ -29,6 +29,7 @@ using stdb::memory::Arena;
 using stdb::memory::kBlockHeaderSize;
 using stdb::memory::align::AlignUp;
 using stdb::memory::align::AlignUpTo;
+//using stdb::memory::Arena::kCleanupNodeSize;
 namespace stdb {
 namespace memory {
 
@@ -53,7 +54,7 @@ class BlockTest : public ::testing::Test {
 
 TEST_F(BlockTest, CotrTest1) {
   auto b = new (Pointer()) Arena::Block(1024, nullptr);
-  ASSERT_EQ(b->Pointer(),
+  ASSERT_EQ(b->Pos(),
             reinterpret_cast<char*>(Pointer()) + kBlockHeaderSize);
   ASSERT_EQ(b->size(), 1024ULL);
   ASSERT_EQ(b->prev(), nullptr);
@@ -73,19 +74,19 @@ TEST_F(BlockTest, Alloc_Test) {
   auto b = new (Pointer()) Arena::Block(1024, nullptr);
   char* x = b->alloc(200);
   ASSERT_NE(x, nullptr);
-  ASSERT_EQ(b->remain(), 800ULL);
-  ASSERT_EQ(b->Pointer() - x, 200LL);
+  ASSERT_EQ(b->remain(), 1024ULL - kBlockHeaderSize - 200ULL);
+  ASSERT_EQ(b->Pos() - x, 200LL);
 }
 
 TEST_F(BlockTest, Reset_Test) {
   auto b = new (Pointer()) Arena::Block(1024, nullptr);
   char* x = b->alloc(200);
   ASSERT_NE(x, nullptr);
-  ASSERT_EQ(b->remain(), 800ULL);
-  ASSERT_EQ(b->Pointer() - x, 200LL);
+  ASSERT_EQ(b->remain(), 1024ULL - 200ULL -kBlockHeaderSize);
+  ASSERT_EQ(b->Pos() - x, 200LL);
   b->Reset();
   ASSERT_EQ(b->remain(), 1024ULL - kBlockHeaderSize);
-  ASSERT_EQ(b->Pointer() - x, 0LL);
+  ASSERT_EQ(b->Pos() - x, 0LL);
 }
 
 
@@ -200,7 +201,7 @@ TEST_F(ArenaTest, NewBlockTest) {
   Arena::Block* bb = a->NewBlock(100, nullptr);
   ASSERT_EQ(bb, x);
   ASSERT_EQ(a->space_allocated_, 1024ULL);
-  ASSERT_EQ(bb->remain(), 1000ULL);
+  ASSERT_EQ(bb->remain(), 1024 - kBlockHeaderSize);
 
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(x));
   Arena* b = new Arena(ops_complex);

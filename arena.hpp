@@ -35,6 +35,15 @@ namespace memory {
 
 using align::AlignUpTo;
 
+struct CleanupNode {
+  void* element;
+  void (*cleanup)(void*);
+};
+
+static constexpr uint64_t kCleanupNodeSize =
+  align::AlignUpTo<8>(sizeof(memory::CleanupNode));
+
+
 class Arena {
  public:
   Arena(const Arena&) = delete;
@@ -126,15 +135,27 @@ class Arena {
     void Reset() noexcept;
 
     [[nodiscard, gnu::always_inline]]
-    inline char* Pointer() noexcept {
+    inline char* Pos() noexcept {
       return reinterpret_cast<char*>(this) + pos_;
     }
 
     [[nodiscard, gnu::always_inline]]
+    inline char* CleanupPos() noexcept {
+      return reinterpret_cast<char*>(this) + limit_ - kCleanupNodeSize;
+    }
+
+    [[nodiscard, gnu::always_inline]]
     inline char* alloc(uint64_t size) noexcept {
-      assert(size <= (size_ - pos_));
-      char* p = Pointer();
+      assert(size <= (limit_ - pos_));
+      char* p = Pos();
       pos_ += size;
+      return p;
+    }
+
+    inline char* alloc_Cleanup() noexcept {
+      assert(pos_ + kCleanupNodeSize <= limit_);
+      char* p = CleanupPos();
+      limit_ -= kCleanupNodeSize;
       return p;
     }
 
@@ -146,15 +167,15 @@ class Arena {
 
     [[gnu::always_inline]]
     inline uint64_t remain() noexcept {
-      assert(size_ >= pos_);
-      return size_ - pos_;
+      assert(limit_ >= pos_);
+      return limit_ - pos_;
     }
 
    private:
     Block* prev_;
     uint64_t pos_;
-    uint64_t size_;
-
+    uint64_t size_; // the size of the block
+    uint64_t limit_;  // the limit can be use for Create
   };
 
   // Arena constructor
@@ -403,9 +424,6 @@ class Arena {
 
 static constexpr uint64_t kBlockHeaderSize =
     align::AlignUpTo<8>(sizeof(memory::Arena::Block));
-
-static constexpr uint64_t kCleanupFuncSize =
-    align::AlignUpTo<8>(sizeof(std::function<void()>));
 
 }  // namespace memory
 }  // namespace stdb

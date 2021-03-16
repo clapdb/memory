@@ -24,7 +24,7 @@
 using stdb::memory::Arena;
 
 Arena::Block::Block(uint64_t size, Block* prev)
-    : prev_(prev), pos_(kBlockHeaderSize), size_(size) {}
+    : prev_(prev), pos_(kBlockHeaderSize), size_(size), limit_(size) {}
 
 // generate a new memory Block.
 Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) noexcept {
@@ -76,6 +76,8 @@ Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) noexcept {
 
 void Arena::Block::Reset() noexcept {
   pos_ = kBlockHeaderSize;
+  // FIXME: the cleanup functions will be ignore, it will be dangerous.
+  limit_ = size_;
 }
 
 // if return nullptr means failure
