@@ -27,7 +27,7 @@ Arena::Block::Block(uint64_t size, Block* prev)
     : prev_(prev), pos_(kBlockHeaderSize), size_(size), limit_(size) {}
 
 // generate a new memory Block.
-Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) noexcept {
+Arena::Block* Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept {
   uint64_t required_bytes = min_bytes + kBlockHeaderSize;
   uint64_t size = 0;
 
@@ -75,6 +75,8 @@ Arena::Block* Arena::NewBlock(uint64_t min_bytes, Block* prev_block) noexcept {
 }
 
 void Arena::Block::Reset() noexcept {
+  // run all cleanups first
+  run_cleanups();
   pos_ = kBlockHeaderSize;
   limit_ = size_;
 }
@@ -82,8 +84,8 @@ void Arena::Block::Reset() noexcept {
 // if return nullptr means failure
 char* Arena::allocateAligned(uint64_t bytes) noexcept {
   uint64_t needed = align_size(bytes);
-  if (last_block_ == nullptr || needed > last_block_->remain()) {
-    Block* curr = NewBlock(needed, last_block_);
+  if (need_create_new_block(needed)) [[unlikely]] {
+    Block* curr = newBlock(needed, last_block_);
     if (curr != nullptr) [[likely]]
       last_block_ = curr;
     else

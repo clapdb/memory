@@ -25,7 +25,6 @@
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
-#include <vector>
 #include <glog/logging.h>
 
 #include "arenahelper.hpp"
@@ -38,11 +37,20 @@ using align::AlignUpTo;
 struct CleanupNode {
   void* element;
   void (*cleanup)(void*);
+  CleanupNode() = delete;
+  CleanupNode(void* elem, void(*clean)(void*)):
+    element(elem),
+    cleanup(clean)
+  { }
 };
 
 static constexpr uint64_t kCleanupNodeSize =
   align::AlignUpTo<8>(sizeof(memory::CleanupNode));
 
+template<typename T>
+void arena_destruct_object(void* obj) {
+  reinterpret_cast<T*>(obj)->~T();
+}
 
 class Arena {
  public:
@@ -141,7 +149,7 @@ class Arena {
 
     [[nodiscard, gnu::always_inline]]
     inline char* CleanupPos() noexcept {
-      return reinterpret_cast<char*>(this) + limit_ - kCleanupNodeSize;
+      return reinterpret_cast<char*>(this) + limit_;
     }
 
     [[nodiscard, gnu::always_inline]]
@@ -153,11 +161,17 @@ class Arena {
     }
 
     [[nodiscard, gnu::always_inline]]
-    inline char* alloc_Cleanup() noexcept {
+    inline char* alloc_cleanup() noexcept {
       assert(pos_ + kCleanupNodeSize <= limit_);
-      char* p = CleanupPos();
       limit_ -= kCleanupNodeSize;
-      return p;
+      return CleanupPos();
+    }
+
+    [[gnu::always_inline]]
+    inline void register_cleanup(void* obj, void (*cleanup)(void*)) noexcept {
+      auto ptr = alloc_cleanup();
+      new (ptr) CleanupNode(obj, cleanup);
+      return;
     }
 
     [[nodiscard, gnu::always_inline]]
@@ -170,6 +184,14 @@ class Arena {
     inline uint64_t remain() noexcept {
       assert(limit_ >= pos_);
       return limit_ - pos_;
+    }
+
+    inline void run_cleanups() noexcept {
+      CleanupNode* node = reinterpret_cast<CleanupNode*>(reinterpret_cast<char*>(this) + limit_);
+      CleanupNode* last = reinterpret_cast<CleanupNode*>(reinterpret_cast<char*>(this) + size_);
+      for (; node < last; ++node) {
+        node->cleanup(node->element);
+      }
     }
 
    private:
@@ -186,19 +208,18 @@ class Arena {
         cookie_(nullptr),
         space_allocated_(0ULL) {
     // this new will throw bad_alloc occasionally
-    cleanups_ = new std::vector<std::function<void()>>();
-    if (options_.default_cleanup_list_size > 0) [[likely]] {
-      cleanups_->reserve(options_.default_cleanup_list_size);
-    }
+    //cleanups_ = new std::vector<std::function<void()>>();
+    //if (options_.default_cleanup_list_size > 0) [[likely]] {
+      //cleanups_->reserve(options_.default_cleanup_list_size);
+    //}
+    //Init();
   }
 
   // Arena desctructor
   ~Arena() {
-    // execute all cleanup functions.
-    DoCleanups();
     // free blocks
     FreeAllBlocks();
-    delete cleanups_;
+    //delete cleanups_;
     // make sure the on_arena_destruction was set.
     if (options_.on_arena_destruction != nullptr) [[likely]] {
       options_.on_arena_destruction(this, cookie_, space_allocated_);
@@ -206,25 +227,22 @@ class Arena {
   }
 
   template <typename T>
-  [[gnu::noinline]]
-  void Own(T* obj) noexcept {
+  [[nodiscard, gnu::noinline]]
+  bool Own(T* obj) noexcept {
     static_assert(!is_arena_constructable<T>::value,
                   "Own requires a type can not create in arean");
-    std::function<void()> cleaner = [obj] { delete obj; };
-    AddCleanup(cleaner);
-    return;
+    //std::function<void()> cleaner = [obj] { delete obj; };
+    return addCleanup(obj, &arena_destruct_object<T>);
   }
 
   inline uint64_t Reset() noexcept {
-    // execute all cleanup functions;
-    DoCleanups();
     // free all blocks except the first block
     FreeBlocks_except_head();
     if (options_.on_arena_reset != nullptr) [[likely]] {
       options_.on_arena_reset(this, cookie_, space_allocated_);
     }
     // reset all internal status.
-    cleanups_->clear();
+    //cleanups_->clear();
     uint64_t reset_size = space_allocated_;
     space_allocated_ = last_block_->size();
     last_block_->Reset();
@@ -249,7 +267,9 @@ class Arena {
     if (ptr != nullptr) [[likely]] {
       ArenaHelper<T>::Construct(ptr, std::forward<Args>(args)...);
       T* result = reinterpret_cast<T*>(ptr);
-      RegisterDestructor<T>(result);
+      if (!RegisterDestructor<T>(result)) [[unlikely]] {
+        return nullptr;
+      }
       if (options_.on_arena_allocation != nullptr) [[likely]]
         options_.on_arena_allocation(&typeid(T), sizeof(T), cookie_);
       return result;
@@ -297,13 +317,14 @@ class Arena {
   // if return nullptr means failure
   [[nodiscard, gnu::always_inline]]
   inline char* AllocateAlignedAndAddCleanup(
-      uint64_t bytes, const std::function<void()> c) noexcept {
+      uint64_t bytes, void* element, void (*cleanup)(void*)) noexcept {
     if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
-      AddCleanup(c);
-      if (options_.on_arena_allocation != nullptr) [[likely]] {
-        options_.on_arena_allocation(nullptr, bytes, cookie_);
+      if (addCleanup(element, cleanup)) [[likely]] {
+        if (options_.on_arena_allocation != nullptr) [[likely]] {
+          options_.on_arena_allocation(nullptr, bytes, cookie_);
+        }
+        return ptr;
       }
-      return ptr;
     }
     return nullptr;
   }
@@ -318,18 +339,27 @@ class Arena {
  private:
   // New Block while current Block has not enough memory.
   [[nodiscard]]
-  Block* NewBlock(uint64_t min_bytes, Block* prev_block) noexcept;
+  Block* newBlock(uint64_t min_bytes, Block* prev_block) noexcept;
 
   [[nodiscard]]
   char* allocateAligned(uint64_t) noexcept;
 
-  // AddCleanup will never check the exist memory
-  [[gnu::always_inline]]
-  inline void AddCleanup(const std::function<void()>& c) noexcept {
-    // the push_back invoke realloc in sometimes
-    // so it will throw bad_alloc occasionlly
-    cleanups_->push_back(c);
-    return;
+  [[nodiscard, gnu::always_inline]]
+  inline bool need_create_new_block(uint64_t need_bytes) noexcept {
+    return (last_block_ == nullptr) || (need_bytes > last_block_->remain());
+  }
+
+  [[nodiscard, gnu::always_inline]]
+  inline bool addCleanup(void* o, void (*cleanup) (void*)) noexcept {
+    if (need_create_new_block(kCleanupNodeSize)) [[unlikely]]{
+      Block* curr = newBlock(kCleanupNodeSize, last_block_);
+      if (curr != nullptr) [[likely]]
+        last_block_ = curr;
+      else
+        return false;
+    }
+    last_block_->register_cleanup(o, cleanup);
+    return true;
   }
 
   [[gnu::always_inline]]
@@ -338,30 +368,23 @@ class Arena {
   }
 
   template <typename T>
-  [[gnu::always_inline]]
-  inline void RegisterDestructor(T* ptr) noexcept {
-    RegisterDestructorInternal(
+  [[nodiscard, gnu::always_inline]]
+  inline bool RegisterDestructor(T* ptr) noexcept {
+    return RegisterDestructorInternal(
         ptr, typename ArenaHelper<T>::is_destructor_skippable::type());
   }
 
   template <typename T>
-  [[gnu::always_inline]]
-  inline void RegisterDestructorInternal(T*, std::true_type) noexcept {}
+  [[nodiscard, gnu::always_inline]]
+  inline bool RegisterDestructorInternal(T*, std::true_type) noexcept {
+    return true;
+  }
 
   template <typename T>
-  [[gnu::always_inline]]
-  inline void RegisterDestructorInternal(T* ptr, std::false_type) noexcept {
-    std::function<void()> cleaner = [ptr] { ptr->~T(); };
-    AddCleanup(cleaner);
+  [[nodiscard, gnu::always_inline]]
+  inline bool RegisterDestructorInternal(T* ptr, std::false_type) noexcept {
+    return addCleanup(ptr, &arena_destruct_object<T>);
   }
-
-  [[gnu::always_inline]]
-  inline void DoCleanups() noexcept {
-    for (auto f : *cleanups_) {
-      f();
-    }
-  }
-
 
   [[gnu::always_inline]]
   inline void FreeAllBlocks() noexcept {
@@ -370,6 +393,8 @@ class Arena {
 
     while (curr != nullptr) {
       prev = curr->prev();
+      // run all cleanups first
+      curr->run_cleanups();
       options_.block_dealloc(curr);
       curr = prev;
     }
@@ -383,6 +408,8 @@ class Arena {
 
     while (curr != nullptr && curr->prev() != nullptr) {
         prev = curr->prev();
+        // run all cleanups first
+        curr->run_cleanups();
         options_.block_dealloc(curr);
         curr = prev;
     }
@@ -399,7 +426,7 @@ class Arena {
   // and should be destroy by on_arena_destruction
   void* cookie_;
 
-  std::vector<std::function<void()>>* cleanups_;
+  //std::vector<std::function<void()>>* cleanups_;
 
   uint64_t space_allocated_;
 
@@ -408,7 +435,8 @@ class Arena {
   // FRIEND_TEST will not generate code in release binary.
   FRIEND_TEST(ArenaTest, CtorTest);
   FRIEND_TEST(ArenaTest, NewBlockTest);
-  FRIEND_TEST(ArenaTest, AddCleanupTest);
+  FRIEND_TEST(ArenaTest, addCleanupTest);
+  FRIEND_TEST(ArenaTest, addCleanup_Fail_Test);
   FRIEND_TEST(ArenaTest, FreeBlocksTest);
   FRIEND_TEST(ArenaTest, FreeBlocks_except_first_Test);
   FRIEND_TEST(ArenaTest, DoCleanupTest);
@@ -421,6 +449,7 @@ class Arena {
   FRIEND_TEST(ArenaTest, NullTest);
   FRIEND_TEST(ArenaTest, HookTest);
   FRIEND_TEST(ArenaTest, ResetTest);
+  FRIEND_TEST(ArenaTest, Reset_with_cleanup_Test);
 };  // class Arena
 
 static constexpr uint64_t kBlockHeaderSize =
