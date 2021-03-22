@@ -46,7 +46,7 @@ class BlockTest : public ::testing::Test {
 protected:
   void SetUp() override { ptr = malloc(1024); };
   void TearDown() override { free(ptr); };
-  void *Pointer() { return ptr; }
+  void* Pointer() { return ptr; }
 
 private:
   void *ptr;
