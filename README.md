@@ -29,11 +29,11 @@ with [Seastar](https://github.com/scylladb/seastar), Arena can also work, now yo
 
 An arena has a chain of blocks memory pool,  block is a linear continuous memory area.
 
-the memory layout is in below.
-
-	        +-----------+    +-----------+  +-----------+      +-----------+
-	        |BlockHeader|    |CleanupArea|  |BlockHeader|      |CleanupArea|
-	        +-----------+    +-----------+  +-----------+      +-----------+
+### the memory layout
+	                           +-------+                         +-------+
+	          +------+         |Cleanup|      +------+           |Cleanup|
+	          |Header|         | Area  |      |Header|           | Area  |
+	          +------+         +-------+      +------+           +-------+
 	          +------+-----------+---+        +-----+------------+-------+
 	          |      |           |   |        |     |            |       |
 	          |      |           |   |        |     |            |       |
@@ -51,5 +51,4 @@ the memory layout is in below.
 	       |  +----------------+                 |
 	       |                                     |
 	       |                                     |
-	       +-------------------------------------
-
+	       +-------------------------------------+
