@@ -45,7 +45,7 @@ namespace align {
 // Align to next 8 multiple
 template <uint64_t N>
 [[gnu::always_inline]]
-inline uint64_t AlignUpTo(uint64_t n) {
+constexpr uint64_t AlignUpTo(uint64_t n) noexcept {
   // Align n to next multiple of N
   // (from <Hacker's Delight 2rd edtion>,Chapter 3.)
   // -----------------------------------------------
@@ -57,7 +57,7 @@ inline uint64_t AlignUpTo(uint64_t n) {
 }
 
 [[gnu::always_inline]]
-inline uint64_t AlignUp(uint64_t n, uint64_t block_size) {
+inline uint64_t AlignUp(uint64_t n, uint64_t block_size) noexcept {
   uint64_t m = n % block_size;
   return n - m + (static_cast<int>(static_cast<bool>(m))) * block_size;
 }
@@ -95,15 +95,17 @@ class ArenaHelper {
                                      static_cast<const T*>(0))) == sizeof(char)>
       is_arena_constructable;
 
+  // because use new placement do not need allocate memory
+  // so no bad_alloc will be thrown
   template <typename... Args>
   [[gnu::always_inline]]
-  inline static T* Construct(void* ptr, Args&&... args) {
+  inline static T* Construct(void* ptr, Args&&... args) noexcept {
     // placement new make the new Object T is in the ptr-> memory.
     return new (ptr) T(std::forward<Args>(args)...);
   }
 
   [[gnu::always_inline]]
-  inline static Arena* GetArena(const T* p) { return p->GetArena(); }
+  inline static Arena* GetArena(const T* p) noexcept { return p->GetArena(); }
 
   friend class Arena;
 };
