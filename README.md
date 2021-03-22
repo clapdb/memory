@@ -52,3 +52,8 @@ An arena has a chain of blocks memory pool,  block is a linear continuous memory
 	       |                                     |
 	       |                                     |
 	       +-------------------------------------+
+
+### Align for what?
+### BlockHeader internal
+### Cleanup Area and Cleanup functions.
+
