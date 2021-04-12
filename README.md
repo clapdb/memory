@@ -57,3 +57,30 @@ An arena has a chain of blocks memory pool,  block is a linear continuous memory
 ### BlockHeader internal
 ### Cleanup Area and Cleanup functions.
 
+## Develop
+
+### Build
+
+```shell
+mkdir build && cd build
+cmake .. -GNinja
+ninja -j8
+```
+
+### Test && Coverage
+
+```shell
+mkdir build.test && cd build.test
+cmake .. -DCMAKE_BUILD_TYPE=Debug -GNinja
+ninja -j8 test
+./test/test
+
+```
+
+```shell
+mkdir build.test && cd build.test
+cmake .. -DCMAKE_BUILD_TYPE=Debug -GNinja
+ninja -j8 test
+ninja coverage
+open coverage/index.html
+```

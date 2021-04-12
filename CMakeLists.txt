@@ -36,4 +36,19 @@ find_package(GMock REQUIRED)
 add_library(arena ${ARENA_SRC})
 target_link_libraries(arena glog)
 set(ARENA_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
-add_subdirectory(test EXCLUDE_FROM_ALL)
+
+if(${CMAKE_BUILD_TYPE} MATCHES Debug)
+  include(CodeCoverage)
+  append_coverage_compiler_flags()
+
+  set(COVERAGE_EXCLUDES
+    "test/*"
+    "/usr/*")
+
+  setup_target_for_coverage_lcov(
+    NAME coverage
+    EXECUTABLE test/test
+  )
+endif()
+
+add_subdirectory(test)
