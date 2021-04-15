@@ -1,0 +1,24 @@
+BasedOnStyle: google
+ColumnLimit: 120
+ContinuationIndentWidth: 2
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+FixNamespaceComments: true
+DerivePointerAlignment: false
+PointerAlignment: Left
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: false
+  AfterEnum: true
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: false
+  BeforeElse: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false

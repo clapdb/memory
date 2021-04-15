@@ -24,7 +24,8 @@
 namespace stdb {
 namespace memory {
 
-class memblock {
+class memblock
+{
  public:
   memblock() {}
   // prepare the data in the memroy.
