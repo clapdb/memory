@@ -182,7 +182,7 @@ class Arena
 
   // Arena constructor
   explicit Arena(const Options& op) : options_(op), last_block_(nullptr), cookie_(nullptr), space_allocated_(0ULL) {
-    // Init();
+    // init();
   }
 
   // Arena desctructor
@@ -286,7 +286,7 @@ class Arena
     return nullptr;
   }
 
-  [[gnu::always_inline]] inline void Init() {
+  [[gnu::always_inline]] inline void init() {
     if (options_.on_arena_init != nullptr) [[likely]] {
       cookie_ = options_.on_arena_init(this);
     }

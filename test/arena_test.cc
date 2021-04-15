@@ -798,7 +798,7 @@ TEST_F(ArenaTest, HookTest) {
   hook_instance = new mock_hook;
   Arena* a = new Arena(ops_hook);
   EXPECT_CALL(*hook_instance, arena_init_hook(a)).WillOnce(Return(cookie));
-  a->Init();
+  a->init();
   ASSERT_EQ(a->cookie_, cookie);
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(mem));
   EXPECT_CALL(*hook_instance, arena_allocate_hook(nullptr, 30, cookie));
