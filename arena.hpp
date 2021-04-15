@@ -77,7 +77,6 @@ class Arena
     // A Function pointer to a dealloc method for the blocks in the Arena.
     void (*block_dealloc)(void*);
 
-    uint64_t default_cleanup_list_size;
     // Arena hooked functions
     // Hooks for adding external functionality.
     // Init hook may return a pointer to a cookie to be stored in the arena.
@@ -98,7 +97,6 @@ class Arena
           suggested_initblock_size(4096),    // 4k
           block_alloc(nullptr),
           block_dealloc(nullptr),
-          default_cleanup_list_size(16),
           on_arena_init(nullptr),
           on_arena_reset(nullptr),
           on_arena_allocation(nullptr),
@@ -112,7 +110,6 @@ class Arena
           suggested_initblock_size(options.suggested_initblock_size),
           block_alloc(options.block_alloc),
           block_dealloc(options.block_dealloc),
-          default_cleanup_list_size(options.default_cleanup_list_size),
           on_arena_init(options.on_arena_init),
           on_arena_reset(options.on_arena_reset),
           on_arena_allocation(options.on_arena_allocation),
@@ -185,11 +182,6 @@ class Arena
 
   // Arena constructor
   explicit Arena(const Options& op) : options_(op), last_block_(nullptr), cookie_(nullptr), space_allocated_(0ULL) {
-    // this new will throw bad_alloc occasionally
-    // cleanups_ = new std::vector<std::function<void()>>();
-    // if (options_.default_cleanup_list_size > 0) [[likely]] {
-    // cleanups_->reserve(options_.default_cleanup_list_size);
-    //}
     // Init();
   }
 
@@ -197,7 +189,6 @@ class Arena
   ~Arena() {
     // free blocks
     FreeAllBlocks();
-    // delete cleanups_;
     // make sure the on_arena_destruction was set.
     if (options_.on_arena_destruction != nullptr) [[likely]] {
       options_.on_arena_destruction(this, cookie_, space_allocated_);
@@ -218,7 +209,6 @@ class Arena
       options_.on_arena_reset(this, cookie_, space_allocated_);
     }
     // reset all internal status.
-    // cleanups_->clear();
     uint64_t reset_size = space_allocated_;
     space_allocated_ = last_block_->size();
     last_block_->Reset();
@@ -378,8 +368,6 @@ class Arena
   // should be initialized by on_arena_init
   // and should be destroy by on_arena_destruction
   void* cookie_;
-
-  // std::vector<std::function<void()>>* cleanups_;
 
   uint64_t space_allocated_;
 
