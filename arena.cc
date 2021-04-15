@@ -23,8 +23,7 @@
 
 using stdb::memory::Arena;
 
-Arena::Block::Block(uint64_t size, Block* prev)
-    : prev_(prev), pos_(kBlockHeaderSize), size_(size), limit_(size) {}
+Arena::Block::Block(uint64_t size, Block* prev) : prev_(prev), pos_(kBlockHeaderSize), size_(size), limit_(size) {}
 
 // generate a new memory Block.
 Arena::Block* Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept {
