@@ -384,7 +384,7 @@ TEST_F(ArenaTest, FreeBlocks_except_first_Test) {
   EXPECT_CALL(*mock, dealloc(x2)).Times(1);
   EXPECT_CALL(*mock, dealloc(x3)).Times(1);
   // FreeBlocks should not be call out of the class, just use ~Arena
-  a->FreeBlocks_except_head();
+  a->free_blocks_except_head();
   // delete a;
 
   ASSERT_EQ(a->last_block_, x1);

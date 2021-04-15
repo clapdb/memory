@@ -204,7 +204,7 @@ class Arena
 
   inline uint64_t Reset() noexcept {
     // free all blocks except the first block
-    FreeBlocks_except_head();
+    free_blocks_except_head();
     if (options_.on_arena_reset != nullptr) [[likely]] {
       options_.on_arena_reset(this, cookie_, space_allocated_);
     }
@@ -345,7 +345,7 @@ class Arena
     return;
   }
 
-  [[gnu::always_inline]] inline void FreeBlocks_except_head() noexcept {
+  [[gnu::always_inline]] inline void free_blocks_except_head() noexcept {
     Block* curr = last_block_;
     Block* prev;
 
