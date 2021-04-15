@@ -365,7 +365,7 @@ TEST_F(ArenaTest, addCleanup_Fail_Test) {
   delete mock_cleaners;
 }
 
-TEST_F(ArenaTest, FreeBlocks_except_first_Test) {
+TEST_F(ArenaTest, free_blocks_except_first_Test) {
   void* x1 = std::malloc(1024);
   void* x2 = std::malloc(2048);
   void* x3 = std::malloc(4096);
@@ -462,7 +462,7 @@ TEST_F(ArenaTest, Reset_with_cleanup_Test) {
   delete mock;
 }
 
-TEST_F(ArenaTest, FreeBlocksTest) {
+TEST_F(ArenaTest, free_blocks_Test) {
   void* x1 = std::malloc(1024);
   void* x2 = std::malloc(2048);
   void* x3 = std::malloc(4096);

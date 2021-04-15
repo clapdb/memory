@@ -378,8 +378,8 @@ class Arena
   FRIEND_TEST(ArenaTest, NewBlockTest);
   FRIEND_TEST(ArenaTest, addCleanupTest);
   FRIEND_TEST(ArenaTest, addCleanup_Fail_Test);
-  FRIEND_TEST(ArenaTest, FreeBlocksTest);
-  FRIEND_TEST(ArenaTest, FreeBlocks_except_first_Test);
+  FRIEND_TEST(ArenaTest, free_blocks_Test);
+  FRIEND_TEST(ArenaTest, free_blocks_except_first_Test);
   FRIEND_TEST(ArenaTest, DoCleanupTest);
   FRIEND_TEST(ArenaTest, OwnTest);
   FRIEND_TEST(ArenaTest, SpaceTest);
