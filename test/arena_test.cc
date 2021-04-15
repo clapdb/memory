@@ -216,7 +216,6 @@ class ArenaTest : public ::testing::Test
     ops_complex.normal_block_size = 1024ULL;
     ops_complex.suggested_initblock_size = 4096ULL;
     ops_complex.huge_block_size = 1024ULL * 1024ULL;
-    ops_complex.default_cleanup_list_size = 2ULL;
 
     // initialize the ops_simple
     ops_simple.block_alloc = &mock_alloc;
@@ -224,7 +223,6 @@ class ArenaTest : public ::testing::Test
     ops_simple.normal_block_size = 1024ULL;
     ops_simple.suggested_initblock_size = 0ULL;
     ops_simple.huge_block_size = 0ULL;
-    ops_simple.default_cleanup_list_size = 0ULL;
   }
 
   void TearDown() {}
