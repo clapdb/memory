@@ -481,7 +481,7 @@ TEST_F(ArenaTest, FreeBlocksTest) {
   EXPECT_CALL(*mock, dealloc(x2)).Times(1);
   EXPECT_CALL(*mock, dealloc(x3)).Times(1);
   // FreeBlocks should not be call out of the class, just use ~Arena
-  a->FreeAllBlocks();
+  a->free_all_blocks();
   // delete a;
 
   std::free(x1);

@@ -188,7 +188,7 @@ class Arena
   // Arena desctructor
   ~Arena() {
     // free blocks
-    FreeAllBlocks();
+    free_all_blocks();
     // make sure the on_arena_destruction was set.
     if (options_.on_arena_destruction != nullptr) [[likely]] {
       options_.on_arena_destruction(this, cookie_, space_allocated_);
@@ -331,7 +331,7 @@ class Arena
     return addCleanup(ptr, &arena_destruct_object<T>);
   }
 
-  [[gnu::always_inline]] inline void FreeAllBlocks() noexcept {
+  [[gnu::always_inline]] inline void free_all_blocks() noexcept {
     Block* curr = last_block_;
     Block* prev;
 
