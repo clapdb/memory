@@ -40,7 +40,7 @@ class alloc_class
  public:
   MOCK_METHOD1(alloc, void*(uint64_t));
   MOCK_METHOD1(dealloc, void(void*));
-  ~alloc_class(){};
+  ~alloc_class() {}
 };
 
 class BlockTest : public ::testing::Test
@@ -162,7 +162,7 @@ TEST_F(BlockTest, Reset_with_cleanup_Test) {
   b->Reset();
   ASSERT_EQ(b->remain(), 1024ULL - kBlockHeaderSize);
   ASSERT_EQ(b->Pos() - x, 0LL);
-  ;
+
   delete mock_cleaners;
   mock_cleaners = nullptr;
 }
