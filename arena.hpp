@@ -24,6 +24,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <limits>
+#include <memory_resource>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
@@ -50,11 +51,12 @@ void arena_destruct_object(void* obj) {
   reinterpret_cast<T*>(obj)->~T();
 }
 
-class Arena
+class Arena : public std::pmr::memory_resource
 {
  public:
   Arena(const Arena&) = delete;
   Arena& operator=(const Arena&) = delete;
+
   // Arena Options class for the Arena class 's configiration
   struct Options
   {
@@ -361,6 +363,15 @@ class Arena
     return;
   }
 
+ protected:
+  void* do_allocate(std::size_t bytes, std::size_t /* alignment */) override {
+    return reinterpret_cast<char*>(allocateAligned(bytes));
+  }
+
+  void do_deallocate(void* p, std::size_t bytes, std::size_t alignment) override{};
+
+  bool do_is_equal(const memory_resource& __other) const noexcept override { return this == &__other; }
+
  private:
   Options options_;
   Block* last_block_;
@@ -391,6 +402,7 @@ class Arena
   FRIEND_TEST(ArenaTest, HookTest);
   FRIEND_TEST(ArenaTest, ResetTest);
   FRIEND_TEST(ArenaTest, Reset_with_cleanup_Test);
+  FRIEND_TEST(ArenaTest, allocator_aware);
 };  // class Arena
 
 static constexpr uint64_t kBlockHeaderSize = align::AlignUpTo<8>(sizeof(memory::Arena::Block));

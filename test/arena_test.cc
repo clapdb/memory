@@ -34,6 +34,7 @@ namespace stdb {
 namespace memory {
 
 using std::string;
+using ::testing::ElementsAre;
 
 class alloc_class
 {
@@ -886,6 +887,146 @@ TEST_F(ArenaTest, NullTest) {
   delete mock;
   delete cstr;
   delete a;
+}
+
+TEST_F(ArenaTest, memory_resource) {
+  mock = new alloc_class{};
+
+  Arena::Options opts;
+  opts.normal_block_size = 256;
+  opts.huge_block_size = 512;
+  opts.suggested_initblock_size = 256;
+  opts.block_alloc = &mock_alloc;
+  opts.block_dealloc = &mock_dealloc;
+
+  Arena* arena = new Arena{opts};
+
+  char mem[256];
+  EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem)));
+  void* ptr = arena->allocate(100);
+  ASSERT_EQ(ptr, std::data(mem) + kBlockHeaderSize);
+  void* ptr2 = arena->allocate(30);
+
+  EXPECT_CALL(*mock, dealloc(std::data(mem))).Times(1);
+  arena->deallocate(ptr2, 30);
+  arena->deallocate(ptr, 100);
+
+  Arena* arena2 = arena;
+  EXPECT_EQ(*arena, *arena2);
+
+  Arena arena3{opts};
+  EXPECT_NE(*arena, arena3);
+
+  delete arena;
+  delete mock;
+  mock = nullptr;
+}
+
+class Foo
+{
+  using allocator_type = std::pmr::polymorphic_allocator<>;
+
+ public:
+  explicit Foo(allocator_type alloc) : allocator_(alloc), vec_{alloc} {};
+  Foo(const Foo& foo, allocator_type alloc) : allocator_(alloc), vec_{foo.vec_, alloc} {};
+  Foo(Foo&& foo) : Foo{std::move(foo), foo.allocator_} {};
+  Foo(Foo&& foo, allocator_type alloc) : allocator_(alloc), vec_{alloc} { vec_ = std::move(foo.vec_); }
+
+  allocator_type allocator_;
+  std::pmr::vector<int> vec_;
+};
+
+TEST_F(ArenaTest, allocator_aware) {
+  mock = new alloc_class{};
+
+  Arena::Options opts;
+  opts.normal_block_size = 256;
+  opts.huge_block_size = 512;
+  opts.suggested_initblock_size = 256;
+  opts.block_alloc = &mock_alloc;
+  opts.block_dealloc = &mock_dealloc;
+
+  {  // ctor
+    char mem[256];
+    Arena arena{opts};
+    Foo foo(&arena);
+
+    EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem)));
+    EXPECT_CALL(*mock, dealloc(std::data(mem))).Times(1);
+
+    foo.vec_.resize(2);
+    EXPECT_EQ(256 - 8 - kBlockHeaderSize, arena.last_block_->remain());
+    foo.vec_.resize(1);
+    EXPECT_EQ(256 - 8 - kBlockHeaderSize, arena.last_block_->remain());
+    foo.vec_.resize(4);
+    EXPECT_EQ(256 - 8 - 16 - kBlockHeaderSize, arena.last_block_->remain());
+  }
+
+  {  // copy
+    char mem1[256];
+    Arena arena1{opts};
+    EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem1)));
+    EXPECT_CALL(*mock, dealloc(std::data(mem1))).Times(1);
+
+    Foo foo1(&arena1);
+    foo1.vec_ = {1, 2, 3, 4};
+    EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
+
+    // copy with same arena
+    Foo foo2(foo1, &arena1);
+    foo2.vec_[3] = 5;
+    EXPECT_EQ(256 - 16 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
+    EXPECT_EQ(0, memcmp(foo1.vec_.data(), foo2.vec_.data(), 4));
+    EXPECT_EQ(foo1.vec_.data(), reinterpret_cast<int*>(std::data(mem1) + kBlockHeaderSize));
+    EXPECT_EQ(foo1.vec_.data() + 4, foo2.vec_.data());
+
+    // copy with another arena
+    char mem2[256];
+    Arena arena2{opts};
+    EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem2)));
+    EXPECT_CALL(*mock, dealloc(std::data(mem2))).Times(1);
+
+    Foo foo3(foo2, &arena2);
+    foo3.vec_[0] = 6;
+    EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena2.last_block_->remain());
+    EXPECT_THAT(foo3.vec_, ElementsAre(6, 2, 3, 5));
+  }
+
+  {  // move
+    char mem1[256];
+    Arena arena1{opts};
+    EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem1)));
+    EXPECT_CALL(*mock, dealloc(std::data(mem1))).Times(1);
+
+    // move with same arena
+    Foo foo1(&arena1);
+    foo1.vec_ = {1, 2, 3, 4};
+    EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
+
+    Foo foo2(std::move(foo1));
+    EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
+    EXPECT_EQ(0, foo1.vec_.size());
+    EXPECT_EQ(4, foo2.vec_.size());
+
+    Foo foo3(std::move(foo2), &arena1);
+    EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
+    EXPECT_EQ(0, foo2.vec_.size());
+    EXPECT_EQ(4, foo3.vec_.size());
+
+    // move with another arena
+    char mem2[256];
+    Arena arena2{opts};
+    EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem2)));
+    EXPECT_CALL(*mock, dealloc(std::data(mem2))).Times(1);
+
+    Foo foo4(std::move(foo3), &arena2);
+    EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena2.last_block_->remain());
+    EXPECT_EQ(0, foo3.vec_.size());
+    EXPECT_EQ(4, foo4.vec_.size());
+  }
+
+  delete mock;
+  mock = nullptr;
 }
 
 }  // namespace memory
