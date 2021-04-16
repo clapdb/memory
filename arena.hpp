@@ -51,7 +51,7 @@ void arena_destruct_object(void* obj) {
   reinterpret_cast<T*>(obj)->~T();
 }
 
-class Arena : public std::pmr::memory_resource
+class Arena
 {
  public:
   Arena(const Arena&) = delete;
@@ -180,6 +180,27 @@ class Arena : public std::pmr::memory_resource
     uint64_t pos_;
     uint64_t size_;   // the size of the block
     uint64_t limit_;  // the limit can be use for Create
+  };
+
+  class memory_resource : public std::pmr::memory_resource
+  {
+   public:
+    explicit memory_resource(Arena* arena) : arena_(arena) { assert(arena != nullptr); };
+
+   protected:
+    void* do_allocate(std::size_t bytes, std::size_t /* alignment */) override {
+      return reinterpret_cast<char*>(arena_->allocateAligned(bytes));
+    }
+
+    void do_deallocate(void* p, std::size_t bytes, std::size_t /* alignment*/) override{};
+
+    bool do_is_equal(const std::pmr::memory_resource& __other) const noexcept override {
+      // TODO(yexiliang): should we compare arena_?
+      return this == &__other;
+    }
+
+   private:
+    Arena* arena_;
   };
 
   // Arena constructor
@@ -362,15 +383,6 @@ class Arena : public std::pmr::memory_resource
     last_block_ = curr;
     return;
   }
-
- protected:
-  void* do_allocate(std::size_t bytes, std::size_t /* alignment */) override {
-    return reinterpret_cast<char*>(allocateAligned(bytes));
-  }
-
-  void do_deallocate(void* p, std::size_t bytes, std::size_t alignment) override{};
-
-  bool do_is_equal(const memory_resource& __other) const noexcept override { return this == &__other; }
 
  private:
   Options options_;

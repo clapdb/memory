@@ -900,22 +900,27 @@ TEST_F(ArenaTest, memory_resource) {
   opts.block_dealloc = &mock_dealloc;
 
   Arena* arena = new Arena{opts};
+  Arena::memory_resource res{arena};
 
   char mem[256];
+
+  // allocate
   EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem)));
-  void* ptr = arena->allocate(100);
+  void* ptr = res.allocate(100);
   ASSERT_EQ(ptr, std::data(mem) + kBlockHeaderSize);
-  void* ptr2 = arena->allocate(30);
+  void* ptr2 = res.allocate(30);
 
+  // deallocate
   EXPECT_CALL(*mock, dealloc(std::data(mem))).Times(1);
-  arena->deallocate(ptr2, 30);
-  arena->deallocate(ptr, 100);
+  res.deallocate(ptr2, 30);
+  res.deallocate(ptr, 100);
 
-  Arena* arena2 = arena;
-  EXPECT_EQ(*arena, *arena2);
+  // operator==
+  Arena::memory_resource& res2 = res;
+  EXPECT_EQ(res, res2);
 
-  Arena arena3{opts};
-  EXPECT_NE(*arena, arena3);
+  Arena::memory_resource res3{arena};
+  EXPECT_NE(res, res3);
 
   delete arena;
   delete mock;
@@ -949,7 +954,8 @@ TEST_F(ArenaTest, allocator_aware) {
   {  // ctor
     char mem[256];
     Arena arena{opts};
-    Foo foo(&arena);
+    Arena::memory_resource res{&arena};
+    Foo foo(&res);
 
     EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem)));
     EXPECT_CALL(*mock, dealloc(std::data(mem))).Times(1);
@@ -965,15 +971,16 @@ TEST_F(ArenaTest, allocator_aware) {
   {  // copy
     char mem1[256];
     Arena arena1{opts};
+    Arena::memory_resource res1{&arena1};
     EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem1)));
     EXPECT_CALL(*mock, dealloc(std::data(mem1))).Times(1);
 
-    Foo foo1(&arena1);
+    Foo foo1(&res1);
     foo1.vec_ = {1, 2, 3, 4};
     EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
 
     // copy with same arena
-    Foo foo2(foo1, &arena1);
+    Foo foo2(foo1, &res1);
     foo2.vec_[3] = 5;
     EXPECT_EQ(256 - 16 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
     EXPECT_EQ(0, memcmp(foo1.vec_.data(), foo2.vec_.data(), 4));
@@ -983,10 +990,11 @@ TEST_F(ArenaTest, allocator_aware) {
     // copy with another arena
     char mem2[256];
     Arena arena2{opts};
+    Arena::memory_resource res2{&arena2};
     EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem2)));
     EXPECT_CALL(*mock, dealloc(std::data(mem2))).Times(1);
 
-    Foo foo3(foo2, &arena2);
+    Foo foo3(foo2, &res2);
     foo3.vec_[0] = 6;
     EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena2.last_block_->remain());
     EXPECT_THAT(foo3.vec_, ElementsAre(6, 2, 3, 5));
@@ -995,11 +1003,12 @@ TEST_F(ArenaTest, allocator_aware) {
   {  // move
     char mem1[256];
     Arena arena1{opts};
+    Arena::memory_resource res1{&arena1};
     EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem1)));
     EXPECT_CALL(*mock, dealloc(std::data(mem1))).Times(1);
 
     // move with same arena
-    Foo foo1(&arena1);
+    Foo foo1(&res1);
     foo1.vec_ = {1, 2, 3, 4};
     EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
 
@@ -1008,7 +1017,7 @@ TEST_F(ArenaTest, allocator_aware) {
     EXPECT_EQ(0, foo1.vec_.size());
     EXPECT_EQ(4, foo2.vec_.size());
 
-    Foo foo3(std::move(foo2), &arena1);
+    Foo foo3(std::move(foo2), &res1);
     EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
     EXPECT_EQ(0, foo2.vec_.size());
     EXPECT_EQ(4, foo3.vec_.size());
@@ -1016,10 +1025,11 @@ TEST_F(ArenaTest, allocator_aware) {
     // move with another arena
     char mem2[256];
     Arena arena2{opts};
+    Arena::memory_resource res2{&arena2};
     EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem2)));
     EXPECT_CALL(*mock, dealloc(std::data(mem2))).Times(1);
 
-    Foo foo4(std::move(foo3), &arena2);
+    Foo foo4(std::move(foo3), &res2);
     EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena2.last_block_->remain());
     EXPECT_EQ(0, foo3.vec_.size());
     EXPECT_EQ(4, foo4.vec_.size());
