@@ -77,7 +77,6 @@ class Arena
     // A Function pointer to a dealloc method for the blocks in the Arena.
     void (*block_dealloc)(void*);
 
-    uint64_t default_cleanup_list_size;
     // Arena hooked functions
     // Hooks for adding external functionality.
     // Init hook may return a pointer to a cookie to be stored in the arena.
@@ -98,7 +97,6 @@ class Arena
           suggested_initblock_size(4096),    // 4k
           block_alloc(nullptr),
           block_dealloc(nullptr),
-          default_cleanup_list_size(16),
           on_arena_init(nullptr),
           on_arena_reset(nullptr),
           on_arena_allocation(nullptr),
@@ -112,7 +110,6 @@ class Arena
           suggested_initblock_size(options.suggested_initblock_size),
           block_alloc(options.block_alloc),
           block_dealloc(options.block_dealloc),
-          default_cleanup_list_size(options.default_cleanup_list_size),
           on_arena_init(options.on_arena_init),
           on_arena_reset(options.on_arena_reset),
           on_arena_allocation(options.on_arena_allocation),
@@ -185,19 +182,13 @@ class Arena
 
   // Arena constructor
   explicit Arena(const Options& op) : options_(op), last_block_(nullptr), cookie_(nullptr), space_allocated_(0ULL) {
-    // this new will throw bad_alloc occasionally
-    // cleanups_ = new std::vector<std::function<void()>>();
-    // if (options_.default_cleanup_list_size > 0) [[likely]] {
-    // cleanups_->reserve(options_.default_cleanup_list_size);
-    //}
-    // Init();
+    // init();
   }
 
   // Arena desctructor
   ~Arena() {
     // free blocks
-    FreeAllBlocks();
-    // delete cleanups_;
+    free_all_blocks();
     // make sure the on_arena_destruction was set.
     if (options_.on_arena_destruction != nullptr) [[likely]] {
       options_.on_arena_destruction(this, cookie_, space_allocated_);
@@ -213,12 +204,11 @@ class Arena
 
   inline uint64_t Reset() noexcept {
     // free all blocks except the first block
-    FreeBlocks_except_head();
+    free_blocks_except_head();
     if (options_.on_arena_reset != nullptr) [[likely]] {
       options_.on_arena_reset(this, cookie_, space_allocated_);
     }
     // reset all internal status.
-    // cleanups_->clear();
     uint64_t reset_size = space_allocated_;
     space_allocated_ = last_block_->size();
     last_block_->Reset();
@@ -296,7 +286,7 @@ class Arena
     return nullptr;
   }
 
-  [[gnu::always_inline]] inline void Init() noexcept {
+  [[gnu::always_inline]] inline void init() {
     if (options_.on_arena_init != nullptr) [[likely]] {
       cookie_ = options_.on_arena_init(this);
     }
@@ -341,7 +331,7 @@ class Arena
     return addCleanup(ptr, &arena_destruct_object<T>);
   }
 
-  [[gnu::always_inline]] inline void FreeAllBlocks() noexcept {
+  [[gnu::always_inline]] inline void free_all_blocks() noexcept {
     Block* curr = last_block_;
     Block* prev;
 
@@ -355,7 +345,7 @@ class Arena
     return;
   }
 
-  [[gnu::always_inline]] inline void FreeBlocks_except_head() noexcept {
+  [[gnu::always_inline]] inline void free_blocks_except_head() noexcept {
     Block* curr = last_block_;
     Block* prev;
 
@@ -379,8 +369,6 @@ class Arena
   // and should be destroy by on_arena_destruction
   void* cookie_;
 
-  // std::vector<std::function<void()>>* cleanups_;
-
   uint64_t space_allocated_;
 
   static constexpr uint64_t kThresholdHuge = 4;
@@ -390,8 +378,8 @@ class Arena
   FRIEND_TEST(ArenaTest, NewBlockTest);
   FRIEND_TEST(ArenaTest, addCleanupTest);
   FRIEND_TEST(ArenaTest, addCleanup_Fail_Test);
-  FRIEND_TEST(ArenaTest, FreeBlocksTest);
-  FRIEND_TEST(ArenaTest, FreeBlocks_except_first_Test);
+  FRIEND_TEST(ArenaTest, free_blocks_Test);
+  FRIEND_TEST(ArenaTest, free_blocks_except_first_Test);
   FRIEND_TEST(ArenaTest, DoCleanupTest);
   FRIEND_TEST(ArenaTest, OwnTest);
   FRIEND_TEST(ArenaTest, SpaceTest);

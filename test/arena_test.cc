@@ -216,7 +216,6 @@ class ArenaTest : public ::testing::Test
     ops_complex.normal_block_size = 1024ULL;
     ops_complex.suggested_initblock_size = 4096ULL;
     ops_complex.huge_block_size = 1024ULL * 1024ULL;
-    ops_complex.default_cleanup_list_size = 2ULL;
 
     // initialize the ops_simple
     ops_simple.block_alloc = &mock_alloc;
@@ -224,7 +223,6 @@ class ArenaTest : public ::testing::Test
     ops_simple.normal_block_size = 1024ULL;
     ops_simple.suggested_initblock_size = 0ULL;
     ops_simple.huge_block_size = 0ULL;
-    ops_simple.default_cleanup_list_size = 0ULL;
   }
 
   void TearDown() {}
@@ -367,7 +365,7 @@ TEST_F(ArenaTest, addCleanup_Fail_Test) {
   delete mock_cleaners;
 }
 
-TEST_F(ArenaTest, FreeBlocks_except_first_Test) {
+TEST_F(ArenaTest, free_blocks_except_first_Test) {
   void* x1 = std::malloc(1024);
   void* x2 = std::malloc(2048);
   void* x3 = std::malloc(4096);
@@ -386,7 +384,7 @@ TEST_F(ArenaTest, FreeBlocks_except_first_Test) {
   EXPECT_CALL(*mock, dealloc(x2)).Times(1);
   EXPECT_CALL(*mock, dealloc(x3)).Times(1);
   // FreeBlocks should not be call out of the class, just use ~Arena
-  a->FreeBlocks_except_head();
+  a->free_blocks_except_head();
   // delete a;
 
   ASSERT_EQ(a->last_block_, x1);
@@ -464,7 +462,7 @@ TEST_F(ArenaTest, Reset_with_cleanup_Test) {
   delete mock;
 }
 
-TEST_F(ArenaTest, FreeBlocksTest) {
+TEST_F(ArenaTest, free_blocks_Test) {
   void* x1 = std::malloc(1024);
   void* x2 = std::malloc(2048);
   void* x3 = std::malloc(4096);
@@ -483,7 +481,7 @@ TEST_F(ArenaTest, FreeBlocksTest) {
   EXPECT_CALL(*mock, dealloc(x2)).Times(1);
   EXPECT_CALL(*mock, dealloc(x3)).Times(1);
   // FreeBlocks should not be call out of the class, just use ~Arena
-  a->FreeAllBlocks();
+  a->free_all_blocks();
   // delete a;
 
   std::free(x1);
@@ -800,7 +798,7 @@ TEST_F(ArenaTest, HookTest) {
   hook_instance = new mock_hook;
   Arena* a = new Arena(ops_hook);
   EXPECT_CALL(*hook_instance, arena_init_hook(a)).WillOnce(Return(cookie));
-  a->Init();
+  a->init();
   ASSERT_EQ(a->cookie_, cookie);
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(mem));
   EXPECT_CALL(*hook_instance, arena_allocate_hook(nullptr, 30, cookie));
