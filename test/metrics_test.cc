@@ -18,7 +18,7 @@ class alloc_class
   ~alloc_class() {}
 };
 
-class ThreadLocalArenaColector_Test : public ::testing::Test
+class ThreadLocalArenaMetrics_Test : public ::testing::Test
 {
  protected:
   Arena::Options ops;
@@ -45,7 +45,7 @@ class ThreadLocalArenaColector_Test : public ::testing::Test
   };
 };
 
-TEST_F(ThreadLocalArenaColector_Test, Init) {
+TEST_F(ThreadLocalArenaMetrics_Test, Init) {
   Arena* a = new Arena(ops);
   a->Init();
   delete a;
@@ -53,7 +53,7 @@ TEST_F(ThreadLocalArenaColector_Test, Init) {
   ASSERT_EQ(m.init_count, 1);
 }
 
-TEST_F(ThreadLocalArenaColector_Test, Rest) {
+TEST_F(ThreadLocalArenaMetrics_Test, Rest) {
   Arena* a = new Arena(ops);
   a->Init();
   auto p0 = a->AllocateAligned(124);
@@ -63,7 +63,7 @@ TEST_F(ThreadLocalArenaColector_Test, Rest) {
   ASSERT_EQ(m.reset_count, 1);
 }
 
-TEST_F(ThreadLocalArenaColector_Test, Allocation) {
+TEST_F(ThreadLocalArenaMetrics_Test, Allocation) {
   {
     Arena* a = new Arena(ops);
     a->Init();
@@ -87,7 +87,7 @@ TEST_F(ThreadLocalArenaColector_Test, Allocation) {
   }
 }
 
-TEST_F(ThreadLocalArenaColector_Test, Destruction) {
+TEST_F(ThreadLocalArenaMetrics_Test, Destruction) {
   Arena* a = new Arena(ops);
   a->Init();
   auto p0 = a->AllocateAligned(10);
@@ -96,7 +96,7 @@ TEST_F(ThreadLocalArenaColector_Test, Destruction) {
   ASSERT_EQ(m.destruct_count, 1);
 }
 
-TEST_F(ThreadLocalArenaColector_Test, ReportToGlobalMetrics) {
+TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
   Arena* a = new Arena(ops);
   a->Init();
   auto alloc_count = 1024;
