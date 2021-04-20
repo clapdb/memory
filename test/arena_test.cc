@@ -889,7 +889,7 @@ TEST_F(ArenaTest, NullTest) {
   delete a;
 }
 
-TEST_F(ArenaTest, memory_resource) {
+TEST_F(ArenaTest, memory_resource_Test) {
   mock = new alloc_class{};
 
   Arena::Options opts;
@@ -954,7 +954,7 @@ class Foo
   std::pmr::vector<int> vec_;
 };
 
-TEST_F(ArenaTest, allocator_aware) {
+TEST_F(ArenaTest, allocator_aware_Test) {
   mock = new alloc_class{};
 
   Arena::Options opts;

@@ -199,7 +199,7 @@ class Arena
       try {
         auto other = dynamic_cast<const memory_resource&>(__other);
         return arena_ == other.arena_;
-      } catch (std::bad_cast) {
+      } catch (std::bad_cast&) {
         return false;
       }
     }
@@ -421,7 +421,7 @@ class Arena
   FRIEND_TEST(ArenaTest, HookTest);
   FRIEND_TEST(ArenaTest, ResetTest);
   FRIEND_TEST(ArenaTest, Reset_with_cleanup_Test);
-  FRIEND_TEST(ArenaTest, allocator_aware);
+  FRIEND_TEST(ArenaTest, allocator_aware_Test);
 };  // class Arena
 
 static constexpr uint64_t kBlockHeaderSize = align::AlignUpTo<8>(sizeof(memory::Arena::Block));
