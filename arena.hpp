@@ -24,6 +24,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <limits>
+#include <memory_resource>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
@@ -55,6 +56,7 @@ class Arena
  public:
   Arena(const Arena&) = delete;
   Arena& operator=(const Arena&) = delete;
+
   // Arena Options class for the Arena class 's configiration
   struct Options
   {
@@ -180,6 +182,32 @@ class Arena
     uint64_t limit_;  // the limit can be use for Create
   };
 
+  class memory_resource : public std::pmr::memory_resource
+  {
+   public:
+    explicit memory_resource(Arena* arena) : arena_(arena) { assert(arena != nullptr); };
+    Arena* get_arena() const { return arena_; }
+
+   protected:
+    void* do_allocate(std::size_t bytes, std::size_t /* alignment */) override {
+      return reinterpret_cast<char*>(arena_->allocateAligned(bytes));
+    }
+
+    void do_deallocate(void* p, std::size_t bytes, std::size_t /* alignment*/) override{};
+
+    bool do_is_equal(const std::pmr::memory_resource& __other) const noexcept override {
+      try {
+        auto other = dynamic_cast<const memory_resource&>(__other);
+        return arena_ == other.arena_;
+      } catch (std::bad_cast&) {
+        return false;
+      }
+    }
+
+   private:
+    Arena* arena_;
+  };
+
   // Arena constructor
   explicit Arena(const Options& op) : options_(op), last_block_(nullptr), cookie_(nullptr), space_allocated_(0ULL) {
     // init();
@@ -292,6 +320,8 @@ class Arena
     }
   }
 
+  [[gnu::always_inline]] inline memory_resource get_memory_resource() noexcept { return memory_resource{this}; };
+
  private:
   // New Block while current Block has not enough memory.
   [[nodiscard]] Block* newBlock(uint64_t min_bytes, Block* prev_block) noexcept;
@@ -391,6 +421,7 @@ class Arena
   FRIEND_TEST(ArenaTest, HookTest);
   FRIEND_TEST(ArenaTest, ResetTest);
   FRIEND_TEST(ArenaTest, Reset_with_cleanup_Test);
+  FRIEND_TEST(ArenaTest, allocator_aware_Test);
 };  // class Arena
 
 static constexpr uint64_t kBlockHeaderSize = align::AlignUpTo<8>(sizeof(memory::Arena::Block));
