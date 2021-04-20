@@ -186,6 +186,7 @@ class Arena
   {
    public:
     explicit memory_resource(Arena* arena) : arena_(arena) { assert(arena != nullptr); };
+    Arena* get_arena() const { return arena_; }
 
    protected:
     void* do_allocate(std::size_t bytes, std::size_t /* alignment */) override {
@@ -195,8 +196,12 @@ class Arena
     void do_deallocate(void* p, std::size_t bytes, std::size_t /* alignment*/) override{};
 
     bool do_is_equal(const std::pmr::memory_resource& __other) const noexcept override {
-      // TODO(yexiliang): should we compare arena_?
-      return this == &__other;
+      try {
+        auto other = dynamic_cast<const memory_resource&>(__other);
+        return arena_ == other.arena_;
+      } catch (std::bad_cast) {
+        return false;
+      }
     }
 
    private:
@@ -314,6 +319,8 @@ class Arena
       cookie_ = options_.on_arena_init(this);
     }
   }
+
+  [[gnu::always_inline]] inline memory_resource get_memory_resource() noexcept { return memory_resource{this}; };
 
  private:
   // New Block while current Block has not enough memory.

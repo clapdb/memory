@@ -904,6 +904,9 @@ TEST_F(ArenaTest, memory_resource) {
 
   char mem[256];
 
+  // get_arena
+  EXPECT_EQ(arena, res.get_arena());
+
   // allocate
   EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem)));
   void* ptr = res.allocate(100);
@@ -916,11 +919,21 @@ TEST_F(ArenaTest, memory_resource) {
   res.deallocate(ptr, 100);
 
   // operator==
-  Arena::memory_resource& res2 = res;
-  EXPECT_EQ(res, res2);
+  {
+    Arena::memory_resource& res2 = res;
+    EXPECT_EQ(res, res2);
 
-  Arena::memory_resource res3{arena};
-  EXPECT_NE(res, res3);
+    Arena::memory_resource res3 = arena->get_memory_resource();
+    EXPECT_EQ(res, res3);
+  }
+  {
+    Arena arena2{opts};
+    auto res2 = arena2.get_memory_resource();
+    EXPECT_NE(res, res2);
+
+    auto res3 = std::pmr::monotonic_buffer_resource{};
+    EXPECT_NE(res2, res3);
+  }
 
   delete arena;
   delete mock;
