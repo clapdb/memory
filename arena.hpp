@@ -36,11 +36,15 @@ namespace memory {
 
 using align::AlignUpTo;
 
+// Cleanup Node
 struct CleanupNode
 {
   void* element;
   void (*cleanup)(void*);
+  // Cleanup Node cannot be default constructed or copy/move.
   CleanupNode() = delete;
+  CleanupNode(const CleanupNode&) = delete;
+  CleanupNode(const CleanupNode&&) = delete;
   CleanupNode(void* elem, void (*clean)(void*)) : element(elem), cleanup(clean) {}
 };
 
@@ -54,6 +58,7 @@ void arena_destruct_object(void* obj) {
 class Arena
 {
  public:
+  // make sure Arena can not be copyable
   Arena(const Arena&) = delete;
   Arena& operator=(const Arena&) = delete;
 
