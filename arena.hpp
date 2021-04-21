@@ -349,7 +349,7 @@ class Arena
     return true;
   }
 
-  [[gnu::always_inline]] static inline uint64_t align_size(uint64_t n) noexcept { return align::AlignUpTo<8>(n); }
+  [[nodiscard, gnu::always_inline]] static inline uint64_t align_size(uint64_t n) noexcept { return align::AlignUpTo<8>(n); }
 
   template <typename T>
   [[nodiscard, gnu::always_inline]] inline bool RegisterDestructor(T* ptr) noexcept {
