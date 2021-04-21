@@ -94,9 +94,10 @@ class Arena
     // on_arena_reset and on_arena_destruction also receive the space used in
     // the arena just before the reset.
     void* (*on_arena_init)(Arena* arena);
-    void (*on_arena_reset)(Arena* arena, void* cookie, uint64_t space_used);
+    void (*on_arena_reset)(Arena* arena, void* cookie, uint64_t space_used, uint64_t space_wasted);
     void (*on_arena_allocation)(const std::type_info* alloc_type, uint64_t alloc_size, void* cookie);
-    void* (*on_arena_destruction)(Arena* arena, void* cookie, uint64_t space_used);
+    void (*on_arena_newblock)(uint64_t blk_num, uint64_t blk_size, void* cookie);
+    void* (*on_arena_destruction)(Arena* arena, void* cookie, uint64_t space_used, uint64_t space_wasted);
 
     [[gnu::always_inline]] inline Options()
         : normal_block_size(4096),           // 4k is the normal pagesize of modern os
@@ -107,6 +108,7 @@ class Arena
           on_arena_init(nullptr),
           on_arena_reset(nullptr),
           on_arena_allocation(nullptr),
+          on_arena_newblock(nullptr),
           on_arena_destruction(nullptr) {
       init();
     }
@@ -120,6 +122,7 @@ class Arena
           on_arena_init(options.on_arena_init),
           on_arena_reset(options.on_arena_reset),
           on_arena_allocation(options.on_arena_allocation),
+          on_arena_newblock(options.on_arena_newblock),
           on_arena_destruction(options.on_arena_destruction) {
       init();
     }
@@ -221,10 +224,10 @@ class Arena
   // Arena desctructor
   ~Arena() {
     // free blocks
-    free_all_blocks();
+    uint64_t all_waste_space = free_all_blocks();
     // make sure the on_arena_destruction was set.
     if (options_.on_arena_destruction != nullptr) [[likely]] {
-      options_.on_arena_destruction(this, cookie_, space_allocated_);
+      options_.on_arena_destruction(this, cookie_, space_allocated_, all_waste_space);
     }
   }
 
@@ -237,9 +240,9 @@ class Arena
 
   inline uint64_t Reset() noexcept {
     // free all blocks except the first block
-    free_blocks_except_head();
+    uint64_t all_waste_space = free_blocks_except_head();
     if (options_.on_arena_reset != nullptr) [[likely]] {
-      options_.on_arena_reset(this, cookie_, space_allocated_);
+      options_.on_arena_reset(this, cookie_, space_allocated_, all_waste_space);
     }
     // reset all internal status.
     uint64_t reset_size = space_allocated_;
@@ -248,7 +251,12 @@ class Arena
     return reset_size;
   }
 
-  [[gnu::always_inline]] inline uint64_t SpaceAllocated() const noexcept { return space_allocated_; }
+  [[nodiscard, gnu::always_inline]] inline uint64_t SpaceAllocated() const noexcept { return space_allocated_; }
+  [[nodiscard, gnu::always_inline]] inline uint64_t SpaceRemains() const noexcept {
+    uint64_t remains = 0;
+    for (Block* curr = last_block_; curr != nullptr; curr = curr->prev())  remains += curr->remain();
+    return remains;
+  }
 
   // new from arena, and register cleanup function if need
   // always allocating in the arena memory
@@ -366,34 +374,43 @@ class Arena
     return addCleanup(ptr, &arena_destruct_object<T>);
   }
 
-  [[gnu::always_inline]] inline void free_all_blocks() noexcept {
+  // return all remains size of all blocks that was freed.
+  [[nodiscard, gnu::always_inline]] inline uint64_t free_all_blocks() noexcept {
     Block* curr = last_block_;
     Block* prev;
+    uint64_t remain_size = 0;
 
     while (curr != nullptr) {
       prev = curr->prev();
+      // add the size of curr blk.
+      remain_size += curr->remain();
       // run all cleanups first
       curr->run_cleanups();
       options_.block_dealloc(curr);
       curr = prev;
     }
-    return;
+    return remain_size;
   }
 
-  [[gnu::always_inline]] inline void free_blocks_except_head() noexcept {
+  [[nodiscard, gnu::always_inline]] inline uint64_t free_blocks_except_head() noexcept {
     Block* curr = last_block_;
     Block* prev;
+    uint64_t remain_size = 0;
 
     while (curr != nullptr && curr->prev() != nullptr) {
       prev = curr->prev();
+      // add the size of curr blk.
+      remain_size += curr->remain();
       // run all cleanups first
       curr->run_cleanups();
       options_.block_dealloc(curr);
       curr = prev;
     }
+    // add the curr blk remain to result
+    remain_size += curr->remain();
     // reset the last_block_ to the first block
     last_block_ = curr;
-    return;
+    return remain_size;
   }
 
  private:

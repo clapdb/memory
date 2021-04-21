@@ -65,9 +65,20 @@ Arena::Block* Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept {
   // if the size over the huge_block_size, the block will be monoplolized.
   void* mem = options_.block_alloc(size);
   // if mem == nullptr, means no memory available for current os status.
+  // if mem == nullptr, placement new will trigger a segmentfault
   if (mem == nullptr) [[unlikely]]
     return nullptr;
-  // if mem == nullptr, placement new will trigger a segmentfault
+
+  // call the on_arena_newblock callback
+  // if on_arena_newblock is nullptr, block num counting is a useless process, so avoid it.
+  if (options_.on_arena_newblock != nullptr) {
+    // count the blk num
+    uint64_t blk_num = 0;
+    for(Block* prev = prev_block; prev != nullptr; prev = prev->prev(), ++blk_num);
+
+    options_.on_arena_newblock(blk_num, size, cookie_);
+  }
+
   Block* b = new (mem) Block(size, prev_block);
   space_allocated_ += size;
   return b;
