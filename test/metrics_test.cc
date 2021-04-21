@@ -31,7 +31,6 @@ class ThreadLocalArenaMetrics_Test : public ::testing::Test
     ops.normal_block_size = 1024ULL;
     ops.suggested_initblock_size = 0ULL;
     ops.huge_block_size = 0ULL;
-    ops.default_cleanup_list_size = 0ULL;
 
     ops.on_arena_init = &metrics_probe_on_arena_init;
     ops.on_arena_reset = &metrics_probe_on_arena_reset;
@@ -47,7 +46,7 @@ class ThreadLocalArenaMetrics_Test : public ::testing::Test
 
 TEST_F(ThreadLocalArenaMetrics_Test, Init) {
   Arena* a = new Arena(ops);
-  a->Init();
+  a->init();
   delete a;
   auto& m = local_arena_metrics;
   ASSERT_EQ(m.init_count, 1);
@@ -55,7 +54,7 @@ TEST_F(ThreadLocalArenaMetrics_Test, Init) {
 
 TEST_F(ThreadLocalArenaMetrics_Test, Rest) {
   Arena* a = new Arena(ops);
-  a->Init();
+  a->init();
   auto p0 = a->AllocateAligned(124);
   a->Reset();
   delete a;
@@ -66,7 +65,7 @@ TEST_F(ThreadLocalArenaMetrics_Test, Rest) {
 TEST_F(ThreadLocalArenaMetrics_Test, Allocation) {
   {
     Arena* a = new Arena(ops);
-    a->Init();
+    a->init();
     auto p0 = a->AllocateAligned(10);
     delete a;
     auto& m = local_arena_metrics;
@@ -76,7 +75,7 @@ TEST_F(ThreadLocalArenaMetrics_Test, Allocation) {
 
   {
     Arena* a = new Arena(ops);
-    a->Init();
+    a->init();
     auto p0 = a->AllocateAligned(100);
     delete a;
     auto& m = local_arena_metrics;
@@ -89,7 +88,7 @@ TEST_F(ThreadLocalArenaMetrics_Test, Allocation) {
 
 TEST_F(ThreadLocalArenaMetrics_Test, Destruction) {
   Arena* a = new Arena(ops);
-  a->Init();
+  a->init();
   auto p0 = a->AllocateAligned(10);
   delete a;
   auto& m = local_arena_metrics;
@@ -98,7 +97,7 @@ TEST_F(ThreadLocalArenaMetrics_Test, Destruction) {
 
 TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
   Arena* a = new Arena(ops);
-  a->Init();
+  a->init();
   auto alloc_count = 1024;
   for (auto i = 0; i < alloc_count; i++) {
     auto p0 = a->AllocateAligned(10 * i);
@@ -129,14 +128,14 @@ TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
     ASSERT_EQ(m.alloc_count, 0);
     ASSERT_EQ(m.destruct_count, 0);
 
-    std::cout << global.string() << std::endl;
+    //std::cout << global.string() << std::endl;
     global.reset();
   }
 
   {  // multi-thread
     auto f = [=, this]() {
       Arena* a = new Arena(ops);
-      a->Init();
+      a->init();
       auto alloc_count = 1024;
       for (auto i = 0; i < alloc_count; i++) {
         auto p0 = a->AllocateAligned(10 * i);
@@ -158,7 +157,7 @@ TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
     ASSERT_EQ(global.init_count, 2);
     ASSERT_EQ(global.alloc_count, alloc_count * 2);
     ASSERT_EQ(global.destruct_count, 2);
-    std::cout << global.string() << std::endl;
+    //std::cout << global.string() << std::endl;
   }
 }
 
