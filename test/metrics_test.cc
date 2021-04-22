@@ -35,6 +35,7 @@ class ThreadLocalArenaMetrics_Test : public ::testing::Test
     ops.on_arena_init = &metrics_probe_on_arena_init;
     ops.on_arena_reset = &metrics_probe_on_arena_reset;
     ops.on_arena_allocation = &metrics_probe_on_arena_allocation;
+    ops.on_arena_newblock = &metrics_probe_on_arena_newblock;
     ops.on_arena_destruction = &metrics_probe_on_arena_destruction;
   };
 
@@ -83,6 +84,33 @@ TEST_F(ThreadLocalArenaMetrics_Test, Allocation) {
     ASSERT_EQ(m.alloc_size_bucket_counter[0], 1);
     ASSERT_EQ(m.alloc_size_bucket_counter[1], 1);
     ASSERT_EQ(m.space_allocated, 110);
+  }
+}
+
+TEST_F(ThreadLocalArenaMetrics_Test, NewBlock) {
+  {  // reuse block
+    Arena* a = new Arena(ops);
+    a->init();
+    auto p0 = a->AllocateAligned(10);
+    auto p1 = a->AllocateAligned(100);
+    delete a;
+    auto& m = local_arena_metrics;
+    ASSERT_EQ(m.alloc_count, 2);
+    ASSERT_EQ(m.newblock_count, 1);
+  }
+
+  local_arena_metrics.reset();
+
+  {  // non-fully reuse block lead to space_waste
+    Arena* a = new Arena(ops);
+    a->init();
+    auto p0 = a->AllocateAligned(10);
+    auto p1 = a->AllocateAligned(65535);
+    delete a;
+    auto& m = local_arena_metrics;
+    ASSERT_EQ(m.alloc_count, 2);
+    ASSERT_EQ(m.newblock_count, 2);
+    ASSERT_GT(m.space_wasted, 0);
   }
 }
 
