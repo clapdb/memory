@@ -44,7 +44,7 @@ struct CleanupNode
   // Cleanup Node cannot be default constructed or copy/move.
   CleanupNode() = delete;
   CleanupNode(const CleanupNode&) = delete;
-  CleanupNode(const CleanupNode&&) = delete;
+  CleanupNode(CleanupNode&&) = delete;
   CleanupNode(void* elem, void (*clean)(void*)) : element(elem), cleanup(clean) {}
 };
 
