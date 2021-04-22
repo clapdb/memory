@@ -123,7 +123,8 @@ extern thread_local LocalArenaMetrics local_arena_metrics;
   local_arena_metrics.init_count += 1;
   return nullptr;
 }
-[[gnu::always_inline]] inline void metrics_probe_on_arena_reset(Arena* arena, void* cookie, uint64_t space_used, uint64_t space_wasted) {
+[[gnu::always_inline]] inline void metrics_probe_on_arena_reset(Arena* arena, void* cookie, uint64_t space_used,
+                                                                uint64_t space_wasted) {
   local_arena_metrics.reset_count += 1;
   local_arena_metrics.space_reseted += space_used;
 }
@@ -133,8 +134,8 @@ extern thread_local LocalArenaMetrics local_arena_metrics;
   local_arena_metrics.space_allocated += alloc_size;
   local_arena_metrics.increse_alloc_size_counter(alloc_size);
 }
-[[gnu::always_inline]] inline void* metrics_probe_on_arena_destruction(Arena* arena, void* cookie,
-                                                                       uint64_t space_used, uint64_t space_wasted) {
+[[gnu::always_inline]] inline void* metrics_probe_on_arena_destruction(Arena* arena, void* cookie, uint64_t space_used,
+                                                                       uint64_t space_wasted) {
   local_arena_metrics.destruct_count += 1;
   local_arena_metrics.space_used += space_used;
   return nullptr;

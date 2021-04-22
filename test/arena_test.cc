@@ -389,7 +389,7 @@ TEST_F(ArenaTest, free_blocks_except_first_Test) {
   // delete a;
 
   ASSERT_EQ(a->last_block_, x1);
-  ASSERT_EQ(wasted, 1024*7 - 3 * kBlockHeaderSize);
+  ASSERT_EQ(wasted, 1024 * 7 - 3 * kBlockHeaderSize);
   std::free(x1);
   std::free(x2);
   std::free(x3);
@@ -484,7 +484,7 @@ TEST_F(ArenaTest, free_blocks_Test) {
   EXPECT_CALL(*mock, dealloc(x3)).Times(1);
   // FreeBlocks should not be call out of the class, just use ~Arena
   auto wasted = a->free_all_blocks();
-  ASSERT_EQ(wasted , 7*1024 - 3* kBlockHeaderSize);
+  ASSERT_EQ(wasted, 7 * 1024 - 3 * kBlockHeaderSize);
   // delete a;
 
   std::free(x1);
@@ -774,7 +774,9 @@ void* init_hook(Arena* a) { return hook_instance->arena_init_hook(a); }
 
 void allocate_hook(const std::type_info* t, uint64_t s, void* c) { return hook_instance->arena_allocate_hook(t, s, c); }
 
-void* destruction_hook(Arena* a, void* c, uint64_t s, uint64_t w) { return hook_instance->arena_destruction_hook(a, c, s, w); }
+void* destruction_hook(Arena* a, void* c, uint64_t s, uint64_t w) {
+  return hook_instance->arena_destruction_hook(a, c, s, w);
+}
 
 void reset_hook(Arena* a, void* cookie, uint64_t space_used, uint64_t space_wasted) {
   return hook_instance->arena_reset_hook(a, cookie, space_used, space_wasted);
@@ -828,7 +830,8 @@ TEST_F(ArenaTest, HookTest) {
   EXPECT_CALL(*mock_cleaners, cleanup1(mock_cleaners)).Times(1);
   a->Reset();
 
-  EXPECT_CALL(*hook_instance, arena_destruction_hook(a, cookie, a->SpaceAllocated(), a->SpaceRemains())).WillOnce(Return(cookie));
+  EXPECT_CALL(*hook_instance, arena_destruction_hook(a, cookie, a->SpaceAllocated(), a->SpaceRemains()))
+    .WillOnce(Return(cookie));
   EXPECT_CALL(*mock, dealloc(mem)).Times(1);
   // EXPECT_CALL(*mock_cleaners, cleanup1()).Times(1);
   delete a;
