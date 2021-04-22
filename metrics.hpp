@@ -11,6 +11,8 @@
 namespace stdb {
 namespace memory {
 
+using std::atomic;
+
 constexpr static int kAllocBucketSize = 8;
 constexpr static uint64_t alloc_size_bucket[kAllocBucketSize] = {
   64,   // alloc_size <= 64 will counter into alloc_size_bucket_counter[0]
@@ -19,19 +21,19 @@ constexpr static uint64_t alloc_size_bucket[kAllocBucketSize] = {
 
 struct GlobalArenaMetrics
 {
-  std::atomic<uint64_t> init_count = 0;
-  std::atomic<uint64_t> destruct_count = 0;
-  std::atomic<uint64_t> alloc_count = 0;
-  std::atomic<uint64_t> reset_count = 0;
-  std::atomic<uint64_t> space_allocated = 0;
-  std::atomic<uint64_t> space_reseted = 0;
-  std::atomic<uint64_t> space_used = 0;
+  atomic<uint64_t> init_count = 0;
+  atomic<uint64_t> destruct_count = 0;
+  atomic<uint64_t> alloc_count = 0;
+  atomic<uint64_t> reset_count = 0;
+  atomic<uint64_t> space_allocated = 0;
+  atomic<uint64_t> space_reseted = 0;
+  atomic<uint64_t> space_used = 0;
   // space_allocated > space_used means memory reused;
   // space_allocated < space_used means memory fragment or arena used extra memory；
 
   // TODO(longqimin): other considerable metrics： fragments, arena-lifetime
 
-  std::atomic<uint64_t> alloc_size_bucket_counter[kAllocBucketSize] = {0};
+  atomic<uint64_t> alloc_size_bucket_counter[kAllocBucketSize] = {0};
 
   void reset() {  // lockless and races for metric-data is acceptable
     init_count.store(0, std::memory_order::relaxed);
@@ -121,7 +123,7 @@ extern thread_local LocalArenaMetrics local_arena_metrics;
   local_arena_metrics.init_count += 1;
   return nullptr;
 }
-[[gnu::always_inline]] inline void metrics_probe_on_arena_reset(Arena* arena, void* cookie, uint64_t space_used) {
+[[gnu::always_inline]] inline void metrics_probe_on_arena_reset(Arena* arena, void* cookie, uint64_t space_used, uint64_t space_wasted) {
   local_arena_metrics.reset_count += 1;
   local_arena_metrics.space_reseted += space_used;
 }
@@ -132,7 +134,7 @@ extern thread_local LocalArenaMetrics local_arena_metrics;
   local_arena_metrics.increse_alloc_size_counter(alloc_size);
 }
 [[gnu::always_inline]] inline void* metrics_probe_on_arena_destruction(Arena* arena, void* cookie,
-                                                                       uint64_t space_used) {
+                                                                       uint64_t space_used, uint64_t space_wasted) {
   local_arena_metrics.destruct_count += 1;
   local_arena_metrics.space_used += space_used;
   return nullptr;
