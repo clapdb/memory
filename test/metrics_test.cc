@@ -128,7 +128,7 @@ TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
     ASSERT_EQ(m.alloc_count, 0);
     ASSERT_EQ(m.destruct_count, 0);
 
-    //std::cout << global.string() << std::endl;
+    // std::cout << global.string() << std::endl;
     global.reset();
   }
 
@@ -157,7 +157,7 @@ TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
     ASSERT_EQ(global.init_count, 2);
     ASSERT_EQ(global.alloc_count, alloc_count * 2);
     ASSERT_EQ(global.destruct_count, 2);
-    //std::cout << global.string() << std::endl;
+    // std::cout << global.string() << std::endl;
   }
 }
 

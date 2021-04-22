@@ -254,7 +254,7 @@ class Arena
   [[nodiscard, gnu::always_inline]] inline uint64_t SpaceAllocated() const noexcept { return space_allocated_; }
   [[nodiscard, gnu::always_inline]] inline uint64_t SpaceRemains() const noexcept {
     uint64_t remains = 0;
-    for (Block* curr = last_block_; curr != nullptr; curr = curr->prev())  remains += curr->remain();
+    for (Block* curr = last_block_; curr != nullptr; curr = curr->prev()) remains += curr->remain();
     return remains;
   }
 
@@ -357,7 +357,9 @@ class Arena
     return true;
   }
 
-  [[nodiscard, gnu::always_inline]] static inline uint64_t align_size(uint64_t n) noexcept { return align::AlignUpTo<8>(n); }
+  [[nodiscard, gnu::always_inline]] static inline uint64_t align_size(uint64_t n) noexcept {
+    return align::AlignUpTo<8>(n);
+  }
 
   template <typename T>
   [[nodiscard, gnu::always_inline]] inline bool RegisterDestructor(T* ptr) noexcept {
