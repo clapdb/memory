@@ -74,7 +74,8 @@ Arena::Block* Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept {
   if (options_.on_arena_newblock != nullptr) {
     // count the blk num
     uint64_t blk_num = 0;
-    for(Block* prev = prev_block; prev != nullptr; prev = prev->prev(), ++blk_num);
+    for (Block* prev = prev_block; prev != nullptr; prev = prev->prev(), ++blk_num) {
+    }
 
     options_.on_arena_newblock(blk_num, size, cookie_);
   }
