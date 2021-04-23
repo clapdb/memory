@@ -183,6 +183,8 @@ class Arena
       }
     }
 
+    inline uint64_t total_cleanups() { return (size_ - limit_) / kCleanupNodeSize; }
+
    private:
     Block* prev_;
     uint64_t pos_;
@@ -336,6 +338,17 @@ class Arena
 
   [[gnu::always_inline]] inline memory_resource get_memory_resource() noexcept { return memory_resource{this}; };
 
+  // for test
+  int64_t total_cleanups() {
+    int64_t total = 0;
+    Block* curr = last_block_;
+    while (curr != nullptr) {
+      total += curr->total_cleanups();
+      curr = curr->prev();
+    }
+    return total;
+  }
+
  private:
   // New Block while current Block has not enough memory.
   [[nodiscard]] Block* newBlock(uint64_t min_bytes, Block* prev_block) noexcept;
@@ -392,6 +405,7 @@ class Arena
       options_.block_dealloc(curr);
       curr = prev;
     }
+    last_block_ = nullptr;
     return remain_size;
   }
 
