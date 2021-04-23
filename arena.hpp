@@ -183,6 +183,13 @@ class Arena
       }
     }
 
+    inline uint64_t cleanups() {
+      uint64_t space = size_ - limit_;
+      assert(space % kCleanupNodeSize == 0);
+
+      return space / kCleanupNodeSize;
+    }
+
    private:
     Block* prev_;
     uint64_t pos_;
@@ -335,6 +342,17 @@ class Arena
   }
 
   [[gnu::always_inline]] inline memory_resource get_memory_resource() noexcept { return memory_resource{this}; };
+
+  // for test
+  uint64_t cleanups() {
+    uint64_t total = 0;
+    Block* curr = last_block_;
+    while (curr != nullptr) {
+      total += curr->cleanups();
+      curr = curr->prev();
+    }
+    return total;
+  }
 
  private:
   // New Block while current Block has not enough memory.
