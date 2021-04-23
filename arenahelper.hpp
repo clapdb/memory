@@ -25,9 +25,8 @@
 #include <type_traits>
 #include <utility>
 
-#define ACstrTag typedef void ArenaConstructable_
-
-#define ADstrSkipTag typedef void DestructionSkippable_
+#define ACstrTag using ArenaConstructable_ = void;
+#define ADstrSkipTag using DestructionSkippable_ = void;
 
 #ifdef __UNITTEST
 #define FRIEND_TEST(test_case_name, test_name) friend class test_case_name##_##test_name##_Test
@@ -75,24 +74,28 @@ class ArenaHelper
   template <typename U>
   static double DestructionSkippable(...);
 
-  typedef std::integral_constant<bool, sizeof(DestructionSkippable<T>(static_cast<const T*>(0))) == sizeof(char) ||
-                                         std::is_trivially_destructible<T>::value>
-    is_destructor_skippable;
+  using is_destructor_skippable =
+    std::integral_constant<bool, sizeof(DestructionSkippable<T>(static_cast<const T*>(0))) == sizeof(char) ||
+                                   std::is_trivially_destructible<T>::value>;
 
   template <typename U>
   static char ArenaConstructable(const typename U::ArenaConstructable_*);
   template <typename U>
   static double ArenaConstructable(...);
 
-  typedef std::integral_constant<bool, sizeof(ArenaConstructable<T>(static_cast<const T*>(0))) == sizeof(char)>
-    is_arena_constructable;
+  using is_arena_constructable =
+    std::integral_constant<bool, sizeof(ArenaConstructable<T>(static_cast<const T*>(0))) == sizeof(char)>;
 
   // because use new placement do not need allocate memory
   // so no bad_alloc will be thrown
   template <typename... Args>
-  [[gnu::always_inline]] inline static T* Construct(void* ptr, Args&&... args) noexcept {
+  [[gnu::always_inline]] inline static T* Construct(void* ptr, Arena* arena, Args&&... args) noexcept {
     // placement new make the new Object T is in the ptr-> memory.
-    return new (ptr) T(std::forward<Args>(args)...);
+    if constexpr (std::is_constructible<T, Arena*, Args...>::value) {
+      return new (ptr) T(arena, std::forward<Args>(args)...);
+    } else {
+      return new (ptr) T(std::forward<Args>(args)...);
+    }
   }
 
   [[gnu::always_inline]] inline static Arena* GetArena(const T* p) noexcept { return p->GetArena(); }
