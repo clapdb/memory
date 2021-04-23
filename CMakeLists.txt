@@ -45,7 +45,7 @@ if(${CMAKE_BUILD_TYPE} MATCHES Debug)
     "test/*"
     "/usr/*")
 
-  setup_target_for_coverage_lcov(
+  setup_target_for_coverage_gcovr_html(
     NAME coverage
     EXECUTABLE test/test
   )

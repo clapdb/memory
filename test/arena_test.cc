@@ -602,6 +602,16 @@ class mock_class_without_dstr
   const string& n_;
 };
 
+class mock_class_with_arena
+{
+ public:
+  ACstrTag;
+  explicit mock_class_with_arena(Arena* arena) : arena_(arena) {}
+
+ private:
+  Arena* arena_;
+};
+
 TEST_F(ArenaTest, CreateTest) {
   void* x = std::malloc(4096);
   mock = new alloc_class;
@@ -629,6 +639,9 @@ TEST_F(ArenaTest, CreateTest) {
   ASSERT_TRUE(r != nullptr);
   auto r2 = a->last_block_->remain();
   ASSERT_EQ(r1 - r2, sizeof(mock_struct));
+
+  // auto pass Arena*
+  (void)a->Create<mock_class_with_arena>();
 
   // make sure the mock_struct destruction will not be add to cleanups_
   // ASSERT_EQ(a->cleanups_->size(), 1ULL);
@@ -663,6 +676,10 @@ TEST_F(ArenaTest, CreateArrayTest) {
 
   ASSERT_EQ(s3, 4096ULL - kBlockHeaderSize - 10ULL * sizeof(uint64_t) - 10ULL * sizeof(test_struct));
   EXPECT_CALL(*mock, dealloc(x)).Times(1);
+
+  // auto pass Arena*
+  (void)a->CreateArray<mock_class_with_arena>(10);
+
   delete a;
   std::free(x);
   delete mock;

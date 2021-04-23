@@ -267,7 +267,7 @@ class Arena
                   "New requires a constructible type");
     char* ptr = allocateAligned(sizeof(T));
     if (ptr != nullptr) [[likely]] {
-      ArenaHelper<T>::Construct(ptr, std::forward<Args>(args)...);
+      ArenaHelper<T>::Construct(ptr, this, std::forward<Args>(args)...);
       T* result = reinterpret_cast<T*>(ptr);
       if (!RegisterDestructor<T>(result)) [[unlikely]] {
         return nullptr;
@@ -283,8 +283,9 @@ class Arena
   // new array from arena, and register cleanup function if need
   template <typename T>
   [[nodiscard]] T* CreateArray(uint64_t num) noexcept {
-    static_assert(std::is_standard_layout<T>::value && std::is_trivial<T>::value,
-                  "NewArray requires a trivially constructible type");
+    static_assert(
+      std::is_standard_layout<T>::value && (std::is_trivial<T>::value || std::is_constructible<T, Arena*>::value),
+      "NewArray requires a trivially constructible type or can be constructed with a Arena*");
     static_assert(std::is_trivially_destructible<T>::value, "NewArray requires a trivially destructible type");
     CHECK_LE(num, std::numeric_limits<uint64_t>::max() / sizeof(T));
     const uint64_t n = sizeof(T) * num;
@@ -292,7 +293,7 @@ class Arena
     if (p != nullptr) [[likely]] {
       T* curr = reinterpret_cast<T*>(p);
       for (uint64_t i = 0; i < num; ++i) {
-        ArenaHelper<T>::Construct(curr++);
+        ArenaHelper<T>::Construct(curr++, this);
       }
       if (options_.on_arena_allocation != nullptr) [[likely]] {
         options_.on_arena_allocation(&typeid(T), n, cookie_);
