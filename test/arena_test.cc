@@ -332,12 +332,13 @@ TEST_F(ArenaTest, addCleanupTest) {
   mock_cleaners = new cleanup_mock;
   bool ok = a->addCleanup(mock_cleaners, &cleanup_mock_fn1);
   ASSERT_TRUE(ok);
-  // void* obj = malloc(120);
-  // bool ok = a->addCleanup(obj, &std::free);
-  // ASSERT_TRUE(ok);
-  // ASSERT_EQ(1ULL, a->cleanups_->size());
-  // free(obj);
-  ASSERT_EQ(a->last_block_->remain(), a->last_block_->size() - kBlockHeaderSize - kCleanupNodeSize);
+  EXPECT_EQ(1, a->cleanups());
+
+  void* obj = malloc(120);  // will be free automatically
+  bool ok2 = a->addCleanup(obj, &std::free);
+  ASSERT_TRUE(ok2);
+  ASSERT_EQ(2, a->cleanups());
+  ASSERT_EQ(a->last_block_->remain(), a->last_block_->size() - kBlockHeaderSize - kCleanupNodeSize * 2);
 
   EXPECT_CALL(*mock_cleaners, cleanup1(mock_cleaners)).Times(1);
   delete a;
@@ -350,15 +351,10 @@ TEST_F(ArenaTest, addCleanup_Fail_Test) {
   Arena* a = new Arena(ops_complex);
   mock = new alloc_class;
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(nullptr);
-  // EXPECT_CALL(*mock, dealloc(x3)).Times(1);
+
   mock_cleaners = new cleanup_mock;
   bool ok = a->addCleanup(mock_cleaners, &cleanup_mock_fn1);
   ASSERT_FALSE(false);
-  // void* obj = malloc(120);
-  // bool ok = a->addCleanup(obj, &std::free);
-  // ASSERT_TRUE(ok);
-  // ASSERT_EQ(1ULL, a->cleanups_->size());
-  // free(obj);
 
   EXPECT_CALL(*mock_cleaners, cleanup1(mock_cleaners)).Times(0);
   delete a;
@@ -380,16 +376,17 @@ TEST_F(ArenaTest, free_blocks_except_first_Test) {
   a->last_block_ = a->newBlock(1024 - kBlockHeaderSize, nullptr);
   a->last_block_ = a->newBlock(2048 - kBlockHeaderSize, a->last_block_);
   a->last_block_ = a->newBlock(4096 - kBlockHeaderSize, a->last_block_);
+  EXPECT_EQ(a->last_block_, x3);
 
-  // EXPECT_CALL(*mock, dealloc(x1)).Times(0);
+  // FreeBlocks should not be call out of the class, just use ~Arena
+  EXPECT_CALL(*mock, dealloc(x1)).Times(0);
   EXPECT_CALL(*mock, dealloc(x2)).Times(1);
   EXPECT_CALL(*mock, dealloc(x3)).Times(1);
-  // FreeBlocks should not be call out of the class, just use ~Arena
-  auto wasted = a->free_blocks_except_head();
-  // delete a;
 
-  ASSERT_EQ(a->last_block_, x1);
-  ASSERT_EQ(wasted, 1024 * 7 - 3 * kBlockHeaderSize);
+  auto wasted = a->free_blocks_except_head();
+  EXPECT_EQ(wasted, 1024 * 7 - 3 * kBlockHeaderSize);
+
+  // not "delete a" to avoid freeing the first block
   std::free(x1);
   std::free(x2);
   std::free(x3);
@@ -411,16 +408,17 @@ TEST_F(ArenaTest, ResetTest) {
   a->last_block_ = a->newBlock(2048 - kBlockHeaderSize, a->last_block_);
   a->last_block_ = a->newBlock(4096 - kBlockHeaderSize, a->last_block_);
 
-  // EXPECT_CALL(*mock, dealloc(x1)).Times(0);
+  EXPECT_CALL(*mock, dealloc(x1)).Times(0);
   EXPECT_CALL(*mock, dealloc(x2)).Times(1);
   EXPECT_CALL(*mock, dealloc(x3)).Times(1);
-  // FreeBlocks should not be call out of the class, just use ~Aren
+
   a->Reset();
-  // delete a;
 
   ASSERT_EQ(a->last_block_, x1);
   ASSERT_EQ(a->space_allocated_, 1024);
   ASSERT_EQ(a->last_block_->remain(), 1024 - kBlockHeaderSize);
+
+  // not "delete a" to avoid freeing the first block
   std::free(x1);
   std::free(x2);
   std::free(x3);
@@ -443,20 +441,20 @@ TEST_F(ArenaTest, Reset_with_cleanup_Test) {
   a->last_block_ = a->newBlock(2048 - kBlockHeaderSize, a->last_block_);
   a->last_block_ = a->newBlock(4096 - kBlockHeaderSize, a->last_block_);
 
-  // EXPECT_CALL(*mock, dealloc(x1)).Times(0);
+  EXPECT_CALL(*mock, dealloc(x1)).Times(0);
   EXPECT_CALL(*mock, dealloc(x2)).Times(1);
   EXPECT_CALL(*mock, dealloc(x3)).Times(1);
-  // FreeBlocks should not be call out of the class, just use ~Aren
   bool ok = a->addCleanup(mock_cleaners, &cleanup_mock_fn1);
   ASSERT_TRUE(ok);
   EXPECT_CALL(*mock_cleaners, cleanup1(mock_cleaners)).Times(1);
 
   a->Reset();
-  // delete a;
 
   ASSERT_EQ(a->last_block_, x1);
   ASSERT_EQ(a->space_allocated_, 1024);
   ASSERT_EQ(a->last_block_->remain(), 1024 - kBlockHeaderSize);
+
+  // not "delete a" to avoid freeing the first block
   std::free(x1);
   std::free(x2);
   std::free(x3);
@@ -482,11 +480,10 @@ TEST_F(ArenaTest, free_blocks_Test) {
   EXPECT_CALL(*mock, dealloc(x1)).Times(1);
   EXPECT_CALL(*mock, dealloc(x2)).Times(1);
   EXPECT_CALL(*mock, dealloc(x3)).Times(1);
-  // FreeBlocks should not be call out of the class, just use ~Arena
   auto wasted = a->free_all_blocks();
   ASSERT_EQ(wasted, 7 * 1024 - 3 * kBlockHeaderSize);
-  // delete a;
 
+  // not "delete a" to avoid call free_all_blocks twice
   std::free(x1);
   std::free(x2);
   std::free(x3);
@@ -503,8 +500,7 @@ TEST_F(ArenaTest, DoCleanupTest) {
   bool ok = a->addCleanup(mock_cleaners, &cleanup_mock_fn1);
   ASSERT_TRUE(ok);
   EXPECT_CALL(*mock_cleaners, cleanup1(mock_cleaners)).Times(1);
-  // DoCleanup should not be call out of the class, just use ~Arena
-  // a->DoCleanup();
+
   delete a;
   delete mock_cleaners;
   delete mock;
@@ -528,15 +524,14 @@ TEST_F(ArenaTest, RegisterDestructorTest) {
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(x));
   EXPECT_CALL(*mock, dealloc(x)).Times(1);
   bool ok1 = a->RegisterDestructor<mock_own>(m);
-  bool ok2 = a->RegisterDestructor<int>(i);
-  // FIXME
-  // ASSERT_EQ(a->cleanups_->size(), 1ULL);
+  bool ok2 = a->RegisterDestructor<int>(i);  // will be ignore
+
+  ASSERT_EQ(1, a->cleanups());
   ASSERT_EQ(a->last_block_->remain(), a->last_block_->size() - kBlockHeaderSize - kCleanupNodeSize);
   EXPECT_CALL(*m, dealloc()).Times(1);
+
   delete a;
-  // to make sure Destruction of i was first called.
-  // double delete will crash.
-  delete i;
+  delete i;  // avoid leak
   delete mock;
   mock = nullptr;
   std::free(x);
@@ -624,10 +619,10 @@ TEST_F(ArenaTest, CreateTest) {
   string sss("fuck the world");
 
   mock_class_without_dstr* d2 = a->Create<mock_class_without_dstr>("fuck the world");
-  // FIXME
-  // ASSERT_EQ(a->cleanups_->size(), 0ULL);
+  ASSERT_EQ(0, a->cleanups());
+
   mock_class_need_dstr* d1 = a->Create<mock_class_need_dstr>(3, ss);
-  // ASSERT_EQ(a->cleanups_->size(), 1ULL);
+  ASSERT_EQ(1, a->cleanups());
   ASSERT_TRUE(d1->verify(3, ss));
   ASSERT_TRUE(d2->verify(sss));
 
@@ -637,15 +632,13 @@ TEST_F(ArenaTest, CreateTest) {
   auto r1 = a->last_block_->remain();
   auto r = a->Create<mock_struct>();
   ASSERT_TRUE(r != nullptr);
+  ASSERT_EQ(1, a->cleanups());  // mock_struct will not be register to cleanup
   auto r2 = a->last_block_->remain();
   ASSERT_EQ(r1 - r2, sizeof(mock_struct));
 
   // auto pass Arena*
   (void)a->Create<mock_class_with_arena>();
 
-  // make sure the mock_struct destruction will not be add to cleanups_
-  // ASSERT_EQ(a->cleanups_->size(), 1ULL);
-  // FIXME
   delete a;
   std::free(x);
   delete mock;
@@ -883,7 +876,7 @@ TEST_F(ArenaTest, NullTest) {
   y = a->AllocateAlignedAndAddCleanup(1000, mock_cleaners, cleanup_mock_fn1);
   ASSERT_EQ(y, nullptr);
   ASSERT_EQ(a->space_allocated_, 0ULL);
-  // ASSERT_EQ(a->cleanups_->size(), 0ULL);
+  ASSERT_EQ(a->cleanups(), 0ULL);
 
   EXPECT_CALL(*cstr, construct("hello world")).Times(0);
   EXPECT_CALL(*cstr, construct("fuck the world")).Times(0);
@@ -891,9 +884,9 @@ TEST_F(ArenaTest, NullTest) {
   string sss("fuck the world");
 
   mock_class_without_dstr* d2 = a->Create<mock_class_without_dstr>("fuck the world");
-  // ASSERT_EQ(a->cleanups_->size(), 0ULL);
+  ASSERT_EQ(a->cleanups(), 0ULL);
   mock_class_need_dstr* d1 = a->Create<mock_class_need_dstr>(3, ss);
-  // ASSERT_EQ(a->cleanups_->size(), 0ULL);
+  ASSERT_EQ(a->cleanups(), 0ULL);
   ASSERT_EQ(d1, nullptr);
   ASSERT_EQ(d2, nullptr);
   ASSERT_EQ(a->space_allocated_, 0ULL);
@@ -901,7 +894,7 @@ TEST_F(ArenaTest, NullTest) {
   mock_struct* z = a->CreateArray<mock_struct>(100);
   ASSERT_EQ(z, nullptr);
   ASSERT_EQ(a->space_allocated_, 0ULL);
-  // ASSERT_EQ(a->cleanups_->size(), 0ULL);
+  ASSERT_EQ(a->cleanups(), 0ULL);
 
   std::free(m);
   std::free(mm);
