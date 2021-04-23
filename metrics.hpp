@@ -5,6 +5,7 @@
 #include <fmt/core.h>
 
 #include <atomic>
+#include <chrono>
 
 #include "arena.hpp"
 
@@ -12,12 +13,22 @@ namespace stdb {
 namespace memory {
 
 using std::atomic;
+using std::chrono::milliseconds;
+using std::chrono::steady_clock;
 
 constexpr static int kAllocBucketSize = 8;
 constexpr static uint64_t alloc_size_bucket[kAllocBucketSize] = {
   64,   // alloc_size <= 64 will counter into alloc_size_bucket_counter[0]
   128,  // 64 < alloc_size <= 128 will counter into alloc_size_bucket_counter[1]. same to the followings
   256, 512, 1024, 2048, 4096, 1UL << 20};
+
+constexpr static int kLifetimeBucketSize = 8;
+using namespace std::chrono_literals;
+constexpr static milliseconds destruct_lifetime_bucket[kAllocBucketSize] = {
+  1ms,  // destruct_lifetime <= 1ms will counter into destruct_lifetime_bucket[0]
+  5ms,  // 1ms < destruct_lifetime <= 5ms will counter into destruct_lifetime_bucket[1].
+  10ms, 50ms, 100ms, 200ms, 500ms, 1s,
+};
 
 struct GlobalArenaMetrics
 {
@@ -36,6 +47,7 @@ struct GlobalArenaMetrics
   // TODO(longqimin): other considerable metrics： fragments, arena-lifetime
 
   atomic<uint64_t> alloc_size_bucket_counter[kAllocBucketSize] = {0};
+  atomic<uint64_t> destruct_lifetime_bucket_counter[kLifetimeBucketSize] = {0};
 
   void reset() {  // lockless and races for metric-data is acceptable
     init_count.store(0, std::memory_order::relaxed);
@@ -47,15 +59,18 @@ struct GlobalArenaMetrics
     space_reseted.store(0, std::memory_order::relaxed);
     space_used.store(0, std::memory_order::relaxed);
     space_wasted.store(0, std::memory_order::relaxed);
-    for (int i = 0; i < kAllocBucketSize; ++i) {
-      alloc_size_bucket_counter[i].store(0, std::memory_order::relaxed);
+    for (auto& counter : alloc_size_bucket_counter) {
+      counter.store(0, std::memory_order::relaxed);
+    }
+    for (auto& counter : destruct_lifetime_bucket_counter) {
+      counter.store(0, std::memory_order::relaxed);
     }
     return;
   }
 
   std::string string() const {
     std::string str;
-    str.reserve(512);
+    str.reserve(1024);
     str += fmt::format(
       "Summary:\n"
       "  init_count: {}\n"
@@ -74,6 +89,14 @@ struct GlobalArenaMetrics
       count += alloc_size_bucket_counter[i];
       str += fmt::format("\n  le={}: {}", alloc_size_bucket[i], static_cast<float>(count) / alloc_count);
     }
+
+    str += "\nLifetime distribution:";
+    for (auto i = 0, count = 0; i < kLifetimeBucketSize; i++) {
+      count += destruct_lifetime_bucket_counter[i];
+      str +=
+        fmt::format("\n  le={}ms: {}", destruct_lifetime_bucket[i].count(), static_cast<float>(count) / destruct_count);
+    }
+
     return str;
   }
 };
@@ -97,10 +120,21 @@ struct LocalArenaMetrics
   // TODO(longqimin): other considerable metrics： fragments, arena-lifetime
 
   uint64_t alloc_size_bucket_counter[kAllocBucketSize] = {0};
+  uint64_t destruct_lifetime_bucket_counter[kLifetimeBucketSize] = {0};
+
   [[gnu::always_inline]] inline void increse_alloc_size_counter(uint64_t alloc_size) {
     for (int i = 0; i < kAllocBucketSize; ++i) {
       if (alloc_size <= alloc_size_bucket[i]) {
         ++alloc_size_bucket_counter[i];
+        break;
+      }
+    }
+  }
+
+  [[gnu::always_inline]] inline void increse_destruct_lifetime_counter(milliseconds destruct_lifetime) {
+    for (int i = 0; i < kLifetimeBucketSize; ++i) {
+      if (destruct_lifetime <= destruct_lifetime_bucket[i]) {
+        ++destruct_lifetime_bucket_counter[i];
         break;
       }
     }
@@ -123,37 +157,53 @@ struct LocalArenaMetrics
       global_arena_metrics.alloc_size_bucket_counter[i].fetch_add(alloc_size_bucket_counter[i],
                                                                   std::memory_order::relaxed);
     }
-
+    for (int i = 0; i < kLifetimeBucketSize; ++i) {
+      global_arena_metrics.destruct_lifetime_bucket_counter[i].fetch_add(destruct_lifetime_bucket_counter[i],
+                                                                         std::memory_order::relaxed);
+    }
     reset();
   };
 };
 
 extern thread_local LocalArenaMetrics local_arena_metrics;
 
+struct ArenaMetricsCookie
+{
+  steady_clock::time_point init_timepoint;
+
+  ArenaMetricsCookie(steady_clock::time_point init_tp) : init_timepoint(init_tp) {}
+};
+
 [[gnu::always_inline]] inline void* metrics_probe_on_arena_init(Arena* arena) {
-  local_arena_metrics.init_count += 1;
-  return nullptr;
-}
-[[gnu::always_inline]] inline void metrics_probe_on_arena_reset(Arena* arena, void* cookie, uint64_t space_used,
-                                                                uint64_t space_wasted) {
-  local_arena_metrics.reset_count += 1;
-  local_arena_metrics.space_reseted += space_used;
-  local_arena_metrics.space_wasted += space_wasted;
+  ++local_arena_metrics.init_count;
+  auto cookie = new ArenaMetricsCookie(steady_clock::now());
+  return cookie;
 }
 [[gnu::always_inline]] inline void metrics_probe_on_arena_allocation(const std::type_info* alloc_type,
                                                                      uint64_t alloc_size, void* cookie) {
-  local_arena_metrics.alloc_count += 1;
+  ++local_arena_metrics.alloc_count;
   local_arena_metrics.space_allocated += alloc_size;
   local_arena_metrics.increse_alloc_size_counter(alloc_size);
 }
 [[gnu::always_inline]] inline void metrics_probe_on_arena_newblock(uint64_t blk_num, uint64_t blk_size, void* cookie) {
-  local_arena_metrics.newblock_count += 1;
+  ++local_arena_metrics.newblock_count;
+}
+[[gnu::always_inline]] inline void metrics_probe_on_arena_reset(Arena* arena, void* cookie, uint64_t space_used,
+                                                                uint64_t space_wasted) {
+  ++local_arena_metrics.reset_count;
+  local_arena_metrics.space_reseted += space_used;
+  local_arena_metrics.space_wasted += space_wasted;
 }
 [[gnu::always_inline]] inline void* metrics_probe_on_arena_destruction(Arena* arena, void* cookie, uint64_t space_used,
                                                                        uint64_t space_wasted) {
-  local_arena_metrics.destruct_count += 1;
+  ++local_arena_metrics.destruct_count;
   local_arena_metrics.space_used += space_used;
   local_arena_metrics.space_wasted += space_wasted;
+
+  std::unique_ptr<ArenaMetricsCookie> c;
+  c.reset(static_cast<ArenaMetricsCookie*>(cookie));
+  auto destruct_lifetime = steady_clock::now() - c->init_timepoint;
+  local_arena_metrics.increse_destruct_lifetime_counter(std::chrono::duration_cast<milliseconds>(destruct_lifetime));
   return nullptr;
 }
 
