@@ -200,8 +200,7 @@ struct ArenaMetricsCookie
   local_arena_metrics.space_used += space_used;
   local_arena_metrics.space_wasted += space_wasted;
 
-  std::unique_ptr<ArenaMetricsCookie> c;
-  c.reset(static_cast<ArenaMetricsCookie*>(cookie));
+  std::unique_ptr<ArenaMetricsCookie> c(static_cast<ArenaMetricsCookie*>(cookie));
   auto destruct_lifetime = steady_clock::now() - c->init_timepoint;
   local_arena_metrics.increse_destruct_lifetime_counter(std::chrono::duration_cast<milliseconds>(destruct_lifetime));
   return nullptr;
