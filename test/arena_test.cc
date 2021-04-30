@@ -20,6 +20,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <source_location>
 #include <typeinfo>
 
 #include "gmock/gmock.h"
@@ -780,7 +781,9 @@ class mock_hook
 
 mock_hook* hook_instance;
 
-void* init_hook(Arena* a) { return hook_instance->arena_init_hook(a); }
+void* init_hook(Arena* a, std::source_location loc = std::source_location::current()) {
+  return hook_instance->arena_init_hook(a);
+}
 
 void allocate_hook(const std::type_info* t, uint64_t s, void* c) { return hook_instance->arena_allocate_hook(t, s, c); }
 
