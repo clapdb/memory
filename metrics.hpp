@@ -112,7 +112,7 @@ struct GlobalArenaMetrics
     }
 
     str += "\nArena Location/AllocSize:";  // TODO(longqimin): re-evaluate str.reserve size
-    for (auto& [loc, couter] : arena_alloc_counter) {
+    for (const auto& [loc, couter] : arena_alloc_counter) {
       str += fmt::format("\n  {}: {}", loc, couter);
     }
 
@@ -161,7 +161,7 @@ struct LocalArenaMetrics
     arena_alloc_counter.clear();
   }
 
-  [[gnu::always_inline]] inline void increse_alloc_size_counter(uint64_t alloc_size) {
+  [[gnu::always_inline]] inline void increase_alloc_size_counter(uint64_t alloc_size) {
     for (int i = 0; i < kAllocBucketSize; ++i) {
       if (alloc_size <= alloc_size_bucket[i]) {
         ++alloc_size_bucket_counter[i];
@@ -170,7 +170,7 @@ struct LocalArenaMetrics
     }
   }
 
-  [[gnu::always_inline]] inline void increse_destruct_lifetime_counter(milliseconds destruct_lifetime) {
+  [[gnu::always_inline]] inline void increase_destruct_lifetime_counter(milliseconds destruct_lifetime) {
     for (int i = 0; i < kLifetimeBucketSize; ++i) {
       if (destruct_lifetime <= destruct_lifetime_bucket[i]) {
         ++destruct_lifetime_bucket_counter[i];
@@ -179,7 +179,7 @@ struct LocalArenaMetrics
     }
   }
 
-  inline void increate_arena_alloc_couter(const std::source_location& loc, uint64_t size) {
+  inline void increase_arena_alloc_couter(const std::source_location& loc, uint64_t size) {
     std::string key = loc.file_name();
     key += ":" + std::to_string(loc.line());
     arena_alloc_counter[key] += size;
@@ -231,10 +231,10 @@ struct ArenaMetricsCookie
                                                                      uint64_t alloc_size, void* cookie) {
   ++local_arena_metrics.alloc_count;
   local_arena_metrics.space_allocated += alloc_size;
-  local_arena_metrics.increse_alloc_size_counter(alloc_size);
+  local_arena_metrics.increase_alloc_size_counter(alloc_size);
 
   auto c = static_cast<ArenaMetricsCookie*>(cookie);
-  local_arena_metrics.increate_arena_alloc_couter(c->init_location, alloc_size);
+  local_arena_metrics.increase_arena_alloc_couter(c->init_location, alloc_size);
 }
 [[gnu::always_inline]] inline void metrics_probe_on_arena_newblock(uint64_t blk_num, uint64_t blk_size, void* cookie) {
   ++local_arena_metrics.newblock_count;
@@ -253,7 +253,7 @@ struct ArenaMetricsCookie
 
   std::unique_ptr<ArenaMetricsCookie> c(static_cast<ArenaMetricsCookie*>(cookie));
   auto destruct_lifetime = steady_clock::now() - c->init_timepoint;
-  local_arena_metrics.increse_destruct_lifetime_counter(std::chrono::duration_cast<milliseconds>(destruct_lifetime));
+  local_arena_metrics.increase_destruct_lifetime_counter(std::chrono::duration_cast<milliseconds>(destruct_lifetime));
   return nullptr;
 }
 
