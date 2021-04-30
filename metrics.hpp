@@ -56,9 +56,7 @@ struct GlobalArenaMetrics
 
   atomic<uint64_t> alloc_size_bucket_counter[kAllocBucketSize] = {0};
   atomic<uint64_t> destruct_lifetime_bucket_counter[kLifetimeBucketSize] = {0};
-  std::unordered_map<std::string, atomic<uint64_t>> arena_alloc_counter;  // arena identified by init() location
-
-  explicit GlobalArenaMetrics() { arena_alloc_counter = std::unordered_map<std::string, atomic<uint64_t>>(); }
+  std::unordered_map<std::string, atomic<uint64_t>> arena_alloc_counter = {};  // arena identified by init() location
 
   void reset() {  // lockless and races for metric-data is acceptable
     init_count.store(0, std::memory_order::relaxed);
@@ -140,9 +138,7 @@ struct LocalArenaMetrics
 
   uint64_t alloc_size_bucket_counter[kAllocBucketSize] = {0};
   uint64_t destruct_lifetime_bucket_counter[kLifetimeBucketSize] = {0};
-  std::unordered_map<std::string, uint64_t> arena_alloc_counter;  // arena identified by init() location
-
-  explicit LocalArenaMetrics() { arena_alloc_counter = std::unordered_map<std::string, uint64_t>(); }
+  std::unordered_map<std::string, uint64_t> arena_alloc_counter = {};  // arena identified by init() location
 
   void reset() {
     init_count = 0;
