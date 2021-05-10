@@ -176,8 +176,7 @@ struct LocalArenaMetrics
   }
 
   [[gnu::always_inline]] inline void increase_arena_alloc_couter(const std::source_location& loc, uint64_t size) {
-    std::string key = loc.file_name();
-    key += ":" + std::to_string(loc.line());
+    const std::string key = std::string(loc.file_name()) + ":" + std::to_string(loc.line());
     arena_alloc_counter[key] += size;
   }
 
