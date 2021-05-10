@@ -94,7 +94,7 @@ class Arena
     // NULL and not use the cookie feature).
     // on_arena_reset and on_arena_destruction also receive the space used in
     // the arena just before the reset.
-    void* (*on_arena_init)(Arena* arena, std::source_location loc);
+    void* (*on_arena_init)(Arena* arena, const std::source_location& loc);
     void (*on_arena_reset)(Arena* arena, void* cookie, uint64_t space_used, uint64_t space_wasted);
     void (*on_arena_allocation)(const std::type_info* alloc_type, uint64_t alloc_size, void* cookie);
     void (*on_arena_newblock)(uint64_t blk_num, uint64_t blk_size, void* cookie);
@@ -336,7 +336,7 @@ class Arena
     return nullptr;
   }
 
-  [[gnu::always_inline]] inline void init(std::source_location loc = std::source_location::current()) {
+  [[gnu::always_inline]] inline void init(const std::source_location& loc = std::source_location::current()) {
     if (options_.on_arena_init != nullptr) [[likely]] {
       cookie_ = options_.on_arena_init(this, loc);
     }

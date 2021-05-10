@@ -781,7 +781,7 @@ class mock_hook
 
 mock_hook* hook_instance;
 
-void* init_hook(Arena* a, std::source_location loc = std::source_location::current()) {
+void* init_hook(Arena* a, const std::source_location& loc = std::source_location::current()) {
   return hook_instance->arena_init_hook(a);
 }
 

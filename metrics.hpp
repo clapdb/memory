@@ -175,7 +175,7 @@ struct LocalArenaMetrics
     }
   }
 
-  inline void increase_arena_alloc_couter(const std::source_location& loc, uint64_t size) {
+  [[gnu::always_inline]] inline void increase_arena_alloc_couter(const std::source_location& loc, uint64_t size) {
     std::string key = loc.file_name();
     key += ":" + std::to_string(loc.line());
     arena_alloc_counter[key] += size;
@@ -214,11 +214,11 @@ struct ArenaMetricsCookie
 {
   steady_clock::time_point init_timepoint;
   std::source_location init_location;  // arena.init() source_location
-  ArenaMetricsCookie(steady_clock::time_point init_tp, std::source_location init_loc)
+  ArenaMetricsCookie(steady_clock::time_point init_tp, const std::source_location& init_loc)
       : init_timepoint(init_tp), init_location(init_loc) {}
 };
 
-[[gnu::always_inline]] inline void* metrics_probe_on_arena_init(Arena* arena, std::source_location loc) {
+[[gnu::always_inline]] inline void* metrics_probe_on_arena_init(Arena* arena, const std::source_location& loc) {
   ++local_arena_metrics.init_count;
   auto cookie = new ArenaMetricsCookie(steady_clock::now(), loc);
   return cookie;
