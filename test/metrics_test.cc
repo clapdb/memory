@@ -53,7 +53,7 @@ TEST_F(ThreadLocalArenaMetrics_Test, Init) {
   ASSERT_EQ(m.init_count, 1);
 }
 
-TEST_F(ThreadLocalArenaMetrics_Test, Rest) {
+TEST_F(ThreadLocalArenaMetrics_Test, Reset) {
   Arena* a = new Arena(ops);
   a->init();
   auto p0 = a->AllocateAligned(124);
@@ -84,6 +84,25 @@ TEST_F(ThreadLocalArenaMetrics_Test, Allocation) {
     ASSERT_EQ(m.alloc_size_bucket_counter[0], 1);
     ASSERT_EQ(m.alloc_size_bucket_counter[1], 1);
     ASSERT_EQ(m.space_allocated, 110);
+  }
+
+  local_arena_metrics.reset();
+
+  {
+    auto& m = local_arena_metrics;
+    auto loc = std::source_location::current();
+    std::string key = loc.file_name();
+    key += ":" + std::to_string(loc.line());
+
+    ASSERT_FALSE(m.arena_alloc_counter.contains(key));
+
+    Arena* a = new Arena(ops);
+
+    a->init(loc);
+    auto p0 = a->AllocateAligned(100);
+    delete a;
+
+    ASSERT_EQ(m.arena_alloc_counter[key], 100);
   }
 }
 
