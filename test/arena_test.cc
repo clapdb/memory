@@ -353,11 +353,12 @@ TEST_F(ArenaTest, addCleanupTest) {
 TEST_F(ArenaTest, addCleanup_Fail_Test) {
   Arena* a = new Arena(ops_complex);
   mock = new alloc_class;
+  // this line means malloc failed, so no space for cleanup Node.
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(nullptr);
 
   mock_cleaners = new cleanup_mock;
   bool ok = a->addCleanup(mock_cleaners, &cleanup_mock_fn1);
-  ASSERT_FALSE(false);
+  ASSERT_FALSE(ok);
 
   EXPECT_CALL(*mock_cleaners, cleanup1(mock_cleaners)).Times(0);
   delete a;
@@ -528,6 +529,8 @@ TEST_F(ArenaTest, RegisterDestructorTest) {
   EXPECT_CALL(*mock, dealloc(x)).Times(1);
   bool ok1 = a->RegisterDestructor<mock_own>(m);
   bool ok2 = a->RegisterDestructor<int>(i);  // will be ignore
+  ASSERT_TRUE(ok1);
+  ASSERT_TRUE(ok2);
 
   ASSERT_EQ(1, a->cleanups());
   ASSERT_EQ(a->last_block_->remain(), a->last_block_->size() - kBlockHeaderSize - kCleanupNodeSize);
@@ -548,6 +551,7 @@ TEST_F(ArenaTest, OwnTest) {
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(x));
   EXPECT_CALL(*mock, dealloc(x)).Times(1);
   bool ok = a->Own<mock_own>(m);
+  ASSERT_TRUE(ok);
   EXPECT_CALL(*m, dealloc()).Times(1);
   delete a;
   std::free(x);
@@ -707,6 +711,9 @@ TEST_F(ArenaTest, DstrTest) {
   bool ok1 = a->addCleanup(mock_cleaners, &cleanup_mock_fn1);
   bool ok2 = a->addCleanup(mock_cleaners, &cleanup_mock_fn2);
   bool ok3 = a->addCleanup(mock_cleaners, &cleanup_mock_fn3);
+  ASSERT_TRUE(ok1);
+  ASSERT_TRUE(ok2);
+  ASSERT_TRUE(ok3);
 
   EXPECT_CALL(*mock_cleaners, cleanup1(mock_cleaners)).Times(1);
   EXPECT_CALL(*mock_cleaners, cleanup2(mock_cleaners)).Times(1);
@@ -783,7 +790,7 @@ class mock_hook
 
 mock_hook* hook_instance;
 
-void* init_hook(Arena* a, const std::source_location& loc = std::source_location::current()) {
+void* init_hook(Arena* a, [[maybe_unused]] const std::source_location& loc = std::source_location::current()) {
   return hook_instance->arena_init_hook(a);
 }
 

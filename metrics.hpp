@@ -237,12 +237,13 @@ struct ArenaMetricsCookie
       : init_timepoint(init_tp), init_location(init_loc) {}
 };
 
-[[gnu::always_inline]] inline void* metrics_probe_on_arena_init(Arena* arena, const std::source_location& loc) {
+[[gnu::always_inline]] inline void* metrics_probe_on_arena_init([[maybe_unused]] Arena* arena,
+                                                                const std::source_location& loc) {
   ++local_arena_metrics.init_count;
   auto cookie = new ArenaMetricsCookie(steady_clock::now(), loc);
   return cookie;
 }
-[[gnu::always_inline]] inline void metrics_probe_on_arena_allocation(const std::type_info* alloc_type,
+[[gnu::always_inline]] inline void metrics_probe_on_arena_allocation([[maybe_unused]] const std::type_info* alloc_type,
                                                                      uint64_t alloc_size, void* cookie) {
   ++local_arena_metrics.alloc_count;
   local_arena_metrics.space_allocated += alloc_size;
@@ -251,17 +252,20 @@ struct ArenaMetricsCookie
   auto c = static_cast<ArenaMetricsCookie*>(cookie);
   local_arena_metrics.increase_arena_alloc_couter(c->init_location, alloc_size);
 }
-[[gnu::always_inline]] inline void metrics_probe_on_arena_newblock(uint64_t blk_num, uint64_t blk_size, void* cookie) {
+[[gnu::always_inline]] inline void metrics_probe_on_arena_newblock([[maybe_unused]] uint64_t blk_num,
+                                                                   [[maybe_unused]] uint64_t blk_size,
+                                                                   [[maybe_unused]] void* cookie) {
   ++local_arena_metrics.newblock_count;
 }
-[[gnu::always_inline]] inline void metrics_probe_on_arena_reset(Arena* arena, void* cookie, uint64_t space_used,
+[[gnu::always_inline]] inline void metrics_probe_on_arena_reset([[maybe_unused]] Arena* arena,
+                                                                [[maybe_unused]] void* cookie, uint64_t space_used,
                                                                 uint64_t space_wasted) {
   ++local_arena_metrics.reset_count;
   local_arena_metrics.space_reseted += space_used;
   local_arena_metrics.space_wasted += space_wasted;
 }
-[[gnu::always_inline]] inline void* metrics_probe_on_arena_destruction(Arena* arena, void* cookie, uint64_t space_used,
-                                                                       uint64_t space_wasted) {
+[[gnu::always_inline]] inline void* metrics_probe_on_arena_destruction([[maybe_unused]] Arena* arena, void* cookie,
+                                                                       uint64_t space_used, uint64_t space_wasted) {
   ++local_arena_metrics.destruct_count;
   local_arena_metrics.space_used += space_used;
   local_arena_metrics.space_wasted += space_wasted;
