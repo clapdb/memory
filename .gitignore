@@ -34,4 +34,5 @@
 build
 compile_commands.json
 .ccls-cache/
+.cache/
 .DS_Store
