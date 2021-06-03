@@ -146,9 +146,7 @@ class Arena
 
     [[gnu::always_inline]] inline char* Pos() noexcept { return reinterpret_cast<char*>(this) + pos_; }
 
-    [[gnu::always_inline]] inline char* CleanupPos() noexcept {
-      return reinterpret_cast<char*>(this) + limit_;
-    }
+    [[gnu::always_inline]] inline char* CleanupPos() noexcept { return reinterpret_cast<char*>(this) + limit_; }
 
     [[gnu::always_inline]] inline char* alloc(uint64_t size) noexcept {
       assert(size <= (limit_ - pos_));
@@ -327,7 +325,7 @@ class Arena
 
   // if return nullptr means failure
   [[gnu::always_inline]] inline char* AllocateAlignedAndAddCleanup(uint64_t bytes, void* element,
-                                                                              void (*cleanup)(void*)) noexcept {
+                                                                   void (*cleanup)(void*)) noexcept {
     if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
       if (addCleanup(element, cleanup)) [[likely]] {
         if (options_.on_arena_allocation != nullptr) [[likely]] {
@@ -380,9 +378,7 @@ class Arena
     return true;
   }
 
-  [[gnu::always_inline]] static inline uint64_t align_size(uint64_t n) noexcept {
-    return align::AlignUpTo<8>(n);
-  }
+  [[gnu::always_inline]] static inline uint64_t align_size(uint64_t n) noexcept { return align::AlignUpTo<8>(n); }
 
   template <typename T>
   [[gnu::always_inline]] inline bool RegisterDestructor(T* ptr) noexcept {
