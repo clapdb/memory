@@ -21,7 +21,7 @@ project(arena)
 aux_source_directory(. ARENA_SRC)
 
 set(CMAKE_CXX_STANDARD 20)
-set(COMMON_WARNING_FLAGS "${COMMON_WARNING_FLAGS} -Wall -Werror -Wextra -Wendif-labels -Wshadow -Wno-unused-result -Wunused-parameter -Wunused-variable -Wunused-value  -Wparentheses -Wuninitialized -Wcomment -Wformat -Wimplicit-fallthrough")
+set(COMMON_WARNING_FLAGS "${COMMON_WARNING_FLAGS} -Wall -Werror -Wextra -Wendif-labels -Wshadow -Wunused-parameter -Wunused-variable  -Wparentheses -Wuninitialized -Wcomment -Wformat -Wimplicit-fallthrough -Wsign-conversion")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_WARNING_FLAGS} -frtti -fexceptions -fsized-deallocation")
 set(CMAKE_CXX_EXTENSIONS ON)
 

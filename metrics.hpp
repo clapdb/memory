@@ -117,13 +117,13 @@ struct GlobalArenaMetrics
       init_count, reset_count, destruct_count, alloc_count, newblock_count, space_allocated, space_used, space_wasted,
       space_reseted);
 
-    for (auto i = 0, count = 0; i < kAllocBucketSize; i++) {
+    for (uint64_t i = 0, count = 0; i < kAllocBucketSize; i++) {
       count += alloc_size_bucket_counter[i];
       str += fmt::format("\n  le={}: {}", alloc_size_bucket[i], static_cast<float>(count) / alloc_count);
     }
 
     str += "\nLifetime distribution:";
-    for (auto i = 0, count = 0; i < kLifetimeBucketSize; i++) {
+    for (uint64_t i = 0, count = 0; i < kLifetimeBucketSize; i++) {
       count += destruct_lifetime_bucket_counter[i];
       str +=
         fmt::format("\n  le={}ms: {}", destruct_lifetime_bucket[i].count(), static_cast<float>(count) / destruct_count);

@@ -173,8 +173,8 @@ TEST_F(ThreadLocalArenaMetrics_Test, Destruction) {
 TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
   Arena* a = new Arena(ops);
   a->init();
-  auto alloc_count = 1024;
-  for (auto i = 0; i < alloc_count; i++) {
+  uint64_t alloc_count = 1024;
+  for (uint64_t i = 0; i < alloc_count; i++) {
     auto _ = a->AllocateAligned(10 * i);
     ASSERT_TRUE(_);
   }
@@ -212,8 +212,8 @@ TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
     auto f = [=, this]() {
       Arena* aa = new Arena(ops);
       aa->init();
-      auto alloc_count_ = 1024;
-      for (auto i = 0; i < alloc_count_; i++) {
+      uint64_t alloc_count_ = 1024;
+      for (uint64_t i = 0; i < alloc_count_; i++) {
         auto _ = aa->AllocateAligned(10 * i);
         ASSERT_TRUE(_);
       }
