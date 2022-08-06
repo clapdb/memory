@@ -23,31 +23,34 @@
 #include <algorithm>
 #include <limits>
 
+
 using stdb::memory::Arena;
 
 Arena::Block::Block(uint64_t size, Block* prev) : prev_(prev), pos_(kBlockHeaderSize), size_(size), limit_(size) {}
 
 // generate a new memory Block.
-Arena::Block* Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept {
+auto Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept -> Arena::Block* {
   uint64_t required_bytes = min_bytes + kBlockHeaderSize;
   uint64_t size = 0;
 
   // verify not overflow, with glog
   CHECK_LE(min_bytes, std::numeric_limits<uint64_t>::max() - kBlockHeaderSize);
 
-  if (prev_block != nullptr) [[likely]] {
-    // not the first block "New" action.
-    if (required_bytes <= options_.normal_block_size) {
-      size = options_.normal_block_size;
-    } else if (required_bytes <= options_.huge_block_size / kThresholdHuge) {
-      size = align::AlignUp(min_bytes, options_.normal_block_size);
-    } else if ((required_bytes > options_.huge_block_size / kThresholdHuge) &&
-               (required_bytes <= options_.huge_block_size)) {
-      size = options_.huge_block_size;
+  if (prev_block != nullptr) {
+    [[likely]] {
+      // not the first block "New" action.
+      if (required_bytes <= options_.normal_block_size) {
+        size = options_.normal_block_size;
+      } else if (required_bytes <= options_.huge_block_size / kThresholdHuge) {
+        size = align::AlignUp(min_bytes, options_.normal_block_size);
+      } else if ((required_bytes > options_.huge_block_size / kThresholdHuge) &&
+                 (required_bytes <= options_.huge_block_size)) {
+        size = options_.huge_block_size;
+      }
+      // for the more than huge_block_size size
+      // will be handle out of the code scope
+      // by now, the size remains to be 0.
     }
-    // for the more than huge_block_size size
-    // will be handle out of the code scope
-    // by now, the size remains to be 0.
   } else {
     // the size may be insuffcient than the required.
     size = options_.suggested_initblock_size;
@@ -68,8 +71,9 @@ Arena::Block* Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept {
   void* mem = options_.block_alloc(size);
   // if mem == nullptr, means no memory available for current os status.
   // if mem == nullptr, placement new will trigger a segmentfault
-  if (mem == nullptr) [[unlikely]]
-    return nullptr;
+  if (mem == nullptr) {
+    [[unlikely]] return nullptr;
+  }
 
   // call the on_arena_newblock callback
   // if on_arena_newblock is nullptr, block num counting is a useless process, so avoid it.
@@ -82,7 +86,7 @@ Arena::Block* Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept {
     options_.on_arena_newblock(blk_num, size, cookie_);
   }
 
-  Block* b = new (mem) Block(size, prev_block);
+  auto* b = new (mem) Block(size, prev_block);
   space_allocated_ += size;
   return b;
 }
@@ -95,17 +99,20 @@ void Arena::Block::Reset() noexcept {
 }
 
 // if return nullptr means failure
-char* Arena::allocateAligned(uint64_t bytes) noexcept {
+auto Arena::allocateAligned(uint64_t bytes) noexcept -> char* {
   uint64_t needed = align_size(bytes);
-  if (need_create_new_block(needed)) [[unlikely]] {
-    Block* curr = newBlock(needed, last_block_);
-    if (curr != nullptr) [[likely]]
-      last_block_ = curr;
-    else
-      return nullptr;
+  if (need_create_new_block(needed)) {
+    [[unlikely]] {
+      Block* curr = newBlock(needed, last_block_);
+      if (curr != nullptr) {
+        [[likely]] last_block_ = curr;
+      } else {
+        return nullptr;
+      }
+    }
   }
   char* result = last_block_->alloc(needed);
   // make sure aligned
-  assert((reinterpret_cast<uint64_t>(result) & 7) == 0);
+  STDB_ASSERT((reinterpret_cast<uint64_t>(result) & 7UL) == 0);
   return result;
 }

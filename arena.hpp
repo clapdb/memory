@@ -30,16 +30,17 @@
 #include <typeinfo>
 #include <utility>
 #include <cassert>
+#include <gtest/gtest_prod.h>
 
 #include "arenahelper.hpp"
-
-#define STDB_ASSERT(exp) assert(exp)
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
 #include <source_location>
 #elif defined(__clang__)
 #include <experimental/source_location>
 #endif
+
+#define STDB_ASSERT(exp) assert(exp)
 
 namespace stdb::memory {
 
@@ -76,6 +77,11 @@ static constexpr uint64_t kCleanupNodeSize = align::AlignUpTo<kByteSize>(sizeof(
 template <typename T>
 void arena_destruct_object(void* obj) noexcept {
   reinterpret_cast<T*>(obj)->~T();
+}
+
+template <typename T>
+void arena_delete_object(void* obj) noexcept {
+  delete reinterpret_cast<T*>(obj);
 }
 
 inline constexpr uint64_t kKiloByte = 1024;
@@ -266,7 +272,7 @@ class Arena
   [[gnu::noinline]] auto Own(T* obj) noexcept -> bool {
     static_assert(!is_arena_constructable<T>::value, "Own requires a type can not create in arean");
     // std::function<void()> cleaner = [obj] { delete obj; };
-    return addCleanup(obj, &arena_destruct_object<T>);
+    return addCleanup(obj, &arena_delete_object<T>);
   }
 
   inline auto Reset() noexcept -> uint64_t {
@@ -451,6 +457,7 @@ class Arena
       options_.block_dealloc(curr);
       curr = prev;
     }
+    last_block_ = nullptr;
     return remain_size;
   }
 

@@ -21,39 +21,33 @@
 #ifndef MEMORY_ARENAHELPER_HPP_
 #define MEMORY_ARENAHELPER_HPP_
 
-#include <cassert>
+#include <cstdint>
 #include <cstdlib>
 #include <functional>
 #include <type_traits>
 #include <utility>
 
-#define ACstrTag using ArenaConstructable_ = void;
-#define ADstrSkipTag using DestructionSkippable_ = void;
+#define ACstrTag using ArenaConstructable_ = void;        // NOLINT
+#define ADstrSkipTag using DestructionSkippable_ = void;  // NOLINT
 
-#ifdef __UNITTEST
-#define FRIEND_TEST(test_case_name, test_name) friend class test_case_name##_##test_name##_Test
-#else
-#define FRIEND_TEST(test_case_name, test_name)
-#endif
-
-namespace stdb {
-namespace memory {
+namespace stdb::memory {
 namespace align {
 
+inline constexpr uint64_t kMaxAlignSize = 64;
 // Align to next 8 multiple
 template <uint64_t N>
-[[gnu::always_inline]] constexpr uint64_t AlignUpTo(uint64_t n) noexcept {
+[[gnu::always_inline]] constexpr auto AlignUpTo(uint64_t n) noexcept -> uint64_t {
   // Align n to next multiple of N
   // (from <Hacker's Delight 2rd edtion>,Chapter 3.)
   // -----------------------------------------------
   // borrow it from protobuf implementation code.
   static_assert((N & (N - 1)) == 0, "AlignUpToN, N is power of 2");
   static_assert(N > 2, "AlignUpToN, N is than 4");
-  static_assert(N < 64, "AlignUpToN, N is more than 64");
+  static_assert(N < kMaxAlignSize, "AlignUpToN, N is more than 64");
   return (n + N - 1) & static_cast<uint64_t>(-N);
 }
 
-[[gnu::always_inline]] inline uint64_t AlignUp(uint64_t n, uint64_t block_size) noexcept {
+[[gnu::always_inline]] inline auto AlignUp(uint64_t n, uint64_t block_size) noexcept -> uint64_t {
   uint64_t m = n % block_size;
   return n - m + (static_cast<int>(static_cast<bool>(m))) * block_size;
 }
@@ -72,18 +66,18 @@ class ArenaHelper
 {
  public:
   template <typename U>
-  static char DestructionSkippable(const typename U::DestructionSkippable_*);
+  static auto DestructionSkippable(const typename U::DestructionSkippable_*) -> char;
   template <typename U>
-  static double DestructionSkippable(...);
+  static auto DestructionSkippable(...) -> double;
 
   using is_destructor_skippable =
     std::integral_constant<bool, sizeof(DestructionSkippable<T>(static_cast<const T*>(0))) == sizeof(char) ||
                                    std::is_trivially_destructible<T>::value>;
 
   template <typename U>
-  static char ArenaConstructable(const typename U::ArenaConstructable_*);
+  static auto ArenaConstructable(const typename U::ArenaConstructable_*) -> char;
   template <typename U>
-  static double ArenaConstructable(...);
+  static auto ArenaConstructable(...) -> double;
 
   using is_arena_constructable =
     std::integral_constant<bool, sizeof(ArenaConstructable<T>(static_cast<const T*>(0))) == sizeof(char)>;
@@ -91,7 +85,7 @@ class ArenaHelper
   // because use new placement do not need allocate memory
   // so no bad_alloc will be thrown
   template <typename... Args>
-  [[gnu::always_inline]] inline static T* Construct(void* ptr, Arena* arena, Args&&... args) noexcept {
+  [[gnu::always_inline]] inline static auto Construct(void* ptr, Arena* arena, Args&&... args) noexcept -> T* {
     // placement new make the new Object T is in the ptr-> memory.
     if constexpr (std::is_constructible<T, Arena*, Args...>::value) {
       return new (ptr) T(arena, std::forward<Args>(args)...);
@@ -100,7 +94,7 @@ class ArenaHelper
     }
   }
 
-  [[gnu::always_inline]] inline static Arena* GetArena(const T* p) noexcept { return p->GetArena(); }
+  [[gnu::always_inline]] inline static auto GetArena(const T* p) noexcept -> Arena* { return p->GetArena(); }
 
   friend class Arena;
 };
@@ -121,7 +115,6 @@ template <typename T>
 struct is_destructor_skippable : ArenaHelper<T>::is_destructor_skippable
 {};
 
-}  // namespace memory
-}  // namespace stdb
+}  // namespace stdb::memory
 
 #endif  // MEMORY_ARENAHELPER_HPP_

@@ -36,8 +36,8 @@ using stdb::memory::align::AlignUpTo;
 // using stdb::memory::Arena::kCleanupNodeSize;
 namespace stdb::memory {
 
-using STring = std::string;
 using ::testing::ElementsAre;
+using STring = std::string;
 
 class alloc_class
 {
@@ -57,7 +57,7 @@ class BlockTest : public ::testing::Test
   auto Pointer() -> void* { return ptr; }
 
  private:
-  void* ptr;
+  void* ptr{nullptr};
 };
 
 class cleanup_mock
@@ -298,21 +298,21 @@ TEST_F(ArenaTest, NewBlockTest) {
 
 TEST_F(ArenaTest, AllocateTest) {
   // NOLINTNEXTLINE
-  void* m = std::malloc(1024); 
+  void* m = std::malloc(1024);
   // NOLINTNEXTLINE
   void* mm = std::malloc(1024);
   mock = new alloc_class;
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(m));
   auto* x = new Arena(ops_complex);
   auto* new_ptr = x->AllocateAligned(3500);
-  ASSERT_EQ(new_ptr, (char*)m + sizeof(Arena::Block));
+  ASSERT_EQ(new_ptr, static_cast<char*>(m) + sizeof(Arena::Block));
 
   EXPECT_CALL(*mock, alloc(1024)).WillOnce(Return(mm));
   auto* next_ptr = x->AllocateAligned(755);
 
   EXPECT_CALL(*mock, dealloc(m)).Times(1);
   EXPECT_CALL(*mock, dealloc(mm)).Times(1);
-  ASSERT_EQ(next_ptr, (char*)mm + sizeof(Arena::Block));
+  ASSERT_EQ(next_ptr, static_cast<char*>(mm) + sizeof(Arena::Block));
   delete x;
   // NOLINTNEXTLINE
   std::free(m);
@@ -393,6 +393,9 @@ TEST_F(ArenaTest, FreeBlocksExceptFirstTest) {
   EXPECT_EQ(wasted, 1024 * 7 - 3 * kBlockHeaderSize);
 
   // not "delete a" to avoid freeing the first block
+  // set last_block_ to nullptr, to avoid the dealloc for this block.
+  a->last_block_ = nullptr;
+  delete a;
   // NOLINTNEXTLINE
   std::free(x1);
   // NOLINTNEXTLINE
@@ -431,6 +434,9 @@ TEST_F(ArenaTest, ResetTest) {
   ASSERT_EQ(a->last_block_->remain(), 1024 - kBlockHeaderSize);
 
   // not "delete a" to avoid freeing the first block
+  // set last_block_ to nullptr, to avoid the dealloc for this block.
+  a->last_block_ = nullptr;
+  delete a;
   // NOLINTNEXTLINE
   std::free(x1);
   // NOLINTNEXTLINE
@@ -473,6 +479,9 @@ TEST_F(ArenaTest, ResetWithCleanupTest) {
   ASSERT_EQ(a->last_block_->remain(), 1024 - kBlockHeaderSize);
 
   // not "delete a" to avoid freeing the first block
+  // set last_block_ to nullptr, to avoid the dealloc for this block.
+  a->last_block_ = nullptr;
+  delete a;
   // NOLINTNEXTLINE
   std::free(x1);
   // NOLINTNEXTLINE
@@ -508,6 +517,7 @@ TEST_F(ArenaTest, FreeBlocksTest) {
   ASSERT_EQ(wasted, 7 * 1024 - 3 * kBlockHeaderSize);
 
   // not "delete a" to avoid call free_all_blocks twice
+  delete a;
   // NOLINTNEXTLINE
   std::free(x1);
   // NOLINTNEXTLINE
@@ -521,6 +531,7 @@ TEST_F(ArenaTest, DoCleanupTest) {
   auto* a = new Arena(ops_complex);
   mock = new alloc_class;
   mock_cleaners = new cleanup_mock;
+  // NOLINTNEXTLINE
   void* x = std::malloc(4096);
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(x));
   EXPECT_CALL(*mock, dealloc(x)).Times(1);
@@ -531,6 +542,7 @@ TEST_F(ArenaTest, DoCleanupTest) {
   delete a;
   delete mock_cleaners;
   delete mock;
+  // NOLINTNEXTLINE
   free(x);
 }
 
@@ -539,34 +551,8 @@ class mock_own
  public:
   MOCK_METHOD0(dealloc, void());
   ~mock_own() { dealloc(); }
-  int x_;
+  int x_{0};
 };
-
-TEST_F(ArenaTest, RegisterDestructorTest) {
-  // NOLINTNEXTLINE
-  void* x = std::malloc(4096);
-  auto* m = new mock_own();
-  int* i = new int;
-  auto* a = new Arena(ops_complex);
-  mock = new alloc_class;
-  EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(x));
-  EXPECT_CALL(*mock, dealloc(x)).Times(1);
-  bool ok1 = a->RegisterDestructor<mock_own>(m);
-  bool ok2 = a->RegisterDestructor<int>(i);  // will be ignore
-  ASSERT_TRUE(ok1);
-  ASSERT_TRUE(ok2);
-
-  ASSERT_EQ(1, a->cleanups());
-  ASSERT_EQ(a->last_block_->remain(), a->last_block_->size() - kBlockHeaderSize - kCleanupNodeSize);
-  EXPECT_CALL(*m, dealloc()).Times(1);
-
-  delete a;
-  delete i;  // avoid leak
-  delete mock;
-  mock = nullptr;
-  // NOLINTNEXTLINE
-  std::free(x);
-}
 
 TEST_F(ArenaTest, OwnTest) {
   // NOLINTNEXTLINE
@@ -580,6 +566,8 @@ TEST_F(ArenaTest, OwnTest) {
   ASSERT_TRUE(ok);
   EXPECT_CALL(*m, dealloc()).Times(1);
   delete a;
+  //EXPECT_CALL(*m, dealloc()).Times(1);
+  //delete m;
   // NOLINTNEXTLINE
   std::free(x);
   delete mock;
@@ -607,13 +595,13 @@ class mock_class_need_dstr
 {
  public:
   ACstrTag;
-  mock_class_need_dstr(int i, const STring& name) : index_(i), n_(name) { cstr->construct(n_); }
+  mock_class_need_dstr(int i, STring name) : index_(i), n_(std::move(name)) { cstr->construct(n_); }
   ~mock_class_need_dstr() { cstr->destruct(n_); }
   auto verify(int i, const STring& name) -> bool { return (i == index_) && (name == n_); }
 
  private:
   int index_;
-  const STring& n_;
+  const STring n_;
 };
 
 class mock_class_without_dstr
@@ -623,22 +611,23 @@ class mock_class_without_dstr
   ADstrSkipTag;
   MOCK_METHOD0(construct, void());
   MOCK_METHOD0(destruct, void());
-  explicit mock_class_without_dstr(const STring& name) : n_(name) { cstr->construct(n_); }
+  explicit mock_class_without_dstr(STring name) : n_(std::move(name)) { cstr->construct(n_); }
   ~mock_class_without_dstr() { cstr->destruct(n_); }
-  auto verify(const STring& n) -> bool { return n_.compare(n) != 0; }
+  auto verify(const STring& n) -> bool { return n_ == n; }
 
  private:
-  const STring& n_;
+  const STring n_;
 };
 
 class mock_class_with_arena
 {
  public:
   ACstrTag;
-  explicit mock_class_with_arena(Arena* arena) : arena_(arena) {}
+  // explicit mock_class_with_arena(Arena* arena) : arena_(arena) {}
+  mock_class_with_arena() = default;
 
  private:
-  Arena* arena_;
+  // Arena* arena_{nullptr};
 };
 
 TEST_F(ArenaTest, CreateTest) {
@@ -775,11 +764,11 @@ TEST_F(ArenaTest, SpaceTest) {
 
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(m));
   auto* new_ptr = x->AllocateAligned(3500);
-  ASSERT_EQ(new_ptr, (char*)m + sizeof(Arena::Block));
+  ASSERT_EQ(new_ptr, static_cast<char*>(m) + sizeof(Arena::Block));
 
   EXPECT_CALL(*mock, alloc(1024)).WillOnce(Return(mm));
   auto* next_ptr = x->AllocateAligned(755);
-  ASSERT_EQ(next_ptr, (char*)mm + sizeof(Arena::Block));
+  ASSERT_EQ(next_ptr, static_cast<char*>(mm) + sizeof(Arena::Block));
 
   ASSERT_EQ(x->SpaceAllocated(), 5120ULL);
   ASSERT_EQ(x->last_block_, mm);
@@ -804,7 +793,7 @@ TEST_F(ArenaTest, AllocateAlignedAndAddCleanupTest) {
   void* mm = std::malloc(1024);
   EXPECT_CALL(*mock, alloc(4096)).WillOnce(Return(m));
   auto* new_ptr = a->AllocateAlignedAndAddCleanup(3500, mock_cleaners, cleanup_mock_fn1);
-  ASSERT_EQ(new_ptr, (char*)m + sizeof(Arena::Block));
+  ASSERT_EQ(new_ptr, static_cast<char*>(m) + sizeof(Arena::Block));
 
   EXPECT_CALL(*mock, alloc(1024)).WillOnce(Return(mm));
   auto* next_ptr = a->AllocateAlignedAndAddCleanup(755, mock_cleaners, cleanup_mock_fn2);
@@ -814,7 +803,7 @@ TEST_F(ArenaTest, AllocateAlignedAndAddCleanupTest) {
 
   EXPECT_CALL(*mock, dealloc(m)).Times(1);
   EXPECT_CALL(*mock, dealloc(mm)).Times(1);
-  ASSERT_EQ(next_ptr, (char*)mm + sizeof(Arena::Block));
+  ASSERT_EQ(next_ptr, static_cast<char*>(mm) + sizeof(Arena::Block));
   delete a;
   delete mock;
   delete mock_cleaners;
@@ -967,7 +956,7 @@ TEST_F(ArenaTest, NullTest) {
   delete a;
 }
 
-TEST_F(ArenaTest, memory_resource_Test) {
+TEST_F(ArenaTest, MemoryResourceTest) {
   mock = new alloc_class{};
 
   Arena::Options opts;
@@ -1026,7 +1015,8 @@ class Foo
   explicit Foo(allocator_type alloc) : allocator_(alloc), vec_{alloc} {};
   Foo(const Foo& foo, allocator_type alloc) : allocator_(alloc), vec_{foo.vec_, alloc} {};
   Foo(Foo&& foo) noexcept : Foo{std::move(foo), foo.allocator_} {};
-  Foo(Foo&& foo, allocator_type alloc) : allocator_(alloc), vec_{alloc} { vec_ = std::move(foo.vec_); }
+  // NOLINTNEXTLINE
+  Foo(Foo&& foo, allocator_type alloc) : allocator_(alloc), vec_(alloc) { vec_ = std::move(foo.vec_); }
 
   allocator_type allocator_;
   std::pmr::vector<int> vec_;
@@ -1105,11 +1095,13 @@ TEST_F(ArenaTest, AllocatorAwareTest) {
 
     Foo foo2(std::move(foo1));
     EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
+    // NOLINTNEXTLINE
     EXPECT_EQ(0, foo1.vec_.size());
     EXPECT_EQ(4, foo2.vec_.size());
 
     Foo foo3(std::move(foo2), &res1);
     EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena1.last_block_->remain());
+    // NOLINTNEXTLINE
     EXPECT_EQ(0, foo2.vec_.size());
     EXPECT_EQ(4, foo3.vec_.size());
 
@@ -1122,6 +1114,7 @@ TEST_F(ArenaTest, AllocatorAwareTest) {
 
     Foo foo4(std::move(foo3), &res2);
     EXPECT_EQ(256 - 16 - kBlockHeaderSize, arena2.last_block_->remain());
+    // NOLINTNEXTLINE
     EXPECT_EQ(0, foo3.vec_.size());
     EXPECT_EQ(4, foo4.vec_.size());
   }
