@@ -23,8 +23,8 @@
 
 #include <thread>
 
-#include "doctest/doctest.h"
 #include "arena/arena.hpp"
+#include "doctest/doctest.h"
 
 using stdb::memory::Arena;
 namespace stdb::memory {

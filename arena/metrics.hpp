@@ -28,8 +28,8 @@
 #include <iostream>
 #include <map>
 #include <thread>
-#include <utility>
 #include <unordered_map>
+#include <utility>
 
 #include "arena.hpp"
 

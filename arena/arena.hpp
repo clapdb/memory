@@ -20,16 +20,17 @@
 
 #pragma once
 
+#include <fmt/core.h>
+
+#include <cassert>
 #include <concepts>
 #include <cstdlib>
 #include <limits>
 #include <memory_resource>
+#include <string>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
-#include <string>
-#include <cassert>
-#include <fmt/core.h>
 
 #include "arenahelper.hpp"
 
@@ -42,8 +43,9 @@
 #define STDB_ASSERT(exp) assert(exp)
 
 #include <boost/core/demangle.hpp>
-#define TYPENAME(type) boost::core::demangle(typeid(type).name())  // NOLINT
-                                                                   //
+#define TYPENAME(type) \
+    boost::core::demangle(typeid(type).name())  // NOLINT
+                                                //
 namespace stdb::memory {
 
 using ::stdb::memory::align::AlignUpTo;
@@ -281,8 +283,8 @@ class Arena
         // free blocks
         uint64_t all_waste_space = free_all_blocks();
         // make sure the on_arena_destruction was not free.
-        if (_options.on_arena_destruction != nullptr) {
-            [[likely]] _options.on_arena_destruction(this, _cookie, _space_allocated, all_waste_space);
+        if (_options.on_arena_destruction != nullptr) [[likely]] {
+            _options.on_arena_destruction(this, _cookie, _space_allocated, all_waste_space);
         }
     }
 
@@ -294,8 +296,8 @@ class Arena
     inline auto Reset() noexcept -> uint64_t {
         // free all blocks except the first block
         uint64_t all_waste_space = free_blocks_except_head();
-        if (_options.on_arena_reset != nullptr) {
-            [[likely]] _options.on_arena_reset(this, _cookie, _space_allocated, all_waste_space);
+        if (_options.on_arena_reset != nullptr) [[likely]] {
+            _options.on_arena_reset(this, _cookie, _space_allocated, all_waste_space);
         }
         // reset all internal status.
         uint64_t reset_size = _space_allocated;
@@ -321,14 +323,14 @@ class Arena
     template <Creatable T, typename... Args>
     [[nodiscard]] auto Create(Args&&... args) noexcept -> T* {
         char* ptr = allocateAligned(sizeof(T));
-        if (ptr != nullptr) {
-            [[likely]] ArenaHelper<T>::Construct(ptr, this, std::forward<Args>(args)...);
+        if (ptr != nullptr) [[likely]] {
+            ArenaHelper<T>::Construct(ptr, this, std::forward<Args>(args)...);
             T* result = reinterpret_cast<T*>(ptr);
-            if (!RegisterDestructor<T>(result)) {
-                [[unlikely]] return nullptr;
+            if (!RegisterDestructor<T>(result)) [[unlikely]] {
+                return nullptr;
             }
-            if (_options.on_arena_allocation != nullptr) {
-                [[likely]] _options.on_arena_allocation(&typeid(T), sizeof(T), _cookie);
+            if (_options.on_arena_allocation != nullptr) [[likely]] {
+                _options.on_arena_allocation(&typeid(T), sizeof(T), _cookie);
             }
             return result;
         }
@@ -339,24 +341,23 @@ class Arena
     template <Creatable T>
     [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T* requires TriviallyDestructible<T> {
         if (num > std::numeric_limits<uint64_t>::max() / sizeof(T)) {
-            fmt::print(stderr,
+            fmt::print(
+              stderr,
               "CreateArray need too many memory, that more than max of uint64_t, the num of array is {}, and the Type "
               "is {}, sizeof T is {}",
               num, TYPENAME(T), sizeof(T));
         }
         const uint64_t size = sizeof(T) * num;
         char* p = allocateAligned(size);
-        if (p != nullptr) {
-            [[likely]] {
-                T* curr = reinterpret_cast<T*>(p);
-                for (uint64_t i = 0; i < num; ++i) {
-                    ArenaHelper<T>::Construct(curr++, this);
-                }
-                if (_options.on_arena_allocation != nullptr) {
-                    [[likely]] { _options.on_arena_allocation(&typeid(T), size, _cookie); }
-                }
-                return reinterpret_cast<T*>(p);
+        if (p != nullptr) [[likely]] {
+            T* curr = reinterpret_cast<T*>(p);
+            for (uint64_t i = 0; i < num; ++i) {
+                ArenaHelper<T>::Construct(curr++, this);
             }
+            if (_options.on_arena_allocation != nullptr) [[likely]] {
+                _options.on_arena_allocation(&typeid(T), size, _cookie);
+            }
+            return reinterpret_cast<T*>(p);
         }
         return nullptr;
     }
@@ -366,9 +367,9 @@ class Arena
      * return nullptr means failure
      */
     [[nodiscard]] auto AllocateAligned(uint64_t bytes) noexcept -> char* {
-        if (char* ptr = allocateAligned(bytes); ptr != nullptr) {
-            [[likely]] if (_options.on_arena_allocation != nullptr) {
-                [[likely]] _options.on_arena_allocation(nullptr, bytes, _cookie);
+        if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
+            if (_options.on_arena_allocation != nullptr) [[likely]] {
+                _options.on_arena_allocation(nullptr, bytes, _cookie);
             }
             return ptr;
         }
@@ -381,16 +382,12 @@ class Arena
      */
     [[nodiscard]] auto AllocateAlignedAndAddCleanup(uint64_t bytes, void* element, void (*cleanup)(void*)) noexcept
       -> char* {
-        if (char* ptr = allocateAligned(bytes); ptr != nullptr) {
-            [[likely]] {
-                if (addCleanup(element, cleanup)) {
-                    [[likely]] {
-                        if (_options.on_arena_allocation != nullptr) {
-                            [[likely]] { _options.on_arena_allocation(nullptr, bytes, _cookie); }
-                        }
-                        return ptr;
-                    }
+        if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
+            if (addCleanup(element, cleanup)) [[likely]] {
+                if (_options.on_arena_allocation != nullptr) [[likely]] {
+                    _options.on_arena_allocation(nullptr, bytes, _cookie);
                 }
+                return ptr;
             }
         }
         return nullptr;
@@ -419,8 +416,8 @@ class Arena
      * call the callback to monitor and metrics: this arena was inited.
      */
     [[gnu::always_inline]] inline void init(const source_location& loc = source_location::current()) noexcept {
-        if (_options.on_arena_init != nullptr) {
-            [[likely]] { _cookie = _options.on_arena_init(this, loc); }
+        if (_options.on_arena_init != nullptr) [[likely]] {
+            _cookie = _options.on_arena_init(this, loc);
         }
     }
 
@@ -446,14 +443,12 @@ class Arena
      * add A Cleanup node to current block.
      */
     [[nodiscard]] auto addCleanup(void* obj, void (*cleanup)(void*)) noexcept -> bool {
-        if (need_create_new_block(kCleanupNodeSize)) {
-            [[unlikely]] {
-                Block* curr = newBlock(kCleanupNodeSize, _last_block);
-                if (curr != nullptr) {
-                    [[likely]] _last_block = curr;
-                } else {
-                    return false;
-                }
+        if (need_create_new_block(kCleanupNodeSize)) [[unlikely]] {
+            Block* curr = newBlock(kCleanupNodeSize, _last_block);
+            if (curr != nullptr) [[likely]] {
+                _last_block = curr;
+            } else {
+                return false;
             }
         }
         _last_block->register_cleanup(obj, cleanup);
