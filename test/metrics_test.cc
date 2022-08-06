@@ -19,24 +19,16 @@
 */
 #include "arena/metrics.hpp"
 
+#include <doctest/doctest.h>
+
 #include <thread>
 
 #include "arena/arena.hpp"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using stdb::memory::Arena;
 namespace stdb::memory {
 
-class alloc_class
-{
-   public:
-    MOCK_METHOD1(alloc, void*(uint64_t));
-    MOCK_METHOD1(dealloc, void(void*));
-    ~alloc_class() = default;
-};
-
-class ThreadLocalArenaMetricsTest : public ::testing::Test
+class ThreadLocalArenaMetricsTest
 {
    protected:
     Arena::Options ops;
@@ -45,7 +37,7 @@ class ThreadLocalArenaMetricsTest : public ::testing::Test
     // NOLINTNEXTLINE
     static void dealloc(void* ptr) { std::free(ptr); }
 
-    void SetUp() override {
+    ThreadLocalArenaMetricsTest() {
         ops.block_alloc = &alloc;
         ops.block_dealloc = &dealloc;
         ops.normal_block_size = 1024ULL;
@@ -59,41 +51,42 @@ class ThreadLocalArenaMetricsTest : public ::testing::Test
         ops.on_arena_destruction = &metrics_probe_on_arena_destruction;
     };
 
-    void TearDown() override {
+    ~ThreadLocalArenaMetricsTest() {
         local_arena_metrics.reset();
         global_arena_metrics.reset();
     };
 };
 
-TEST_F(ThreadLocalArenaMetricsTest, Init) {
+TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsInit") {
     auto* a = new Arena(ops);
     a->init();
     delete a;
     auto& m = local_arena_metrics;
-    ASSERT_EQ(m.init_count, 1);
+    CHECK_EQ(m.init_count, 1);
 }
 
-TEST_F(ThreadLocalArenaMetricsTest, Reset) {
+TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsReset") {
     auto* a = new Arena(ops);
     a->init();
     auto* _ = a->AllocateAligned(124);
     a->Reset();
     delete a;
     auto& m = local_arena_metrics;
-    ASSERT_TRUE(_);
-    ASSERT_EQ(m.reset_count, 1);
+    CHECK(_);
+    CHECK_EQ(m.reset_count, 1);
+    CHECK_EQ(m.space_allocated, 124);
 }
 
-TEST_F(ThreadLocalArenaMetricsTest, Allocation) {
+TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsAllocation") {
     {
         auto* a = new Arena(ops);
         a->init();
         auto* _ = a->AllocateAligned(10);
         delete a;
         auto& m = local_arena_metrics;
-        ASSERT_TRUE(_);
-        ASSERT_EQ(m.alloc_count, 1);
-        ASSERT_EQ(m.space_allocated, 10);
+        CHECK(_);
+        CHECK_EQ(m.alloc_count, 1);
+        CHECK_EQ(m.space_allocated, 10);
     }
 
     {
@@ -102,11 +95,11 @@ TEST_F(ThreadLocalArenaMetricsTest, Allocation) {
         auto* _ = a->AllocateAligned(100);
         delete a;
         auto& m = local_arena_metrics;
-        ASSERT_TRUE(_);
-        ASSERT_EQ(m.alloc_count, 2);
-        ASSERT_EQ(m.alloc_size_bucket_counter[0], 1);
-        ASSERT_EQ(m.alloc_size_bucket_counter[1], 1);
-        ASSERT_EQ(m.space_allocated, 110);
+        CHECK(_);
+        CHECK_EQ(m.alloc_count, 2);
+        CHECK_EQ(m.alloc_size_bucket_counter[0], 1);
+        CHECK_EQ(m.alloc_size_bucket_counter[1], 1);
+        CHECK_EQ(m.space_allocated, 110);
     }
 
     local_arena_metrics.reset();
@@ -117,7 +110,7 @@ TEST_F(ThreadLocalArenaMetricsTest, Allocation) {
         STring key = loc.file_name();
         key += ":" + std::to_string(loc.line());
 
-        ASSERT_FALSE(m.arena_alloc_counter.contains(key));
+        CHECK_FALSE(m.arena_alloc_counter.contains(key));
 
         auto* a = new Arena(ops);
 
@@ -125,116 +118,129 @@ TEST_F(ThreadLocalArenaMetricsTest, Allocation) {
         auto* _ = a->AllocateAligned(100);
         delete a;
 
-        ASSERT_TRUE(_);
-        ASSERT_EQ(m.arena_alloc_counter[key], 100);
+        CHECK(_);
+        CHECK_EQ(m.arena_alloc_counter[key], 100);
     }
 }
 
-TEST_F(ThreadLocalArenaMetricsTest, NewBlock) {
-    {  // reuse block
+TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsNewBlock") {
+    SUBCASE("reuse block") {  // reuse block
         auto* a = new Arena(ops);
         a->init();
         auto* p1 = a->AllocateAligned(10);
         auto* p2 = a->AllocateAligned(100);
         delete a;
         auto& m = local_arena_metrics;
-        ASSERT_TRUE(p1 != nullptr);
-        ASSERT_TRUE(p2 != nullptr);
-        ASSERT_EQ(m.alloc_count, 2);
-        ASSERT_EQ(m.newblock_count, 1);
+        CHECK(p1 != nullptr);
+        CHECK(p2 != nullptr);
+        CHECK_EQ(m.alloc_count, 2);
+        CHECK_EQ(m.newblock_count, 1);
     }
 
     local_arena_metrics.reset();
 
-    {  // non-fully reuse block lead to space_waste
+    SUBCASE("non-fully reuse block lead to space waste") {  // non-fully reuse block lead to space_waste
         auto* a = new Arena(ops);
         a->init();
         auto* p1 = a->AllocateAligned(10);
         auto* p2 = a->AllocateAligned(65535);
         delete a;
         auto& m = local_arena_metrics;
-        ASSERT_TRUE(p1 != nullptr);
-        ASSERT_TRUE(p2 != nullptr);
-        ASSERT_EQ(m.alloc_count, 2);
-        ASSERT_EQ(m.newblock_count, 2);
-        ASSERT_GT(m.space_wasted, 0);
+        CHECK(p1 != nullptr);
+        CHECK(p2 != nullptr);
+        CHECK_EQ(m.alloc_count, 2);
+        CHECK_EQ(m.newblock_count, 2);
+        CHECK_GT(m.space_wasted, 0);
     }
 }
 
-TEST_F(ThreadLocalArenaMetricsTest, Destruction) {
+TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsDestruction") {
     auto* a = new Arena(ops);
     a->init();
     auto* _ = a->AllocateAligned(10);
     delete a;
-    ASSERT_TRUE(_);
+    CHECK(_);
     auto& m = local_arena_metrics;
-    ASSERT_EQ(m.destruct_count, 1);
+    CHECK_EQ(m.destruct_count, 1);
 }
 
-TEST_F(ThreadLocalArenaMetricsTest, ReportToGlobalMetrics) {
+TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsReportToGlobalMetrics") {
     auto* a = new Arena(ops);
     a->init();
     uint64_t alloc_count = 1024;
     for (uint64_t i = 0; i < alloc_count; i++) {
         auto* _ = a->AllocateAligned(10 * i);
-        ASSERT_TRUE(_);
+        CHECK(_);
     }
     delete a;
 
     {
         auto& global = global_arena_metrics;
-        ASSERT_EQ(global.init_count, 0);
-        ASSERT_EQ(global.alloc_count, 0);
-        ASSERT_EQ(global.destruct_count, 0);
+        CHECK_EQ(global.init_count, 0);
+        CHECK_EQ(global.alloc_count, 0);
+        CHECK_EQ(global.destruct_count, 0);
         auto& m = local_arena_metrics;
-        ASSERT_EQ(m.init_count, 1);
-        ASSERT_EQ(m.alloc_count, alloc_count);
-        ASSERT_EQ(m.destruct_count, 1);
+        CHECK_EQ(m.init_count, 1);
+        CHECK_EQ(m.alloc_count, alloc_count);
+        CHECK_EQ(m.destruct_count, 1);
     }
 
-    local_arena_metrics.report_to_global_metrics();
-
     {
+        local_arena_metrics.report_to_global_metrics();
         auto& global = global_arena_metrics;
-        ASSERT_EQ(global.init_count, 1);
-        ASSERT_EQ(global.alloc_count, alloc_count);
-        ASSERT_EQ(global.destruct_count, 1);
+        CHECK_EQ(global.init_count, 1);
+        CHECK_EQ(global.alloc_count, alloc_count);
+        CHECK_EQ(global.destruct_count, 1);
 
         auto& m = local_arena_metrics;
-        ASSERT_EQ(m.init_count, 0);
-        ASSERT_EQ(m.alloc_count, 0);
-        ASSERT_EQ(m.destruct_count, 0);
+        CHECK_EQ(m.init_count, 0);
+        CHECK_EQ(m.alloc_count, 0);
+        CHECK_EQ(m.destruct_count, 0);
 
-        // std::cout << global.STring() << std::endl;
         global.reset();
     }
 
     {  // multi-thread
-        auto f = [=, this]() {
+        bool alloc_success1 = false;
+        auto f1 = [=, this, &alloc_success1]() {
+            // g_cs = *cs;
             auto* aa = new Arena(ops);
             aa->init();
             uint64_t alloc_count_ = 1024;
             for (uint64_t i = 0; i < alloc_count_; i++) {
-                auto* _ = aa->AllocateAligned(10 * i);
-                ASSERT_TRUE(_);
+                alloc_success1 = aa->AllocateAligned(10 * i);
+            }
+            delete aa;
+            local_arena_metrics.report_to_global_metrics();
+        };
+        bool alloc_success2 = false;
+        auto f2 = [=, this, &alloc_success2]() {
+            // g_cs = *cs;
+            auto* aa = new Arena(ops);
+            aa->init();
+            uint64_t alloc_count_ = 1024;
+            for (uint64_t i = 0; i < alloc_count_; i++) {
+                alloc_success2 = aa->AllocateAligned(10 * i);
             }
             delete aa;
             local_arena_metrics.report_to_global_metrics();
         };
 
         auto& global = global_arena_metrics;
-        ASSERT_EQ(global.init_count, 0);
-        ASSERT_EQ(global.alloc_count, 0);
-        ASSERT_EQ(global.destruct_count, 0);
+        CHECK_EQ(global.init_count, 0);
+        CHECK_EQ(global.alloc_count, 0);
+        CHECK_EQ(global.destruct_count, 0);
 
-        std::thread t1(f);
-        std::thread t2(f);
+        std::thread t1(f1);
+        std::thread t2(f2);
         t1.join();
         t2.join();
 
-        ASSERT_EQ(global.init_count, 2);
-        ASSERT_EQ(global.alloc_count, alloc_count * 2);
-        ASSERT_EQ(global.destruct_count, 2);
+        CHECK(alloc_success1);
+        CHECK(alloc_success2);
+        CHECK_EQ(global.init_count, 2);
+        CHECK_EQ(global.alloc_count, alloc_count * 2);
+        CHECK_EQ(global.destruct_count, 2);
         // std::cout << global.STring() << std::endl;
     }
 }

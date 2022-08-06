@@ -22,7 +22,6 @@
 #define MEMORY_ARENA_HPP_
 
 #include <fmt/core.h>
-#include <gtest/gtest_prod.h>
 
 #include <cassert>
 #include <concepts>
@@ -516,25 +515,7 @@ class Arena
 
     static constexpr uint64_t kThresholdHuge = 4;
 
-    // FRIEND_TEST will not generate code in release binary.
-    FRIEND_TEST(ArenaTest, CtorTest);
-    FRIEND_TEST(ArenaTest, NewBlockTest);
-    FRIEND_TEST(ArenaTest, AddCleanupTest);
-    FRIEND_TEST(ArenaTest, AddCleanupFailTest);
-    FRIEND_TEST(ArenaTest, FreeBlocksTest);
-    FRIEND_TEST(ArenaTest, FreeBlocksExceptFirstTest);
-    FRIEND_TEST(ArenaTest, DoCleanupTest);
-    FRIEND_TEST(ArenaTest, OwnTest);
-    FRIEND_TEST(ArenaTest, SpaceTest);
-    FRIEND_TEST(ArenaTest, RegisterDestructorTest);
-    FRIEND_TEST(ArenaTest, CreateArrayTest);
-    FRIEND_TEST(ArenaTest, CreateTest);
-    FRIEND_TEST(ArenaTest, DstrTest);
-    FRIEND_TEST(ArenaTest, NullTest);
-    FRIEND_TEST(ArenaTest, HookTest);
-    FRIEND_TEST(ArenaTest, ResetTest);
-    FRIEND_TEST(ArenaTest, ResetWithCleanupTest);
-    FRIEND_TEST(ArenaTest, AllocatorAwareTest);
+    friend class ArenaTestHelper;
 };  // class Arena
 
 static constexpr uint64_t kBlockHeaderSize = align::AlignUpTo<kByteSize>(sizeof(memory::Arena::Block));

@@ -27,11 +27,8 @@ set(CMAKE_CXX_EXTENSIONS ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-include (cmake/FindGTest.cmake)
-include (cmake/FindGMock.cmake)
+include_directories(SYSTEM doctest/)
 
-find_package(GTest REQUIRED)
-find_package(GMock REQUIRED)
 # fmt
 find_package(fmt REQUIRED)
 
@@ -50,6 +47,8 @@ if(${CMAKE_BUILD_TYPE} MATCHES Debug)
     EXECUTABLE test/test
   )
 endif()
+
+add_subdirectory(doctest)
 
 ### build arena
 add_subdirectory(arena)
