@@ -148,19 +148,13 @@ class Arena
         void (*on_arena_newblock)(uint64_t blk_num, uint64_t blk_size, void* cookie){nullptr};
         void* (*on_arena_destruction)(Arena* arena, void* cookie, uint64_t space_used, uint64_t space_wasted){nullptr};
 
-        Options()
-            : normal_block_size(4 * kKiloByte),  // 4k is the normal pagesize of modern os
-              huge_block_size(2 * kMegaByte),    // TODO(hurricane1026): maybe support 1G
-              suggested_init_block_size(4 * kKiloByte) {}
-
-        Options(const Options&) = default;
-
-        auto operator=(const Options&) -> Options& = default;
-
-        Options(Options&&) = default;
-
-        auto operator=(Options&&) -> Options& = default;
-        ~Options() = default;
+        inline static auto GetDefaultOptions() -> Options {
+            return {.normal_block_size = 4 * kKiloByte,
+                    .huge_block_size = 2 * kMegaByte,
+                    .suggested_init_block_size = 4 * kKiloByte,
+                    .block_alloc = &std::malloc,
+                    .block_dealloc = &std::free};
+        }
 
         void init() noexcept {
             STDB_ASSERT(normal_block_size > 0);
