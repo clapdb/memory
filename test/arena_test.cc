@@ -24,7 +24,6 @@
 #include <iostream>
 #include <typeinfo>
 #include <vector>
-
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 
@@ -37,21 +36,18 @@ namespace stdb::memory {
 class alloc_class
 {
    public:
-    alloc_class() : alloc_sizes(), ptrs(), init((char*)malloc(4 * 1024 * 1024)), curr(init) {}
+    alloc_class() : init(static_cast<char*>(malloc(4 * 1024 * 1024))), curr(init) {}
     virtual ~alloc_class() { free(init); }
 
     virtual auto alloc(uint64_t size) -> void* {
         alloc_sizes.push_back(size);
-        void* ret = (void*)curr;
+        void* ret = static_cast<void*>(curr);
         ptrs.push_back(ret);
         curr += size;
         return ret;
     }
 
-    void dealloc(void* ptr) {
-        free_ptrs.push_back(ptr);
-        return;
-    }
+    void dealloc(void* ptr) { free_ptrs.push_back(ptr); }
 
     void reset() {
         alloc_sizes.clear();
@@ -70,8 +66,8 @@ class alloc_class
 class alloc_fail_class : public alloc_class
 {
    public:
-    virtual auto alloc(uint64_t) -> void* { return nullptr; }
-    virtual ~alloc_fail_class() {}
+    auto alloc(uint64_t) -> void* override { return nullptr; }
+    ~alloc_fail_class() override = default;
 };
 
 class BlockTest
@@ -260,11 +256,11 @@ class ArenaTest
 class ArenaTestHelper
 {
    public:
-    ArenaTestHelper(Arena& a) : _arena(a) {}
+    explicit ArenaTestHelper(Arena& a) : _arena(a) {}
 
     const Arena::Options& options() { return _arena._options; }
-    uint64_t space_allocated() const { return _arena._space_allocated; }
-    Arena::Block*& last_block() const { return _arena._last_block; }
+    [[nodiscard]] uint64_t space_allocated() const { return _arena._space_allocated; }
+    [[nodiscard]] Arena::Block*& last_block() const { return _arena._last_block; }
 
     auto newBlock(uint64_t m, Arena::Block* prev_b) noexcept -> Arena::Block* { return _arena.newBlock(m, prev_b); }
     auto addCleanup(void* a, void (*cleanup)(void*)) noexcept -> bool { return _arena.addCleanup(a, cleanup); }
@@ -328,7 +324,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.NewBlockTest") {
     bb = bh.newBlock(300 * 1024 + 100, bb);
 
     bb = bh.newBlock(2 * 1024 * 1024, bb);
-    auto bb1 = bh.newBlock(2 * 1024 * 1024, bb);
+    auto* bb1 = bh.newBlock(2 * 1024 * 1024, bb);
     CHECK_EQ(bb1, mock->ptrs.back());
     CHECK_EQ(bb1->prev(), bb);
     // cleanup
@@ -565,8 +561,8 @@ class mock_class_without_dstr
    public:
     ACstrTag;
     ADstrSkipTag;
-    void construct() { count++; }
-    void destruct() { count--; }
+    static void construct() { count++; }
+    static void destruct() { count--; }
     explicit mock_class_without_dstr(STring name) : n_(std::move(name)) { cstr->construct(n_); }
     ~mock_class_without_dstr() { cstr->destruct(n_); }
     auto verify(const STring& n) -> bool { return n_ == n; }
@@ -719,7 +715,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocateAlignedAndAddCleanupTest") {
 class mock_hook
 {
    public:
-    mock_hook(void* cookie) : _cookie(cookie) {}
+    explicit mock_hook(void* cookie) : _cookie(cookie) {}
     auto arena_init_hook(Arena*) -> void* {
         inited++;
         return _cookie;
@@ -815,7 +811,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.NullTest") {
     mock_cleaners = new cleanup_mock;
     mock = new alloc_fail_class;
     cstr = new cstr_class;
-    cstr->count = 0;
+    cstr_class::count = 0;
 
     auto* a = new Arena(ops_complex);
     ArenaTestHelper ah(*a);
@@ -877,7 +873,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.MemoryResourceTest") {
     // allocate
     // EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem)));
     void* ptr = res.allocate(100);
-    char* address = (char*)mock->ptrs.front();
+    char* address = static_cast<char*>(mock->ptrs.front());
     CHECK_EQ(ptr, address + kBlockHeaderSize);
     void* ptr2 = res.allocate(30);
     CHECK_EQ(mock->ptrs.size(), 1);
@@ -935,7 +931,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
     SUBCASE("CTOR") {  // ctor
         // char mem[256];
         mock = new alloc_class;
-        Arena* arena = new Arena(opts);
+        auto* arena = new Arena(opts);
         Arena::memory_resource res{arena};
         Foo foo(&res);
         ArenaTestHelper ah(*arena);
@@ -962,7 +958,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
     SUBCASE("COPY") {  // copy
         // char mem1[256];
         mock = new alloc_class;
-        Arena* arena1 = new Arena(opts);
+        auto* arena1 = new Arena(opts);
         Arena::memory_resource res1{arena1};
         ArenaTestHelper ah(*arena1);
         // EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem1)));
@@ -988,7 +984,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
 
         mock->reset();
         // copy with another arena
-        Arena* arena2 = new Arena(opts);
+        auto* arena2 = new Arena(opts);
         Arena::memory_resource res2{arena2};
         ArenaTestHelper ah2(*arena2);
         // EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem2)));
@@ -1044,7 +1040,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
         // move with another arena
         // char mem2[256];
         mock->reset();
-        Arena* arena2 = new Arena(opts);
+        auto* arena2 = new Arena(opts);
         ArenaTestHelper ah2(*arena2);
         Arena::memory_resource res2{arena2};
         // EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem2)));

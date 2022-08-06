@@ -24,6 +24,7 @@
 #include <thread>
 
 #include "arena/arena.hpp"
+#include "doctest/doctest.h"
 
 using stdb::memory::Arena;
 namespace stdb::memory {
@@ -208,7 +209,7 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsReportToGlobalMetrics") {
             aa->init();
             uint64_t alloc_count_ = 1024;
             for (uint64_t i = 0; i < alloc_count_; i++) {
-                alloc_success1 = aa->AllocateAligned(10 * i);
+                alloc_success1 = (aa->AllocateAligned(10 * i) != nullptr);
             }
             delete aa;
             local_arena_metrics.report_to_global_metrics();
@@ -220,7 +221,7 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsReportToGlobalMetrics") {
             aa->init();
             uint64_t alloc_count_ = 1024;
             for (uint64_t i = 0; i < alloc_count_; i++) {
-                alloc_success2 = aa->AllocateAligned(10 * i);
+                alloc_success2 = (aa->AllocateAligned(10 * i) != nullptr);
             }
             delete aa;
             local_arena_metrics.report_to_global_metrics();
