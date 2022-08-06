@@ -24,6 +24,7 @@
 #include <iostream>
 #include <typeinfo>
 #include <vector>
+
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 
@@ -105,7 +106,7 @@ void cleanup_mock_fn3(void* p) { reinterpret_cast<cleanup_mock*>(p)->cleanup3(p)
 
 thread_local cleanup_mock* mock_cleaners;
 
-TEST_CASE_FIXTURE(BlockTest, "CotrTest1") {
+TEST_CASE_FIXTURE(BlockTest, "BlockTest.CotrTest1") {
     auto* b = new (Pointer()) Arena::Block(1024, nullptr);
     CHECK_EQ(b->Pos(), reinterpret_cast<char*>(Pointer()) + kBlockHeaderSize);
     CHECK_EQ(b->size(), 1024ULL);
@@ -113,7 +114,7 @@ TEST_CASE_FIXTURE(BlockTest, "CotrTest1") {
     CHECK_EQ(b->remain(), 1024ULL - kBlockHeaderSize);
 }
 
-TEST_CASE_FIXTURE(BlockTest, "CotrTest2") {
+TEST_CASE_FIXTURE(BlockTest, "BlockTest.CotrTest2") {
     // NOLINTNEXTLINE
     void* last = malloc(100);
     auto* last_b = reinterpret_cast<Arena::Block*>(last);
@@ -124,7 +125,7 @@ TEST_CASE_FIXTURE(BlockTest, "CotrTest2") {
     free(last);
 }
 
-TEST_CASE_FIXTURE(BlockTest, "AllocTest") {
+TEST_CASE_FIXTURE(BlockTest, "BlockTest.AllocTest") {
     auto* b = new (Pointer()) Arena::Block(1024, nullptr);
     char* x = b->alloc(200);
     CHECK_NE(x, nullptr);
@@ -132,7 +133,7 @@ TEST_CASE_FIXTURE(BlockTest, "AllocTest") {
     CHECK_EQ(b->Pos() - x, 200LL);
 }
 
-TEST_CASE_FIXTURE(BlockTest, "AllocCleanupTest") {
+TEST_CASE_FIXTURE(BlockTest, "BlockTest.AllocCleanupTest") {
     auto* b = new (Pointer()) Arena::Block(1024, nullptr);
     char* x = b->alloc_cleanup();
     CHECK_NE(x, nullptr);
@@ -141,7 +142,7 @@ TEST_CASE_FIXTURE(BlockTest, "AllocCleanupTest") {
     CHECK_EQ(x - x1, kCleanupNodeSize);
 }
 
-TEST_CASE_FIXTURE(BlockTest, "RegCleanupTest") {
+TEST_CASE_FIXTURE(BlockTest, "BlockTest.RegCleanupTest") {
     auto* b = new (Pointer()) Arena::Block(1024, nullptr);
     mock_cleaners = new cleanup_mock;
     b->register_cleanup(mock_cleaners, &cleanup_mock_fn1);
@@ -152,7 +153,7 @@ TEST_CASE_FIXTURE(BlockTest, "RegCleanupTest") {
     mock_cleaners = nullptr;
 }
 
-TEST_CASE_FIXTURE(BlockTest, "RunCleanupTest") {
+TEST_CASE_FIXTURE(BlockTest, "BlockTest.RunCleanupTest") {
     auto* b = new (Pointer()) Arena::Block(1024, nullptr);
     mock_cleaners = new cleanup_mock;
     b->register_cleanup(mock_cleaners, &cleanup_mock_fn1);
@@ -164,7 +165,7 @@ TEST_CASE_FIXTURE(BlockTest, "RunCleanupTest") {
     mock_cleaners = nullptr;
 }
 
-TEST_CASE_FIXTURE(BlockTest, "ResetTest") {
+TEST_CASE_FIXTURE(BlockTest, "BlockTest.ResetTest") {
     auto* b = new (Pointer()) Arena::Block(1024, nullptr);
     char* x = b->alloc(200);
     CHECK_NE(x, nullptr);
@@ -175,7 +176,7 @@ TEST_CASE_FIXTURE(BlockTest, "ResetTest") {
     CHECK_EQ(b->Pos() - x, 0LL);
 }
 
-TEST_CASE_FIXTURE(BlockTest, "ResetwithCleanupTest") {
+TEST_CASE_FIXTURE(BlockTest, "BlockTest.ResetwithCleanupTest") {
     auto* b = new (Pointer()) Arena::Block(1024, nullptr);
     mock_cleaners = new cleanup_mock;
     char* x = b->alloc(200);
@@ -277,7 +278,7 @@ class ArenaTestHelper
 
 thread_local alloc_class* ArenaTest::mock = nullptr;
 
-TEST_CASE_FIXTURE(ArenaTest, "CtorTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.CtorTest") {
     Arena a(ops_complex);
     ArenaTestHelper ah(a);
     CHECK_EQ(ah.last_block(), nullptr);
@@ -304,7 +305,7 @@ TEST_CASE_FIXTURE(ArenaTest, "CtorTest") {
     CHECK_EQ(ch.options().block_dealloc, &mock_dealloc);
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "NewBlockTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.NewBlockTest") {
     // the case bearing the a and b is leaking.
     // because I just want to test the NewBlock
     auto* a = new Arena(ops_simple);
@@ -337,7 +338,7 @@ TEST_CASE_FIXTURE(ArenaTest, "NewBlockTest") {
     delete b;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "AllocateTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocateTest") {
     mock = new alloc_class;
     auto* x = new Arena(ops_complex);
     auto* new_ptr = x->AllocateAligned(3500);
@@ -354,7 +355,7 @@ TEST_CASE_FIXTURE(ArenaTest, "AllocateTest") {
     mock = nullptr;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "AddCleanupTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AddCleanupTest") {
     // NOLINTNEXTLINE(cppcoreguidelines-no-malloc)
     auto* a = new Arena(ops_complex);
     ArenaTestHelper ah(*a);
@@ -377,7 +378,7 @@ TEST_CASE_FIXTURE(ArenaTest, "AddCleanupTest") {
     delete mock_cleaners;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "AddCleanupFailTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AddCleanupFailTest") {
     auto* a = new Arena(ops_complex);
     mock = new alloc_fail_class;
     ArenaTestHelper ah(*a);
@@ -393,7 +394,7 @@ TEST_CASE_FIXTURE(ArenaTest, "AddCleanupFailTest") {
     delete mock_cleaners;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "FreeBlocksExceptFirstTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.FreeBlocksExceptFirstTest") {
     auto* a = new Arena(ops_simple);
     ArenaTestHelper ah(*a);
     mock = new alloc_class;
@@ -419,7 +420,7 @@ TEST_CASE_FIXTURE(ArenaTest, "FreeBlocksExceptFirstTest") {
     delete mock;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "ResetTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.ResetTest") {
     auto* a = new Arena(ops_simple);
     ArenaTestHelper ah(*a);
     mock = new alloc_class;
@@ -441,7 +442,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ResetTest") {
     delete mock;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "ResetWithCleanupTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.ResetWithCleanupTest") {
     auto* a = new Arena(ops_simple);
     ArenaTestHelper ah(*a);
     mock = new alloc_class;
@@ -468,7 +469,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ResetWithCleanupTest") {
     delete mock;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "FreeBlocksTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.FreeBlocksTest") {
     auto* a = new Arena(ops_simple);
     mock = new alloc_class;
     ArenaTestHelper ah(*a);
@@ -485,7 +486,7 @@ TEST_CASE_FIXTURE(ArenaTest, "FreeBlocksTest") {
     delete mock;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "DoCleanupTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.DoCleanupTest") {
     auto* a = new Arena(ops_complex);
     ArenaTestHelper ah(*a);
     mock = new alloc_class;
@@ -507,7 +508,7 @@ class mock_own
     inline static int count = 0;
 };
 
-TEST_CASE_FIXTURE(ArenaTest, "OwnTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.OwnTest") {
     // NOLINTNEXTLINE(cppcoreguidelines-no-malloc)
     auto* m = new mock_own();
     auto* a = new Arena(ops_complex);
@@ -586,7 +587,7 @@ class mock_class_with_arena
     // Arena* arena_{nullptr};
 };
 
-TEST_CASE_FIXTURE(ArenaTest, "CreateTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.CreateTest") {
     mock = new alloc_class;
     cstr = new cstr_class;
     auto* a = new Arena(ops_complex);
@@ -622,7 +623,7 @@ TEST_CASE_FIXTURE(ArenaTest, "CreateTest") {
     delete cstr;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "CreateArrayTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.CreateArrayTest") {
     mock = new alloc_class;
     auto* a = new Arena(ops_complex);
     ArenaTestHelper ah(*a);
@@ -652,7 +653,7 @@ TEST_CASE_FIXTURE(ArenaTest, "CreateArrayTest") {
     delete mock;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "DstrTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.DstrTest") {
     auto* a = new Arena(ops_simple);
     ArenaTestHelper ah(*a);
     mock = new alloc_class;
@@ -677,7 +678,7 @@ TEST_CASE_FIXTURE(ArenaTest, "DstrTest") {
     delete mock_cleaners;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "SpaceTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.SpaceTest") {
     auto* x = new Arena(ops_complex);
     ArenaTestHelper xh(*x);
     mock = new alloc_class;
@@ -697,7 +698,7 @@ TEST_CASE_FIXTURE(ArenaTest, "SpaceTest") {
     delete mock;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "AllocateAlignedAndAddCleanupTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocateAlignedAndAddCleanupTest") {
     auto* a = new Arena(ops_complex);
     mock_cleaners = new cleanup_mock;
     mock = new alloc_class;
@@ -754,7 +755,7 @@ void reset_hook(Arena* a, void* cookie, uint64_t space_used, uint64_t space_wast
     hook_instance->arena_reset_hook(a, cookie, space_used, space_wasted);
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "HookTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.HookTest") {
     struct xx
     {
         int i;
@@ -810,7 +811,7 @@ TEST_CASE_FIXTURE(ArenaTest, "HookTest") {
     std::free(cookie);
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "NullTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.NullTest") {
     mock_cleaners = new cleanup_mock;
     mock = new alloc_fail_class;
     cstr = new cstr_class;
@@ -855,7 +856,7 @@ TEST_CASE_FIXTURE(ArenaTest, "NullTest") {
     delete a;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "MemoryResourceTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.MemoryResourceTest") {
     mock = new alloc_class;
 
     Arena::Options opts;
@@ -923,7 +924,7 @@ class Foo
     std::pmr::vector<int> vec_;
 };
 
-TEST_CASE_FIXTURE(ArenaTest, "AllocatorAwareTest") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
     Arena::Options opts;
     opts.normal_block_size = 256;
     opts.huge_block_size = 512;
