@@ -85,9 +85,9 @@ class ArenaHelper
     // because use new placement do not need allocate memory
     // so no bad_alloc will be thrown
     template <typename... Args>
-    [[gnu::always_inline]] inline static auto Construct(void* ptr, Arena* arena, Args&&... args) noexcept -> T* {
+    [[gnu::always_inline]] inline static auto Construct(void* ptr, Arena& arena, Args&&... args) noexcept -> T* {
         // placement new make the new Object T is in the ptr-> memory.
-        if constexpr (std::is_constructible<T, Arena*, Args...>::value) {
+        if constexpr (std::is_constructible<T, Arena&, Args...>::value) {
             return new (ptr) T(arena, std::forward<Args>(args)...);
         } else {
             return new (ptr) T(std::forward<Args>(args)...);

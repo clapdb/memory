@@ -326,7 +326,7 @@ class Arena
     [[nodiscard]] auto Create(Args&&... args) noexcept -> T* {
         char* ptr = allocateAligned(sizeof(T));
         if (ptr != nullptr) [[likely]] {
-            ArenaHelper<T>::Construct(ptr, this, std::forward<Args>(args)...);
+            ArenaHelper<T>::Construct(ptr, *this, std::forward<Args>(args)...);
             T* result = reinterpret_cast<T*>(ptr);
             if (!RegisterDestructor<T>(result)) [[unlikely]] {
                 return nullptr;
@@ -354,7 +354,7 @@ class Arena
         if (p != nullptr) [[likely]] {
             T* curr = reinterpret_cast<T*>(p);
             for (uint64_t i = 0; i < num; ++i) {
-                ArenaHelper<T>::Construct(curr++, this);
+                ArenaHelper<T>::Construct(curr++, *this);
             }
             if (_options.on_arena_allocation != nullptr) [[likely]] {
                 _options.on_arena_allocation(&typeid(T), size, _cookie);
@@ -537,7 +537,7 @@ class Arena
 
     Options _options;
     Block* _last_block;
-    memory_resource* _resource {nullptr};
+    memory_resource* _resource{nullptr};
 
     // should be initialized by on_arena_init
     // and should be destroyed by on_arena_destruction
