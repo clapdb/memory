@@ -241,14 +241,14 @@ class ArenaTest
         ops_complex.block_alloc = &mock_alloc;
         ops_complex.block_dealloc = &mock_dealloc;
         ops_complex.normal_block_size = 1024ULL;
-        ops_complex.suggested_initblock_size = 4096ULL;
+        ops_complex.suggested_init_block_size = 4096ULL;
         ops_complex.huge_block_size = 1024ULL * 1024ULL;
 
         // initialize the ops_simple
         ops_simple.block_alloc = &mock_alloc;
         ops_simple.block_dealloc = &mock_dealloc;
         ops_simple.normal_block_size = 1024ULL;
-        ops_simple.suggested_initblock_size = 0ULL;
+        ops_simple.suggested_init_block_size = 0ULL;
         ops_simple.huge_block_size = 0ULL;
     }
 };
@@ -284,7 +284,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.CtorTest") {
     Arena b(ops_simple);
     ArenaTestHelper bh(b);
     CHECK_EQ(bh.options().normal_block_size, 1024ULL);
-    CHECK_EQ(bh.options().suggested_initblock_size, 1024ULL);
+    CHECK_EQ(bh.options().suggested_init_block_size, 1024ULL);
     CHECK_EQ(bh.options().huge_block_size, 1024ULL);
     CHECK_EQ(bh.last_block(), nullptr);
     CHECK_EQ(bh.options().block_alloc, &mock_alloc);
@@ -295,7 +295,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.CtorTest") {
     Arena c(o);
     ArenaTestHelper ch(c);
     CHECK_EQ(ch.options().normal_block_size, 4096ULL);
-    CHECK_EQ(ch.options().suggested_initblock_size, 4096ULL);
+    CHECK_EQ(ch.options().suggested_init_block_size, 4096ULL);
     CHECK_EQ(ch.options().huge_block_size, 2ULL * 1024ULL * 1024ULL);
     CHECK_EQ(ch.options().block_alloc, &mock_alloc);
     CHECK_EQ(ch.options().block_dealloc, &mock_dealloc);
@@ -770,7 +770,6 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.HookTest") {
     hook_instance = new mock_hook(cookie);
     auto* a = new Arena(ops_hook);
     ArenaTestHelper ah(*a);
-    a->init();
     CHECK_EQ(ah.cookie(), cookie);
     auto* r = a->AllocateAligned(30);
     CHECK_NE(r, nullptr);
@@ -858,7 +857,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.MemoryResourceTest") {
     Arena::Options opts;
     opts.normal_block_size = 256;
     opts.huge_block_size = 512;
-    opts.suggested_initblock_size = 256;
+    opts.suggested_init_block_size = 256;
     opts.block_alloc = &mock_alloc;
     opts.block_dealloc = &mock_dealloc;
 
@@ -872,15 +871,15 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.MemoryResourceTest") {
 
     // allocate
     // EXPECT_CALL(*mock, alloc(256)).WillOnce(Return(std::data(mem)));
-    void* ptr = res.allocate(100);
+    void* ptr = res.allocate(128);
     char* address = static_cast<char*>(mock->ptrs.front());
     CHECK_EQ(ptr, address + kBlockHeaderSize);
-    void* ptr2 = res.allocate(30);
+    void* ptr2 = res.allocate(32);
     CHECK_EQ(mock->ptrs.size(), 1);
 
     // deallocate
-    res.deallocate(ptr2, 30);
-    res.deallocate(ptr, 100);
+    res.deallocate(ptr2, 32);
+    res.deallocate(ptr, 128);
 
     // operator==
     SUBCASE("operator ==") {
@@ -924,7 +923,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
     Arena::Options opts;
     opts.normal_block_size = 256;
     opts.huge_block_size = 512;
-    opts.suggested_initblock_size = 256;
+    opts.suggested_init_block_size = 256;
     opts.block_alloc = &mock_alloc;
     opts.block_dealloc = &mock_dealloc;
 

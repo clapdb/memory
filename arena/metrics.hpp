@@ -18,10 +18,8 @@
  +------------------------------------------------------------------------------+
 */
 
-#ifndef ARENA_METRICS_HPP_
-#define ARENA_METRICS_HPP_
+#pragma once
 
-#include <bits/stdint-uintn.h>
 #include <fmt/core.h>
 
 #include <atomic>
@@ -29,33 +27,44 @@
 #include <cstring>
 #include <iostream>
 #include <map>
-#include <source_location>
-#include <string>
 #include <thread>
-#include <unordered_map>
 #include <utility>
+#include <unordered_map>
 
 #include "arena.hpp"
 
-namespace stdb {
-namespace memory {
+#if defined(__GNUC__) && (__GNUC__ >= 11)
+#include <source_location>
+#elif defined(__clang__)
+#include <experimental/source_location>
+#endif
+
+namespace stdb::memory {
+
+#if defined(__GNUC__) && (__GNUC__ >= 11)
+using source_location = std::source_location;
+#elif defined(__clang__)
+using source_location = std::experimental::source_location;
+#else
+#error "no support for other compiler"
+#endif
 
 using std::atomic;
 using std::chrono::milliseconds;
 using std::chrono::steady_clock;
 
 constexpr static int kAllocBucketSize = 8;
-constexpr static uint64_t alloc_size_bucket[kAllocBucketSize] = {
+constexpr std::array<uint64_t, kAllocBucketSize> alloc_size_bucket{
   64,   // alloc_size <= 64 will counter into alloc_size_bucket_counter[0]
   128,  // 64 < alloc_size <= 128 will counter into alloc_size_bucket_counter[1]. same to the followings
-  256, 512, 1024, 2048, 4096, 1UL << 20};
+  256, 512, 1024, 2048, 4096, 1UL << 20UL};
 
 constexpr static int kLifetimeBucketSize = 8;
 using namespace std::chrono_literals;
-constexpr static milliseconds destruct_lifetime_bucket[kAllocBucketSize] = {
+constexpr static std::array<milliseconds, kAllocBucketSize> destruct_lifetime_bucket{
   1ms,  // destruct_lifetime <= 1ms will counter into destruct_lifetime_bucket[0]
   5ms,  // 1ms < destruct_lifetime <= 5ms will counter into destruct_lifetime_bucket[1].
-  10ms, 50ms, 100ms, 200ms, 500ms, 1s,
+  10ms, 50ms, 100ms, 200ms, 500ms, 1000ms,
 };
 
 struct GlobalArenaMetrics
@@ -66,7 +75,7 @@ struct GlobalArenaMetrics
     atomic<uint64_t> newblock_count = 0;
     atomic<uint64_t> reset_count = 0;
     atomic<uint64_t> space_allocated = 0;
-    atomic<uint64_t> space_reseted = 0;
+    atomic<uint64_t> space_resettled = 0;
     atomic<uint64_t> space_used = 0;
     atomic<uint64_t> space_wasted = 0;
     // space_allocated > space_used means memory reused;
@@ -74,9 +83,11 @@ struct GlobalArenaMetrics
 
     // TODO(longqimin): other considerable metrics： fragments, arena-lifetime
 
-    atomic<uint64_t> alloc_size_bucket_counter[kAllocBucketSize] = {0};
-    atomic<uint64_t> destruct_lifetime_bucket_counter[kLifetimeBucketSize] = {0};
-    std::unordered_map<std::string, atomic<uint64_t>> arena_alloc_counter = {};  // arena identified by init() location
+    // atomic<uint64_t> alloc_size_bucket_counter[kAllocBucketSize] = {0};
+    std::array<atomic<uint64_t>, kAllocBucketSize> alloc_size_bucket_counter{0};
+    // atomic<uint64_t> destruct_lifetime_bucket_counter[kLifetimeBucketSize] = {0};
+    std::array<atomic<uint64_t>, kLifetimeBucketSize> destruct_lifetime_bucket_counter{0};
+    std::unordered_map<STring, atomic<uint64_t>> arena_alloc_counter = {};  // arena identified by init() location
 
     void reset() {  // lockless and races for metric-data is acceptable
         init_count.store(0, std::memory_order::relaxed);
@@ -85,7 +96,7 @@ struct GlobalArenaMetrics
         newblock_count.store(0, std::memory_order::relaxed);
         reset_count.store(0, std::memory_order::relaxed);
         space_allocated.store(0, std::memory_order::relaxed);
-        space_reseted.store(0, std::memory_order::relaxed);
+        space_resettled.store(0, std::memory_order::relaxed);
         space_used.store(0, std::memory_order::relaxed);
         space_wasted.store(0, std::memory_order::relaxed);
         for (auto& counter : alloc_size_bucket_counter) {
@@ -94,15 +105,14 @@ struct GlobalArenaMetrics
         for (auto& counter : destruct_lifetime_bucket_counter) {
             counter.store(0, std::memory_order::relaxed);
         }
-        for (auto& [key, couter] : arena_alloc_counter) {
-            couter.store(0, std::memory_order::relaxed);
+        for (auto& [key, counter] : arena_alloc_counter) {
+            counter.store(0, std::memory_order::relaxed);
         }
-        return;
     }
 
-    std::string string() const {
-        std::string str;
-        str.reserve(1024);
+    [[nodiscard]] auto string() const -> STring {
+        STring str;
+        //        str.reserve(kKiloByte);
         str += fmt::format(
           "Summary:\n"
           "  init_count: {}\n"
@@ -113,25 +123,27 @@ struct GlobalArenaMetrics
           "  space_allocated: {}\n"
           "  space_used: {}\n"
           "  space_wasted: {}\n"
-          "  space_reseted: {}\nAllocSize distribution:",
+          "  space_resettled: {}\nAllocSize distribution:",
           init_count, reset_count, destruct_count, alloc_count, newblock_count, space_allocated, space_used,
-          space_wasted, space_reseted);
+          space_wasted, space_resettled);
 
+        constexpr uint64_t kPercentMagic = 100UL;
         for (uint64_t i = 0, count = 0; i < kAllocBucketSize; i++) {
-            count += alloc_size_bucket_counter[i];
-            str += fmt::format("\n  le={}: {}", alloc_size_bucket[i], static_cast<float>(count) / alloc_count);
+            count += alloc_size_bucket_counter.at(i);
+            // count < alloc_count
+            str += fmt::format("\n  le={}: {}%", alloc_size_bucket.at(i), count * kPercentMagic / alloc_count);
         }
 
         str += "\nLifetime distribution:";
         for (uint64_t i = 0, count = 0; i < kLifetimeBucketSize; i++) {
-            count += destruct_lifetime_bucket_counter[i];
-            str += fmt::format("\n  le={}ms: {}", destruct_lifetime_bucket[i].count(),
-                               static_cast<float>(count) / destruct_count);
+            count += destruct_lifetime_bucket_counter.at(i);
+            str += fmt::format("\n  le={}ms: {}", destruct_lifetime_bucket.at(i).count(),
+                               (count * kPercentMagic) / destruct_count);
         }
 
         str += "\nArena Location/AllocSize:";  // TODO(longqimin): re-evaluate str.reserve size
-        for (const auto& [loc, couter] : arena_alloc_counter) {
-            str += fmt::format("\n  {}: {}", loc, couter);
+        for (const auto& [loc, counter] : arena_alloc_counter) {
+            str += fmt::format("\n  {}: {}", loc, counter);
         }
 
         return str;
@@ -149,16 +161,18 @@ struct LocalArenaMetrics
     uint64_t newblock_count = 0;
     uint64_t reset_count = 0;
     uint64_t space_allocated = 0;
-    uint64_t space_reseted = 0;
+    uint64_t space_resettled = 0;
     uint64_t space_used = 0;  // space_allocated > space_used means memory reused;
                               // space_allocated < space_used means memory fragment or arena used extra memory；
     uint64_t space_wasted = 0;
 
     // TODO(longqimin): other considerable metrics： fragments, arena-lifetime
 
-    uint64_t alloc_size_bucket_counter[kAllocBucketSize] = {0};
-    uint64_t destruct_lifetime_bucket_counter[kLifetimeBucketSize] = {0};
-    std::unordered_map<std::string, uint64_t> arena_alloc_counter = {};  // arena identified by init() location
+    // uint64_t alloc_size_bucket_counter[kAllocBucketSize] = {0};
+    std::array<uint64_t, kAllocBucketSize> alloc_size_bucket_counter{0};
+    // uint64_t destruct_lifetime_bucket_counter[kLifetimeBucketSize] = {0};
+    std::array<uint64_t, kLifetimeBucketSize> destruct_lifetime_bucket_counter{0};
+    std::unordered_map<STring, uint64_t> arena_alloc_counter = {};  // arena identified by init() location
 
     void reset() {
         init_count = 0;
@@ -167,36 +181,37 @@ struct LocalArenaMetrics
         newblock_count = 0;
         reset_count = 0;
         space_allocated = 0;
-        space_reseted = 0;
+        space_resettled = 0;
         space_used = 0;
         space_wasted = 0;
 
-        memset(alloc_size_bucket_counter, 0, sizeof(alloc_size_bucket_counter));
-        memset(destruct_lifetime_bucket_counter, 0, sizeof(destruct_lifetime_bucket_counter));
+        alloc_size_bucket_counter.fill(0);
+        destruct_lifetime_bucket_counter.fill(0);
 
         arena_alloc_counter.clear();
     }
 
     [[gnu::always_inline]] inline void increase_alloc_size_counter(uint64_t alloc_size) {
-        for (int i = 0; i < kAllocBucketSize; ++i) {
-            if (alloc_size <= alloc_size_bucket[i]) {
-                ++alloc_size_bucket_counter[i];
+        for (uint32_t i = 0; i < kAllocBucketSize; ++i) {
+            if (alloc_size <= alloc_size_bucket.at(i)) {
+                ++alloc_size_bucket_counter.at(i);
                 break;
             }
         }
     }
 
-    [[gnu::always_inline]] inline void increase_destruct_lifetime_counter(milliseconds destruct_lifetime) {
-        for (int i = 0; i < kLifetimeBucketSize; ++i) {
-            if (destruct_lifetime <= destruct_lifetime_bucket[i]) {
-                ++destruct_lifetime_bucket_counter[i];
+    [[gnu::always_inline]] inline void increase_destruct_lifetime_counter(const milliseconds& destruct_lifetime) {
+        for (uint32_t i = 0; i < kLifetimeBucketSize; ++i) {
+            // TODO(longqimin): find why clang-tidy warning.
+            if (destruct_lifetime <= destruct_lifetime_bucket.at(i)) {  // NOLINT
+                ++destruct_lifetime_bucket_counter.at(i);
                 break;
             }
         }
     }
 
-    [[gnu::always_inline]] inline void increase_arena_alloc_couter(const std::source_location& loc, uint64_t size) {
-        const std::string key = std::string(loc.file_name()) + ":" + std::to_string(loc.line());
+    [[gnu::always_inline]] inline void increase_arena_alloc_counter(const source_location& loc, uint64_t size) {
+        const STring key = STring(loc.file_name()) + ":" + std::to_string(loc.line());
         arena_alloc_counter[key] += size;
     }
 
@@ -210,14 +225,14 @@ struct LocalArenaMetrics
         global_arena_metrics.space_allocated.fetch_add(space_allocated, std::memory_order::relaxed);
         global_arena_metrics.space_used.fetch_add(space_used, std::memory_order::relaxed);
         global_arena_metrics.space_wasted.fetch_add(space_wasted, std::memory_order::relaxed);
-        global_arena_metrics.space_reseted.fetch_add(space_reseted, std::memory_order::relaxed);
-        for (int i = 0; i < kAllocBucketSize; ++i) {
-            global_arena_metrics.alloc_size_bucket_counter[i].fetch_add(alloc_size_bucket_counter[i],
-                                                                        std::memory_order::relaxed);
+        global_arena_metrics.space_resettled.fetch_add(space_resettled, std::memory_order::relaxed);
+        for (uint32_t i = 0; i < kAllocBucketSize; ++i) {
+            global_arena_metrics.alloc_size_bucket_counter.at(i).fetch_add(alloc_size_bucket_counter.at(i),
+                                                                           std::memory_order::relaxed);
         }
-        for (int i = 0; i < kLifetimeBucketSize; ++i) {
-            global_arena_metrics.destruct_lifetime_bucket_counter[i].fetch_add(destruct_lifetime_bucket_counter[i],
-                                                                               std::memory_order::relaxed);
+        for (uint32_t i = 0; i < kLifetimeBucketSize; ++i) {
+            global_arena_metrics.destruct_lifetime_bucket_counter.at(i).fetch_add(
+              destruct_lifetime_bucket_counter.at(i), std::memory_order::relaxed);
         }
         for (const auto& [loc, count] : arena_alloc_counter) {
             global_arena_metrics.arena_alloc_counter[loc].fetch_add(count, std::memory_order::relaxed);
@@ -231,16 +246,16 @@ extern thread_local LocalArenaMetrics local_arena_metrics;
 
 struct ArenaMetricsCookie
 {
-    steady_clock::time_point init_timepoint;
-    std::source_location init_location;  // arena.init() source_location
-    ArenaMetricsCookie(steady_clock::time_point init_tp, const std::source_location& init_loc)
-        : init_timepoint(init_tp), init_location(init_loc) {}
+    steady_clock::time_point init_time_point;
+    source_location init_location;  // arena.init() source_location
+    ArenaMetricsCookie(steady_clock::time_point init_tp, const source_location& init_loc)
+        : init_time_point(init_tp), init_location(init_loc) {}
 };
 
-[[gnu::always_inline]] inline void* metrics_probe_on_arena_init([[maybe_unused]] Arena* arena,
-                                                                const std::source_location& loc) {
+[[gnu::always_inline]] inline auto metrics_probe_on_arena_init([[maybe_unused]] Arena* arena,
+                                                               const source_location& loc) -> void* {
     ++local_arena_metrics.init_count;
-    auto cookie = new ArenaMetricsCookie(steady_clock::now(), loc);
+    auto* cookie = new ArenaMetricsCookie(steady_clock::now(), loc);
     return cookie;
 }
 [[gnu::always_inline]] inline void metrics_probe_on_arena_allocation([[maybe_unused]] const std::type_info* alloc_type,
@@ -249,8 +264,8 @@ struct ArenaMetricsCookie
     local_arena_metrics.space_allocated += alloc_size;
     local_arena_metrics.increase_alloc_size_counter(alloc_size);
 
-    auto c = static_cast<ArenaMetricsCookie*>(cookie);
-    local_arena_metrics.increase_arena_alloc_couter(c->init_location, alloc_size);
+    auto* cki = static_cast<ArenaMetricsCookie*>(cookie);
+    local_arena_metrics.increase_arena_alloc_counter(cki->init_location, alloc_size);
 }
 [[gnu::always_inline]] inline void metrics_probe_on_arena_newblock([[maybe_unused]] uint64_t blk_num,
                                                                    [[maybe_unused]] uint64_t blk_size,
@@ -261,22 +276,20 @@ struct ArenaMetricsCookie
                                                                 [[maybe_unused]] void* cookie, uint64_t space_used,
                                                                 uint64_t space_wasted) {
     ++local_arena_metrics.reset_count;
-    local_arena_metrics.space_reseted += space_used;
+    local_arena_metrics.space_resettled += space_used;
     local_arena_metrics.space_wasted += space_wasted;
 }
-[[gnu::always_inline]] inline void* metrics_probe_on_arena_destruction([[maybe_unused]] Arena* arena, void* cookie,
-                                                                       uint64_t space_used, uint64_t space_wasted) {
+[[gnu::always_inline]] inline auto metrics_probe_on_arena_destruction([[maybe_unused]] Arena* arena, void* cookie,
+                                                                      uint64_t space_used, uint64_t space_wasted)
+  -> void* {
     ++local_arena_metrics.destruct_count;
     local_arena_metrics.space_used += space_used;
     local_arena_metrics.space_wasted += space_wasted;
 
-    std::unique_ptr<ArenaMetricsCookie> c(static_cast<ArenaMetricsCookie*>(cookie));
-    auto destruct_lifetime = steady_clock::now() - c->init_timepoint;
+    std::unique_ptr<ArenaMetricsCookie> ck_unique_ptr(static_cast<ArenaMetricsCookie*>(cookie));
+    auto destruct_lifetime = steady_clock::now() - ck_unique_ptr->init_time_point;
     local_arena_metrics.increase_destruct_lifetime_counter(std::chrono::duration_cast<milliseconds>(destruct_lifetime));
     return nullptr;
 }
 
-}  // namespace memory
-}  // namespace stdb
-
-#endif  // ARENA_METRICS_HPP_
+}  // namespace stdb::memory

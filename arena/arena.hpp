@@ -20,9 +20,6 @@
 
 #pragma once
 
-#include <fmt/core.h>
-
-#include <cassert>
 #include <concepts>
 #include <cstdlib>
 #include <limits>
@@ -30,6 +27,9 @@
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
+#include <string>
+#include <cassert>
+#include <fmt/core.h>
 
 #include "arenahelper.hpp"
 
@@ -42,11 +42,11 @@
 #define STDB_ASSERT(exp) assert(exp)
 
 #include <boost/core/demangle.hpp>
-#define TYPENAME(type) \
-    boost::core::demangle(typeid(type).name())  // NOLINT
-                                                //
+#define TYPENAME(type) boost::core::demangle(typeid(type).name())  // NOLINT
+                                                                   //
 namespace stdb::memory {
 
+using ::stdb::memory::align::AlignUpTo;
 using STring = std::string;
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
@@ -57,7 +57,6 @@ using source_location = std::experimental::source_location;
 #error "no support for other compiler"
 #endif
 
-using align::AlignUpTo;
 using ::std::size_t;
 using ::std::type_info;
 
@@ -66,18 +65,10 @@ struct CleanupNode
 {
     void* element;
     void (*cleanup)(void*);
-    // Cleanup Node cannot be default constructed or copy/move.
-    CleanupNode() = delete;
-    CleanupNode(const CleanupNode&) = delete;
-    CleanupNode(CleanupNode&&) = delete;
-    auto operator=(const CleanupNode&) -> CleanupNode& = delete;
-    auto operator=(CleanupNode&&) -> CleanupNode& = delete;
-    CleanupNode(void* elem, void (*clean)(void*)) : element(elem), cleanup(clean) {}
-    ~CleanupNode() = default;
 };
 
 inline constexpr uint64_t kByteSize = 8;
-static constexpr uint64_t kCleanupNodeSize = align::AlignUpTo<kByteSize>(sizeof(memory::CleanupNode));
+static constexpr uint64_t kCleanupNodeSize = AlignUpTo<kByteSize>(sizeof(memory::CleanupNode));
 
 template <typename T>
 void arena_destruct_object(void* obj) noexcept {
@@ -118,21 +109,21 @@ class Arena
         return *this;
     }
 
-    // Arena Options class for the Arena class 's configiration
+    // Arena Options class for the Arena class 's configuration
     struct Options
     {
-        // following parameters shoule be determined by the OS/CPU Architecture
-        // this shoule make cacheline happy and memory locality better.
-        // a Block should is a memroy page.
+        // following parameters should be determined by the OS/CPU Architecture
+        // this should make cache-line happy and memory locality better.
+        // a Block should is a memory page.
 
-        // normal_block_size shoule match normal page of the OS.
+        // normal_block_size should match normal page of the OS.
         uint64_t normal_block_size;
 
         // huge_block_size should match big memory page of the OS.
         uint64_t huge_block_size;
 
         // suggested block-size
-        uint64_t suggested_initblock_size;
+        uint64_t suggested_init_block_size;
 
         // A Function pointer to an alloc method for the new block in the Arena.
         void* (*block_alloc)(uint64_t){nullptr};
@@ -158,7 +149,7 @@ class Arena
         Options()
             : normal_block_size(4 * kKiloByte),  // 4k is the normal pagesize of modern os
               huge_block_size(2 * kMegaByte),    // TODO(hurricane1026): maybe support 1G
-              suggested_initblock_size(4 * kKiloByte) {}
+              suggested_init_block_size(4 * kKiloByte) {}
 
         Options(const Options&) = default;
 
@@ -171,8 +162,8 @@ class Arena
 
         void init() noexcept {
             STDB_ASSERT(normal_block_size > 0);
-            if (suggested_initblock_size == 0) {
-                suggested_initblock_size = normal_block_size;
+            if (suggested_init_block_size == 0) {
+                suggested_init_block_size = normal_block_size;
             }
             if (huge_block_size == 0) {
                 huge_block_size = normal_block_size;
@@ -197,9 +188,9 @@ class Arena
 
         auto alloc(uint64_t size) noexcept -> char* {
             STDB_ASSERT(size <= (_limit - _pos));
-            char* p = Pos();
+            char* ptr = Pos();
             _pos += size;
-            return p;
+            return ptr;
         }
 
         [[gnu::always_inline]] inline auto alloc_cleanup() noexcept -> char* {
@@ -210,7 +201,7 @@ class Arena
 
         [[gnu::always_inline]] inline void register_cleanup(void* obj, void (*cleanup)(void*)) noexcept {
             auto* ptr = alloc_cleanup();
-            new (ptr) CleanupNode(obj, cleanup);
+            new (ptr) CleanupNode{obj, cleanup};
         }
 
         [[gnu::always_inline]] [[nodiscard]] inline auto prev() const noexcept -> Block* { return _prev; }
@@ -258,8 +249,8 @@ class Arena
             return reinterpret_cast<char*>(_arena->allocateAligned(bytes));
         }
 
-        void do_deallocate([[maybe_unused]] void* p, [[maybe_unused]] size_t bytes,
-                           [[maybe_unused]] size_t /* alignment*/) noexcept override{};
+        void do_deallocate([[maybe_unused]] void* /*unused*/, [[maybe_unused]] size_t /*unused*/,
+                           [[maybe_unused]] size_t /*unused*/) noexcept override{};
 
         [[nodiscard]] auto do_is_equal(const ::std::pmr::memory_resource& _other) const noexcept -> bool override {
             try {
@@ -275,16 +266,21 @@ class Arena
     };
 
     // Arena constructor
-    explicit Arena(const Options& op) : _options(op), _last_block(nullptr), _cookie(nullptr), _space_allocated(0ULL) {
-        // init();
+    explicit Arena(const Options& ops) : _options(ops), _last_block(nullptr), _cookie(nullptr), _space_allocated(0ULL) {
         _options.init();
+        init();
     }
 
-    // Arena desctructor
+    explicit Arena(Options&& ops) noexcept
+        : _options(ops), _last_block(nullptr), _cookie(nullptr), _space_allocated(0ULL) {
+        _options.init();
+        init();
+    }
+
     ~Arena() {
         // free blocks
         uint64_t all_waste_space = free_all_blocks();
-        // make sure the on_arena_destruction was set.
+        // make sure the on_arena_destruction was not free.
         if (_options.on_arena_destruction != nullptr) {
             [[likely]] _options.on_arena_destruction(this, _cookie, _space_allocated, all_waste_space);
         }
@@ -319,7 +315,7 @@ class Arena
         return remains;
     }
 
-    // new from arena, and register cleanup function if need
+    // new from arena, and register cleanup function if needed
     // always allocating in the arena memory
     // the type T should have the tag:
     template <Creatable T, typename... Args>
@@ -339,18 +335,17 @@ class Arena
         return nullptr;
     }
 
-    // new array from arena, and register cleanup function if need
+    // new array from arena, and register cleanup function if needed
     template <Creatable T>
     [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T* requires TriviallyDestructible<T> {
         if (num > std::numeric_limits<uint64_t>::max() / sizeof(T)) {
-            fmt::print(
-              stderr,
+            fmt::print(stderr,
               "CreateArray need too many memory, that more than max of uint64_t, the num of array is {}, and the Type "
               "is {}, sizeof T is {}",
               num, TYPENAME(T), sizeof(T));
         }
-        const uint64_t n = sizeof(T) * num;
-        char* p = allocateAligned(n);
+        const uint64_t size = sizeof(T) * num;
+        char* p = allocateAligned(size);
         if (p != nullptr) {
             [[likely]] {
                 T* curr = reinterpret_cast<T*>(p);
@@ -358,7 +353,7 @@ class Arena
                     ArenaHelper<T>::Construct(curr++, this);
                 }
                 if (_options.on_arena_allocation != nullptr) {
-                    [[likely]] { _options.on_arena_allocation(&typeid(T), n, _cookie); }
+                    [[likely]] { _options.on_arena_allocation(&typeid(T), size, _cookie); }
                 }
                 return reinterpret_cast<T*>(p);
             }
@@ -366,7 +361,10 @@ class Arena
         return nullptr;
     }
 
-    // if return nullptr means failure
+    /*
+     * Allocate a piece of aligned memory in the arena.
+     * return nullptr means failure
+     */
     [[nodiscard]] auto AllocateAligned(uint64_t bytes) noexcept -> char* {
         if (char* ptr = allocateAligned(bytes); ptr != nullptr) {
             [[likely]] if (_options.on_arena_allocation != nullptr) {
@@ -377,7 +375,10 @@ class Arena
         return nullptr;
     }
 
-    // if return nullptr means failure
+    /*
+     * Allocate a piece of aligned memory, and place a cleanup node in end of block.
+     * return nullptr means failure
+     */
     [[nodiscard]] auto AllocateAlignedAndAddCleanup(uint64_t bytes, void* element, void (*cleanup)(void*)) noexcept
       -> char* {
         if (char* ptr = allocateAligned(bytes); ptr != nullptr) {
@@ -395,17 +396,13 @@ class Arena
         return nullptr;
     }
 
-    [[gnu::always_inline]] inline void init(const source_location& loc = source_location::current()) noexcept {
-        if (_options.on_arena_init != nullptr) {
-            [[likely]] { _cookie = _options.on_arena_init(this, loc); }
-        }
-    }
-
     [[gnu::always_inline]] inline auto get_memory_resource() noexcept -> memory_resource {
         return memory_resource{this};
     };
 
-    // for test
+    /*
+     * get all cleanup nodes, just for testing.
+     */
     [[maybe_unused]] auto cleanups() -> uint64_t {
         uint64_t total = 0;
         Block* curr = _last_block;
@@ -417,16 +414,38 @@ class Arena
     }
 
    private:
-    // New Block while current Block has not enough memory.
+    /*
+     * init the arena
+     * call the callback to monitor and metrics: this arena was inited.
+     */
+    [[gnu::always_inline]] inline void init(const source_location& loc = source_location::current()) noexcept {
+        if (_options.on_arena_init != nullptr) {
+            [[likely]] { _cookie = _options.on_arena_init(this, loc); }
+        }
+    }
+
+    /*
+     * new a block within the arena.
+     * New Block while current Block has not enough memory.
+     */
     auto newBlock(uint64_t min_bytes, Block* prev_block) noexcept -> Block*;
 
+    /*
+     * internal allocate aligned impl.
+     */
     auto allocateAligned(uint64_t) noexcept -> char*;
 
+    /*
+     * check if needed a new block
+     */
     [[nodiscard, gnu::always_inline]] inline auto need_create_new_block(uint64_t need_bytes) noexcept -> bool {
         return (_last_block == nullptr) || (need_bytes > _last_block->remain());
     }
 
-    [[nodiscard]] auto addCleanup(void* o, void (*cleanup)(void*)) noexcept -> bool {
+    /*
+     * add A Cleanup node to current block.
+     */
+    [[nodiscard]] auto addCleanup(void* obj, void (*cleanup)(void*)) noexcept -> bool {
         if (need_create_new_block(kCleanupNodeSize)) {
             [[unlikely]] {
                 Block* curr = newBlock(kCleanupNodeSize, _last_block);
@@ -437,12 +456,15 @@ class Arena
                 }
             }
         }
-        _last_block->register_cleanup(o, cleanup);
+        _last_block->register_cleanup(obj, cleanup);
         return true;
     }
 
+    /*
+     * a thin wrapper for AlignUpTo
+     */
     [[nodiscard, gnu::always_inline]] static inline auto align_size(uint64_t n) noexcept -> uint64_t {
-        return align::AlignUpTo<kByteSize>(n);
+        return AlignUpTo<kByteSize>(n);
     }
 
     template <typename T>
@@ -464,7 +486,9 @@ class Arena
         return addCleanup(ptr, &arena_destruct_object<T>);
     }
 
-    // return all remains size of all blocks that was freed.
+    /*
+     * free all blocks and return all remains size of all blocks that was freed.
+     */
     auto free_all_blocks() noexcept -> uint64_t {
         Block* curr = _last_block;
         Block* prev = nullptr;
@@ -483,6 +507,9 @@ class Arena
         return remain_size;
     }
 
+    /*
+     * free all blocks except the first block.
+     */
     auto free_blocks_except_head() noexcept -> uint64_t {
         Block* curr = _last_block;
         Block* prev = nullptr;
@@ -508,7 +535,7 @@ class Arena
     Block* _last_block;
 
     // should be initialized by on_arena_init
-    // and should be destroy by on_arena_destruction
+    // and should be destroyed by on_arena_destruction
     void* _cookie;
 
     uint64_t _space_allocated;
@@ -518,6 +545,6 @@ class Arena
     friend class ArenaTestHelper;
 };  // class Arena
 
-static constexpr uint64_t kBlockHeaderSize = align::AlignUpTo<kByteSize>(sizeof(memory::Arena::Block));
+static constexpr uint64_t kBlockHeaderSize = AlignUpTo<kByteSize>(sizeof(memory::Arena::Block));
 
 }  // namespace stdb::memory

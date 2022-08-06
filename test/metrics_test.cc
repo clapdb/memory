@@ -23,8 +23,8 @@
 
 #include <thread>
 
-#include "arena/arena.hpp"
 #include "doctest/doctest.h"
+#include "arena/arena.hpp"
 
 using stdb::memory::Arena;
 namespace stdb::memory {
@@ -42,7 +42,7 @@ class ThreadLocalArenaMetricsTest
         ops.block_alloc = &alloc;
         ops.block_dealloc = &dealloc;
         ops.normal_block_size = 1024ULL;
-        ops.suggested_initblock_size = 0ULL;
+        ops.suggested_init_block_size = 0ULL;
         ops.huge_block_size = 0ULL;
 
         ops.on_arena_init = &metrics_probe_on_arena_init;
@@ -60,7 +60,6 @@ class ThreadLocalArenaMetricsTest
 
 TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsInit") {
     auto* a = new Arena(ops);
-    a->init();
     delete a;
     auto& m = local_arena_metrics;
     CHECK_EQ(m.init_count, 1);
@@ -68,7 +67,6 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsInit") {
 
 TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsReset") {
     auto* a = new Arena(ops);
-    a->init();
     auto* _ = a->AllocateAligned(124);
     a->Reset();
     delete a;
@@ -81,7 +79,6 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsReset") {
 TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsAllocation") {
     {
         auto* a = new Arena(ops);
-        a->init();
         auto* _ = a->AllocateAligned(10);
         delete a;
         auto& m = local_arena_metrics;
@@ -92,7 +89,6 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsAllocation") {
 
     {
         auto* a = new Arena(ops);
-        a->init();
         auto* _ = a->AllocateAligned(100);
         delete a;
         auto& m = local_arena_metrics;
@@ -102,32 +98,11 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsAllocation") {
         CHECK_EQ(m.alloc_size_bucket_counter[1], 1);
         CHECK_EQ(m.space_allocated, 110);
     }
-
-    local_arena_metrics.reset();
-
-    {
-        auto& m = local_arena_metrics;
-        auto loc = source_location::current();
-        STring key = loc.file_name();
-        key += ":" + std::to_string(loc.line());
-
-        CHECK_FALSE(m.arena_alloc_counter.contains(key));
-
-        auto* a = new Arena(ops);
-
-        a->init(loc);
-        auto* _ = a->AllocateAligned(100);
-        delete a;
-
-        CHECK(_);
-        CHECK_EQ(m.arena_alloc_counter[key], 100);
-    }
 }
 
 TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsNewBlock") {
     SUBCASE("reuse block") {  // reuse block
         auto* a = new Arena(ops);
-        a->init();
         auto* p1 = a->AllocateAligned(10);
         auto* p2 = a->AllocateAligned(100);
         delete a;
@@ -142,7 +117,6 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsNewBlock") {
 
     SUBCASE("non-fully reuse block lead to space waste") {  // non-fully reuse block lead to space_waste
         auto* a = new Arena(ops);
-        a->init();
         auto* p1 = a->AllocateAligned(10);
         auto* p2 = a->AllocateAligned(65535);
         delete a;
@@ -157,7 +131,6 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsNewBlock") {
 
 TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsDestruction") {
     auto* a = new Arena(ops);
-    a->init();
     auto* _ = a->AllocateAligned(10);
     delete a;
     CHECK(_);
@@ -167,7 +140,6 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsDestruction") {
 
 TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsReportToGlobalMetrics") {
     auto* a = new Arena(ops);
-    a->init();
     uint64_t alloc_count = 1024;
     for (uint64_t i = 0; i < alloc_count; i++) {
         auto* _ = a->AllocateAligned(10 * i);
@@ -206,7 +178,6 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsReportToGlobalMetrics") {
         auto f1 = [=, this, &alloc_success1]() {
             // g_cs = *cs;
             auto* aa = new Arena(ops);
-            aa->init();
             uint64_t alloc_count_ = 1024;
             for (uint64_t i = 0; i < alloc_count_; i++) {
                 alloc_success1 = (aa->AllocateAligned(10 * i) != nullptr);
@@ -218,7 +189,6 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsReportToGlobalMetrics") {
         auto f2 = [=, this, &alloc_success2]() {
             // g_cs = *cs;
             auto* aa = new Arena(ops);
-            aa->init();
             uint64_t alloc_count_ = 1024;
             for (uint64_t i = 0; i < alloc_count_; i++) {
                 alloc_success2 = (aa->AllocateAligned(10 * i) != nullptr);
