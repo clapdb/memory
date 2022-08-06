@@ -26,22 +26,23 @@
 #include "gtest/gtest.h"
 
 using stdb::memory::Arena;
-namespace stdb {
-namespace memory {
+namespace stdb::memory {
 
 class alloc_class
 {
    public:
     MOCK_METHOD1(alloc, void*(uint64_t));
     MOCK_METHOD1(dealloc, void(void*));
-    ~alloc_class() {}
+    ~alloc_class() = default;
 };
 
-class ThreadLocalArenaMetrics_Test : public ::testing::Test
+class ThreadLocalArenaMetricsTest : public ::testing::Test
 {
    protected:
     Arena::Options ops;
-    static void* alloc(uint64_t size) { return std::malloc(size); }
+    // NOLINTNEXTLINE
+    static auto alloc(uint64_t size) -> void* { return std::malloc(size); }
+    // NOLINTNEXTLINE
     static void dealloc(void* ptr) { std::free(ptr); }
 
     void SetUp() override {
@@ -64,18 +65,18 @@ class ThreadLocalArenaMetrics_Test : public ::testing::Test
     };
 };
 
-TEST_F(ThreadLocalArenaMetrics_Test, Init) {
-    Arena* a = new Arena(ops);
+TEST_F(ThreadLocalArenaMetricsTest, Init) {
+    auto* a = new Arena(ops);
     a->init();
     delete a;
     auto& m = local_arena_metrics;
     ASSERT_EQ(m.init_count, 1);
 }
 
-TEST_F(ThreadLocalArenaMetrics_Test, Reset) {
-    Arena* a = new Arena(ops);
+TEST_F(ThreadLocalArenaMetricsTest, Reset) {
+    auto* a = new Arena(ops);
     a->init();
-    auto _ = a->AllocateAligned(124);
+    auto* _ = a->AllocateAligned(124);
     a->Reset();
     delete a;
     auto& m = local_arena_metrics;
@@ -83,11 +84,11 @@ TEST_F(ThreadLocalArenaMetrics_Test, Reset) {
     ASSERT_EQ(m.reset_count, 1);
 }
 
-TEST_F(ThreadLocalArenaMetrics_Test, Allocation) {
+TEST_F(ThreadLocalArenaMetricsTest, Allocation) {
     {
-        Arena* a = new Arena(ops);
+        auto* a = new Arena(ops);
         a->init();
-        auto _ = a->AllocateAligned(10);
+        auto* _ = a->AllocateAligned(10);
         delete a;
         auto& m = local_arena_metrics;
         ASSERT_TRUE(_);
@@ -96,9 +97,9 @@ TEST_F(ThreadLocalArenaMetrics_Test, Allocation) {
     }
 
     {
-        Arena* a = new Arena(ops);
+        auto* a = new Arena(ops);
         a->init();
-        auto _ = a->AllocateAligned(100);
+        auto* _ = a->AllocateAligned(100);
         delete a;
         auto& m = local_arena_metrics;
         ASSERT_TRUE(_);
@@ -112,16 +113,16 @@ TEST_F(ThreadLocalArenaMetrics_Test, Allocation) {
 
     {
         auto& m = local_arena_metrics;
-        auto loc = std::source_location::current();
-        std::string key = loc.file_name();
+        auto loc = source_location::current();
+        STring key = loc.file_name();
         key += ":" + std::to_string(loc.line());
 
         ASSERT_FALSE(m.arena_alloc_counter.contains(key));
 
-        Arena* a = new Arena(ops);
+        auto* a = new Arena(ops);
 
         a->init(loc);
-        auto _ = a->AllocateAligned(100);
+        auto* _ = a->AllocateAligned(100);
         delete a;
 
         ASSERT_TRUE(_);
@@ -129,16 +130,16 @@ TEST_F(ThreadLocalArenaMetrics_Test, Allocation) {
     }
 }
 
-TEST_F(ThreadLocalArenaMetrics_Test, NewBlock) {
+TEST_F(ThreadLocalArenaMetricsTest, NewBlock) {
     {  // reuse block
-        Arena* a = new Arena(ops);
+        auto* a = new Arena(ops);
         a->init();
-        auto _ = a->AllocateAligned(10);
-        auto __ = a->AllocateAligned(100);
+        auto* p1 = a->AllocateAligned(10);
+        auto* p2 = a->AllocateAligned(100);
         delete a;
         auto& m = local_arena_metrics;
-        ASSERT_TRUE(_);
-        ASSERT_TRUE(__);
+        ASSERT_TRUE(p1 != nullptr);
+        ASSERT_TRUE(p2 != nullptr);
         ASSERT_EQ(m.alloc_count, 2);
         ASSERT_EQ(m.newblock_count, 1);
     }
@@ -146,36 +147,36 @@ TEST_F(ThreadLocalArenaMetrics_Test, NewBlock) {
     local_arena_metrics.reset();
 
     {  // non-fully reuse block lead to space_waste
-        Arena* a = new Arena(ops);
+        auto* a = new Arena(ops);
         a->init();
-        auto _ = a->AllocateAligned(10);
-        auto __ = a->AllocateAligned(65535);
+        auto* p1 = a->AllocateAligned(10);
+        auto* p2 = a->AllocateAligned(65535);
         delete a;
         auto& m = local_arena_metrics;
-        ASSERT_TRUE(_);
-        ASSERT_TRUE(__);
+        ASSERT_TRUE(p1 != nullptr);
+        ASSERT_TRUE(p2 != nullptr);
         ASSERT_EQ(m.alloc_count, 2);
         ASSERT_EQ(m.newblock_count, 2);
         ASSERT_GT(m.space_wasted, 0);
     }
 }
 
-TEST_F(ThreadLocalArenaMetrics_Test, Destruction) {
-    Arena* a = new Arena(ops);
+TEST_F(ThreadLocalArenaMetricsTest, Destruction) {
+    auto* a = new Arena(ops);
     a->init();
-    auto _ = a->AllocateAligned(10);
+    auto* _ = a->AllocateAligned(10);
     delete a;
     ASSERT_TRUE(_);
     auto& m = local_arena_metrics;
     ASSERT_EQ(m.destruct_count, 1);
 }
 
-TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
-    Arena* a = new Arena(ops);
+TEST_F(ThreadLocalArenaMetricsTest, ReportToGlobalMetrics) {
+    auto* a = new Arena(ops);
     a->init();
     uint64_t alloc_count = 1024;
     for (uint64_t i = 0; i < alloc_count; i++) {
-        auto _ = a->AllocateAligned(10 * i);
+        auto* _ = a->AllocateAligned(10 * i);
         ASSERT_TRUE(_);
     }
     delete a;
@@ -204,17 +205,17 @@ TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
         ASSERT_EQ(m.alloc_count, 0);
         ASSERT_EQ(m.destruct_count, 0);
 
-        // std::cout << global.string() << std::endl;
+        // std::cout << global.STring() << std::endl;
         global.reset();
     }
 
     {  // multi-thread
         auto f = [=, this]() {
-            Arena* aa = new Arena(ops);
+            auto* aa = new Arena(ops);
             aa->init();
             uint64_t alloc_count_ = 1024;
             for (uint64_t i = 0; i < alloc_count_; i++) {
-                auto _ = aa->AllocateAligned(10 * i);
+                auto* _ = aa->AllocateAligned(10 * i);
                 ASSERT_TRUE(_);
             }
             delete aa;
@@ -234,9 +235,8 @@ TEST_F(ThreadLocalArenaMetrics_Test, ReportToGlobalMetrics) {
         ASSERT_EQ(global.init_count, 2);
         ASSERT_EQ(global.alloc_count, alloc_count * 2);
         ASSERT_EQ(global.destruct_count, 2);
-        // std::cout << global.string() << std::endl;
+        // std::cout << global.STring() << std::endl;
     }
 }
 
-}  // namespace memory
-}  // namespace stdb
+}  // namespace stdb::memory

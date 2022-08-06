@@ -32,6 +32,8 @@ include (cmake/FindGMock.cmake)
 
 find_package(GTest REQUIRED)
 find_package(GMock REQUIRED)
+# fmt
+find_package(fmt REQUIRED)
 
 set(ARENA_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
 

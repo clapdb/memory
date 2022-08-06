@@ -25,7 +25,7 @@
 
 using stdb::memory::Arena;
 
-Arena::Block::Block(uint64_t size, Block* prev) : prev_(prev), pos_(kBlockHeaderSize), size_(size), limit_(size) {}
+Arena::Block::Block(uint64_t size, Block* prev) : _prev(prev), _pos(kBlockHeaderSize), _size(size), _limit(size) {}
 
 // generate a new memory Block.
 auto Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept -> Arena::Block* {
@@ -33,18 +33,22 @@ auto Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept -> Arena::B
     uint64_t size = 0;
 
     // verify not overflow, with glog
-    CHECK_LE(min_bytes, std::numeric_limits<uint64_t>::max() - kBlockHeaderSize);
+    // STDB_CHECK_LE(min_bytes, std::numeric_limits<uint64_t>::max() - kBlockHeaderSize);
+    if (min_bytes > std::numeric_limits<uint64_t>::max() - kBlockHeaderSize) {
+        fmt::print(stderr, "newBlock need too many min_bytes : {}, it add kBlockHeaderSize more than uint64_t max.",
+                   min_bytes);
+    }
 
     if (prev_block != nullptr) {
         [[likely]] {
             // not the first block "New" action.
-            if (required_bytes <= options_.normal_block_size) {
-                size = options_.normal_block_size;
-            } else if (required_bytes <= options_.huge_block_size / kThresholdHuge) {
-                size = align::AlignUp(min_bytes, options_.normal_block_size);
-            } else if ((required_bytes > options_.huge_block_size / kThresholdHuge) &&
-                       (required_bytes <= options_.huge_block_size)) {
-                size = options_.huge_block_size;
+            if (required_bytes <= _options.normal_block_size) {
+                size = _options.normal_block_size;
+            } else if (required_bytes <= _options.huge_block_size / kThresholdHuge) {
+                size = align::AlignUp(min_bytes, _options.normal_block_size);
+            } else if ((required_bytes > _options.huge_block_size / kThresholdHuge) &&
+                       (required_bytes <= _options.huge_block_size)) {
+                size = _options.huge_block_size;
             }
             // for the more than huge_block_size size
             // will be handle out of the code scope
@@ -52,7 +56,7 @@ auto Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept -> Arena::B
         }
     } else {
         // the size may be insuffcient than the required.
-        size = options_.suggested_initblock_size;
+        size = _options.suggested_initblock_size;
     }
 
     // NOTICE: when the size will be change to required_bytes?
@@ -67,7 +71,7 @@ auto Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept -> Arena::B
     // no AlignUpTo8 need, because
     // normal_block_size and huge_block_size should be power of 2.
     // if the size over the huge_block_size, the block will be monoplolized.
-    void* mem = options_.block_alloc(size);
+    void* mem = _options.block_alloc(size);
     // if mem == nullptr, means no memory available for current os status.
     // if mem == nullptr, placement new will trigger a segmentfault
     if (mem == nullptr) {
@@ -76,25 +80,25 @@ auto Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept -> Arena::B
 
     // call the on_arena_newblock callback
     // if on_arena_newblock is nullptr, block num counting is a useless process, so avoid it.
-    if (options_.on_arena_newblock != nullptr) {
+    if (_options.on_arena_newblock != nullptr) {
         // count the blk num
         uint64_t blk_num = 0;
         for (Block* prev = prev_block; prev != nullptr; prev = prev->prev(), ++blk_num) {
         }
 
-        options_.on_arena_newblock(blk_num, size, cookie_);
+        _options.on_arena_newblock(blk_num, size, _cookie);
     }
 
     auto* b = new (mem) Block(size, prev_block);
-    space_allocated_ += size;
+    _space_allocated += size;
     return b;
 }
 
 void Arena::Block::Reset() noexcept {
     // run all cleanups first
     run_cleanups();
-    pos_ = kBlockHeaderSize;
-    limit_ = size_;
+    _pos = kBlockHeaderSize;
+    _limit = _size;
 }
 
 // if return nullptr means failure
@@ -102,15 +106,15 @@ auto Arena::allocateAligned(uint64_t bytes) noexcept -> char* {
     uint64_t needed = align_size(bytes);
     if (need_create_new_block(needed)) {
         [[unlikely]] {
-            Block* curr = newBlock(needed, last_block_);
+            Block* curr = newBlock(needed, _last_block);
             if (curr != nullptr) {
-                [[likely]] last_block_ = curr;
+                [[likely]] _last_block = curr;
             } else {
                 return nullptr;
             }
         }
     }
-    char* result = last_block_->alloc(needed);
+    char* result = _last_block->alloc(needed);
     // make sure aligned
     STDB_ASSERT((reinterpret_cast<uint64_t>(result) & 7UL) == 0);
     return result;

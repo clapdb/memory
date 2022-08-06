@@ -18,5 +18,5 @@
 
 aux_source_directory(. ARENA_SRC)
 add_library(arena ${ARENA_SRC})
-target_link_libraries(arena glog)
+target_link_libraries(arena glog fmt::fmt)
 
