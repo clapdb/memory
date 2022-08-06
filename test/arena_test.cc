@@ -881,17 +881,24 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.MemoryResourceTest") {
     res.deallocate(ptr2, 32);
     res.deallocate(ptr, 128);
 
+    SUBCASE("ptr == ") {
+        auto* memory_resource_ptr1 = arena->get_memory_resource();
+        auto* memory_resource_ptr2 = arena->get_memory_resource();
+        CHECK_NE(memory_resource_ptr1, nullptr);
+        CHECK_EQ(memory_resource_ptr1, memory_resource_ptr2);
+    }
+
     // operator==
     SUBCASE("operator ==") {
         Arena::memory_resource& res2 = res;
         CHECK_EQ(res, res2);  // NOLINT
 
-        Arena::memory_resource res3 = arena->get_memory_resource();
+        Arena::memory_resource res3 = *arena->get_memory_resource();
         CHECK_EQ(res, res3);  // NOLINT
     }
     SUBCASE("operator !=") {
         Arena arena2{opts};
-        auto res2 = arena2.get_memory_resource();
+        auto res2 = *arena2.get_memory_resource();
         CHECK_NE(res, res2);  // NOLINT
 
         auto res3 = std::pmr::monotonic_buffer_resource{};

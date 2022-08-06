@@ -98,12 +98,12 @@ class Arena
     Arena(const Arena&) = delete;
     auto operator=(const Arena&) -> Arena& = delete;
 
-    inline Arena(Arena&& other) noexcept
+    [[gnu::always_inline]] inline Arena(Arena&& other) noexcept
         : _options(other._options),
           _last_block(std::exchange(other._last_block, nullptr)),
           _cookie(std::exchange(other._cookie, nullptr)),
           _space_allocated(std::exchange(other._space_allocated, 0)) {}
-    auto operator=(Arena&& other) noexcept -> Arena& {
+    [[gnu::always_inline]] inline auto operator=(Arena&& other) noexcept -> Arena& {
         _options = other._options;
         _last_block = std::exchange(other._last_block, nullptr);
         _cookie = std::exchange(other._cookie, nullptr);
@@ -280,6 +280,8 @@ class Arena
     }
 
     ~Arena() {
+        // free memory_resource ptr first
+        delete _resource;
         // free blocks
         uint64_t all_waste_space = free_all_blocks();
         // make sure the on_arena_destruction was not free.
@@ -393,8 +395,9 @@ class Arena
         return nullptr;
     }
 
-    [[gnu::always_inline]] inline auto get_memory_resource() noexcept -> memory_resource {
-        return memory_resource{this};
+    [[gnu::always_inline]] inline auto get_memory_resource() noexcept -> memory_resource* {
+        STDB_ASSERT(_resource != nullptr);
+        return _resource;
     };
 
     /*
@@ -416,6 +419,12 @@ class Arena
      * call the callback to monitor and metrics: this arena was inited.
      */
     [[gnu::always_inline]] inline void init(const source_location& loc = source_location::current()) noexcept {
+        try {
+            _resource = new memory_resource(this);
+        } catch (const std::bad_alloc& ex) {
+            _resource = nullptr;
+            fmt::print(stderr, "new memory resource failed while Arena::init");
+        }
         if (_options.on_arena_init != nullptr) [[likely]] {
             _cookie = _options.on_arena_init(this, loc);
         }
@@ -528,6 +537,7 @@ class Arena
 
     Options _options;
     Block* _last_block;
+    memory_resource* _resource {nullptr};
 
     // should be initialized by on_arena_init
     // and should be destroyed by on_arena_destruction
