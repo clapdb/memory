@@ -33,8 +33,6 @@ include (cmake/FindGMock.cmake)
 find_package(GTest REQUIRED)
 find_package(GMock REQUIRED)
 
-add_library(arena ${ARENA_SRC})
-target_link_libraries(arena glog fmt)
 set(ARENA_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 if(${CMAKE_BUILD_TYPE} MATCHES Debug)
@@ -50,5 +48,8 @@ if(${CMAKE_BUILD_TYPE} MATCHES Debug)
     EXECUTABLE test/test
   )
 endif()
+
+### build arena
+add_subdirectory(arena)
 
 add_subdirectory(test)
