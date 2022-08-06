@@ -115,6 +115,15 @@ template <typename T>
 struct is_destructor_skippable : ArenaHelper<T>::is_destructor_skippable
 {};
 
+template <typename T>
+concept Constructable = is_arena_constructable<T>::value;
+
+template <typename T>
+concept NonConstructable = !is_arena_constructable<T>::value;
+
+template <typename T>
+concept DestructorSkippable = is_destructor_skippable<T>::value;
+
 }  // namespace stdb::memory
 
 #endif  // MEMORY_ARENAHELPER_HPP_

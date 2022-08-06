@@ -29,7 +29,6 @@ list(APPEND TEST_FLAGS
   -DDOCTEST_CONFIG_SUPER_FAST_ASSERTS
 )
 
-
 ### include arena src
 target_include_directories(test PRIVATE ${ARENA_SOURCE_DIR}/)
 

@@ -18,8 +18,7 @@
  +------------------------------------------------------------------------------+
 */
 
-#ifndef MEMORY_ARENA_HPP_
-#define MEMORY_ARENA_HPP_
+#pragma once
 
 #include <fmt/core.h>
 
@@ -43,9 +42,11 @@
 #define STDB_ASSERT(exp) assert(exp)
 
 #include <boost/core/demangle.hpp>
-#define TYPENAME(type) boost::core::demangle(typeid(type).name())  // NOLINT
-
+#define TYPENAME(type) \
+    boost::core::demangle(typeid(type).name())  // NOLINT
+                                                //
 namespace stdb::memory {
+
 using STring = std::string;
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
@@ -92,7 +93,10 @@ inline constexpr uint64_t kKiloByte = 1024;
 inline constexpr uint64_t kMegaByte = 1024 * 1024;
 
 template <typename T>
-concept Creatable = is_arena_constructable<T>::value ||(std::is_standard_layout<T>::value&& std::is_trivial<T>::value);
+concept Creatable = Constructable<T> ||(std::is_standard_layout<T>::value&& std::is_trivial<T>::value);
+
+template <typename T>
+concept TriviallyDestructible = std::is_trivially_destructible<T>::value;
 
 class Arena
 {
@@ -100,9 +104,19 @@ class Arena
     // make sure Arena can not be copyable
     Arena(const Arena&) = delete;
     auto operator=(const Arena&) -> Arena& = delete;
-    // TODO(hurricane): should make move available, and the move assigment
-    Arena(Arena&&) noexcept = delete;
-    auto operator=(Arena&&) -> Arena& = delete;
+
+    inline Arena(Arena&& other) noexcept
+        : _options(other._options),
+          _last_block(std::exchange(other._last_block, nullptr)),
+          _cookie(std::exchange(other._cookie, nullptr)),
+          _space_allocated(std::exchange(other._space_allocated, 0)) {}
+    auto operator=(Arena&& other) noexcept -> Arena& {
+        _options = other._options;
+        _last_block = std::exchange(other._last_block, nullptr);
+        _cookie = std::exchange(other._cookie, nullptr);
+        _space_allocated = std::exchange(other._space_allocated, 0);
+        return *this;
+    }
 
     // Arena Options class for the Arena class 's configiration
     struct Options
@@ -141,7 +155,7 @@ class Arena
         void (*on_arena_newblock)(uint64_t blk_num, uint64_t blk_size, void* cookie){nullptr};
         void* (*on_arena_destruction)(Arena* arena, void* cookie, uint64_t space_used, uint64_t space_wasted){nullptr};
 
-        [[gnu::always_inline]] inline Options()
+        Options()
             : normal_block_size(4 * kKiloByte),  // 4k is the normal pagesize of modern os
               huge_block_size(2 * kMegaByte),    // TODO(hurricane1026): maybe support 1G
               suggested_initblock_size(4 * kKiloByte) {}
@@ -155,7 +169,7 @@ class Arena
         auto operator=(Options&&) -> Options& = default;
         ~Options() = default;
 
-        [[gnu::always_inline]] [[gnu::always_inline]] inline void init() noexcept {
+        void init() noexcept {
             STDB_ASSERT(normal_block_size > 0);
             if (suggested_initblock_size == 0) {
                 suggested_initblock_size = normal_block_size;
@@ -181,7 +195,7 @@ class Arena
             return reinterpret_cast<char*>(this) + _limit;  // NOLINT
         }
 
-        [[gnu::always_inline]] inline auto alloc(uint64_t size) noexcept -> char* {
+        auto alloc(uint64_t size) noexcept -> char* {
             STDB_ASSERT(size <= (_limit - _pos));
             char* p = Pos();
             _pos += size;
@@ -208,7 +222,7 @@ class Arena
             return _limit - _pos;
         }
 
-        inline void run_cleanups() noexcept {
+        void run_cleanups() noexcept {
             // NOLINTNEXTLINE
             auto* node = reinterpret_cast<CleanupNode*>(reinterpret_cast<char*>(this) + _limit);
             // NOLINTNEXTLINE
@@ -223,7 +237,6 @@ class Arena
         [[nodiscard, gnu::always_inline]] inline auto cleanups() const noexcept -> uint64_t {
             uint64_t space = _size - _limit;
             STDB_ASSERT(space % kCleanupNodeSize == 0);
-
             return space / kCleanupNodeSize;
         }
 
@@ -277,10 +290,8 @@ class Arena
         }
     }
 
-    template <typename T>
+    template <NonConstructable T>
     [[gnu::noinline]] auto Own(T* obj) noexcept -> bool {
-        static_assert(!is_arena_constructable<T>::value, "Own requires a type can not create in arean");
-        // std::function<void()> cleaner = [obj] { delete obj; };
         return addCleanup(obj, &arena_delete_object<T>);
     }
 
@@ -300,7 +311,7 @@ class Arena
     [[nodiscard, gnu::always_inline]] inline auto SpaceAllocated() const noexcept -> uint64_t {
         return _space_allocated;
     }
-    [[nodiscard, gnu::always_inline]] inline auto SpaceRemains() const noexcept -> uint64_t {
+    [[nodiscard]] auto SpaceRemains() const noexcept -> uint64_t {
         uint64_t remains = 0;
         for (Block* curr = _last_block; curr != nullptr; curr = curr->prev()) {
             remains += curr->remain();
@@ -313,11 +324,6 @@ class Arena
     // the type T should have the tag:
     template <Creatable T, typename... Args>
     [[nodiscard]] auto Create(Args&&... args) noexcept -> T* {
-        /*
-        static_assert(
-          is_arena_constructable<T>::value || (std::is_standard_layout<T>::value && std::is_trivial<T>::value),
-          "New requires a constructible type");
-        */
         char* ptr = allocateAligned(sizeof(T));
         if (ptr != nullptr) {
             [[likely]] ArenaHelper<T>::Construct(ptr, this, std::forward<Args>(args)...);
@@ -334,14 +340,9 @@ class Arena
     }
 
     // new array from arena, and register cleanup function if need
-    template <typename T>
-    [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T* {
-        static_assert(
-          std::is_standard_layout<T>::value && (std::is_trivial<T>::value || std::is_constructible<T, Arena*>::value),
-          "NewArray requires a trivially constructible type or can be constructed with a Arena*");
-        static_assert(std::is_trivially_destructible<T>::value, "NewArray requires a trivially destructible type");
+    template <Creatable T>
+    [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T* requires TriviallyDestructible<T> {
         if (num > std::numeric_limits<uint64_t>::max() / sizeof(T)) {
-            // arena_logger.error(
             fmt::print(
               stderr,
               "CreateArray need too many memory, that more than max of uint64_t, the num of array is {}, and the Type "
@@ -366,7 +367,7 @@ class Arena
     }
 
     // if return nullptr means failure
-    [[nodiscard, gnu::always_inline]] inline auto AllocateAligned(uint64_t bytes) noexcept -> char* {
+    [[nodiscard]] auto AllocateAligned(uint64_t bytes) noexcept -> char* {
         if (char* ptr = allocateAligned(bytes); ptr != nullptr) {
             [[likely]] if (_options.on_arena_allocation != nullptr) {
                 [[likely]] _options.on_arena_allocation(nullptr, bytes, _cookie);
@@ -377,8 +378,7 @@ class Arena
     }
 
     // if return nullptr means failure
-    [[nodiscard, gnu::always_inline]] inline auto AllocateAlignedAndAddCleanup(uint64_t bytes, void* element,
-                                                                               void (*cleanup)(void*)) noexcept
+    [[nodiscard]] auto AllocateAlignedAndAddCleanup(uint64_t bytes, void* element, void (*cleanup)(void*)) noexcept
       -> char* {
         if (char* ptr = allocateAligned(bytes); ptr != nullptr) {
             [[likely]] {
@@ -426,7 +426,7 @@ class Arena
         return (_last_block == nullptr) || (need_bytes > _last_block->remain());
     }
 
-    [[nodiscard, gnu::always_inline]] inline auto addCleanup(void* o, void (*cleanup)(void*)) noexcept -> bool {
+    [[nodiscard]] auto addCleanup(void* o, void (*cleanup)(void*)) noexcept -> bool {
         if (need_create_new_block(kCleanupNodeSize)) {
             [[unlikely]] {
                 Block* curr = newBlock(kCleanupNodeSize, _last_block);
@@ -465,7 +465,7 @@ class Arena
     }
 
     // return all remains size of all blocks that was freed.
-    [[gnu::always_inline]] inline auto free_all_blocks() noexcept -> uint64_t {
+    auto free_all_blocks() noexcept -> uint64_t {
         Block* curr = _last_block;
         Block* prev = nullptr;
         uint64_t remain_size = 0;
@@ -483,7 +483,7 @@ class Arena
         return remain_size;
     }
 
-    [[gnu::always_inline]] inline auto free_blocks_except_head() noexcept -> uint64_t {
+    auto free_blocks_except_head() noexcept -> uint64_t {
         Block* curr = _last_block;
         Block* prev = nullptr;
         uint64_t remain_size = 0;
@@ -521,5 +521,3 @@ class Arena
 static constexpr uint64_t kBlockHeaderSize = align::AlignUpTo<kByteSize>(sizeof(memory::Arena::Block));
 
 }  // namespace stdb::memory
-
-#endif  // MEMORY_ARENA_HPP_
