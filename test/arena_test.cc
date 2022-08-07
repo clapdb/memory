@@ -709,6 +709,26 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.SpaceTest") {
     delete mock;
 }
 
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.RemainsTest") {
+    auto* x = new Arena(ops_complex);
+    ArenaTestHelper xh(*x);
+    mock = new alloc_class;
+    CHECK_EQ(x->SpaceAllocated(), 0ULL);
+
+    auto* new_ptr = x->AllocateAligned(3500);
+    CHECK_EQ(new_ptr, static_cast<char*>(mock->ptrs.front()) + sizeof(Arena::Block));
+
+    auto* next_ptr = x->AllocateAligned(755);
+    CHECK_EQ(next_ptr, static_cast<char*>(mock->ptrs.back()) + sizeof(Arena::Block));
+
+    CHECK_EQ(x->Remains(), 1024ULL - kBlockHeaderSize - 760);
+    CHECK_EQ(xh.last_block(), mock->ptrs.back());
+
+    delete x;
+    CHECK_EQ(mock->free_ptrs.size(), 2);
+    delete mock;
+}
+
 TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocateAlignedAndAddCleanupTest") {
     auto* a = new Arena(ops_complex);
     mock_cleaners = new cleanup_mock;

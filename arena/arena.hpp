@@ -357,18 +357,17 @@ class Arena
     [[nodiscard, gnu::always_inline]] inline auto SpaceAllocated() const noexcept -> uint64_t {
         return _space_allocated;
     }
-    [[nodiscard]] auto SpaceRemains() const noexcept -> uint64_t {
-        uint64_t remains = 0;
-        for (Block* curr = _last_block; curr != nullptr; curr = curr->prev()) {
-            remains += curr->remain();
-        }
-        return remains;
-    }
 
     /*
-     * Create Array of Objects with num length.
-     * T should be Creatable, and TriviallyDestructible.
-     * because CreateArray do not RegisterDestructor.
+     * get remaining size of the last_block.
+     * caller can use is function to test whether the Arena will allocate a new block.
+     */
+    [[nodiscard, gnu::always_inline]] inline auto Remains() const noexcept -> uint64_t { return _last_block->remain(); }
+
+    /*
+     * Create by the Arena, and register cleanup function if needed
+     * always allocating in the arena memory
+     * the type T should is Creatable
      */
     template <Creatable T, typename... Args>
     [[nodiscard]] auto Create(Args&&... args) noexcept -> T* {
