@@ -1,4 +1,4 @@
-# libArena
+# libArena, a c++20 memory library.
 
 Arena is a memory allocation library inspired by google chrome project. It use many codes borrowed from google's opensource projects.
 
@@ -15,9 +15,12 @@ Arena's purpose is that making heap memory layout alligned to OS/hardware memory
 
 - With power of C++ 20, STL's standard contains could use Arena to optimize memory layout.
 
-  > C++ program's standard contain's internal memory layout hasn't best locality because STL's default Allocator make memory layout be scattered.
+  > C++ program's standard container's internal memory layout hasn't best locality because STL's default Allocator make memory layout be scattered.
 ## Overhead
-Arena use some padding or to make cpu cacheline more clearly, but memory overhead will be higher.
+Arena use some padding to make cpu cacheline more clearly, but memory overhead will be higher.
+
+## Limitation
+libarena just works with c++20 and with std::source_location(Apple Clang to do support it.)
 
 ## Working with Mallocs
 
@@ -56,6 +59,7 @@ An arena has a chain of blocks memory pool,  block is a linear continuous memory
 ### Align for what?
 Aligned memory will make CPU working in the best situation. Modern cpus have complicated memory and cache mechanism, and it was designed for aligned memory.
 ### Cleanup Area and Cleanup functions.
+to be content.
 ### Tags
 Arena 约定了两个tag
 1. ArenaFullManagedTag
