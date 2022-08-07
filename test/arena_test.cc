@@ -22,10 +22,9 @@
 
 #include <cstdlib>
 #include <iostream>
-#include <memory>
 #include <typeinfo>
 #include <vector>
-
+#include <memory>
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 
@@ -764,6 +763,9 @@ TEST_CASE("ArenaTest.CheckTest") {
     CHECK_EQ(a.check(reinterpret_cast<char*>(arena_managed_ptr)), ArenaContainStatus::BlockUsed);
     CHECK_EQ(a.check(reinterpret_cast<char*>(with_dstr) + 200), ArenaContainStatus::BlockUnUsed);
     CHECK_EQ(a.check(reinterpret_cast<char*>(block) + 4090), ArenaContainStatus::BlockCleanup);
+    CHECK_EQ(a.check(reinterpret_cast<char*>(block) + block->size() - kCleanupNodeSize),
+             ArenaContainStatus::BlockCleanup);
+    CHECK_EQ(a.check(reinterpret_cast<char*>(block) + block->size()), ArenaContainStatus::NotContain);
 }
 
 class mock_hook
