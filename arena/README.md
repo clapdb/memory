@@ -58,24 +58,27 @@ Aligned memory will make CPU working in the best situation. Modern cpus have com
 ### Cleanup Area and Cleanup functions.
 ### Tags
 Arena 约定了两个tag
-1. ACstrTag
-2. ADstrSkipTag
+1. ArenaFullManagedTag
+2. ArenaManagedCreateOnlyTag
 
-如果 class public member 里有 ACstrTag， Arena 的 Create 就可以构建，
-如果 class public member 里有 ADstrSkipTag, Arena 析构的时候就不会调用这个 class 的析构函数.
- 
-## Usage and Examples
+如果 class public member 里有其中任何一个 Tag，就能保证可以被 Create 构建。
+如果 class public member 里有 ArenaManagedCreateOnlyTag, 那么 Arena 会跳过这个 class 的 Destructor.
+
+** 仅仅需要一个 Tag 就 ok **
+如果没有任何一个Tag，就必须是类似简单的 c struct，否则 arena.Create会失败。
+
+## Usage Examples
 ### pure C like structs
 c++ struct is a simple class.
 它要满足以下任意一个条件就可以直接用 Create 来构建, 这里的限制是：
 1. is_trivial && is_standard_layout
-2. mark by ACstrTag
+2. mark by ArenaFullManagedTag or ArenaManagedCreateOnlyTag
 
 is_trivial 要求默认构造和拷贝构造必须是编译器生成的。
 is_standard_layout 是要求内存布局简单, 要求所有非static member 的 access control level，没有 virtual 函数，没有非 static 的reference member，没有多重继承。
 
 简而言之，需要一个简单的内存布局，并且可以直接算出来占用多大空间，因为arena是需要将数据分配在连续内存上的。
-ACstrTag 是程序员自己控制的，自己手动告诉Arena，可以这么Create。
+ArenaFullManagedTag 是程序员自己控制的，自己手动告诉Arena，可以这么Create。
 ```c++
 /*
  * simplest struct
@@ -124,21 +127,21 @@ class not_standard_layout {
 };
 ```
 ### C++ class
-class 意味着，你要首先 cstr 和 dstr了，显然不满足于 is_trivial 了，你肯定要 ACstrTag 了，这个时候因为 class 相对复杂, 需要考虑是否要执行析构，因为有可能也被Arena管理了。
-ADstrSkipTag 要酌情使用。
+class 意味着，你要首先 cstr 和 dstr了，显然不满足于 is_trivial 了，你肯定要 ArenaFullManagedTag 了，这个时候因为 class 相对复杂, 需要考虑是否要执行析构，因为有可能也被Arena管理了。
+ArenaManagedCreateOnlyTag 要酌情使用。
 理论上 arena 上构造的 class 不应该被copy 和 move，但是实际中我们有的时候也需要。注意几个原则就好:
 1. 一个 instance 要么只能被 arena 管理，要么绝对不能，最好不要同时支持。
 2. 一个 instance 如果被 copy, 一定要跨 arena，否则的话，用 clone 语义或者重新构建。
 3. 一个 instance 如果被 move, 一定在同一个 arena。 TODO: 最好通过 Arena 的设计避免，但是目前看很难。
 ```c++
 /*
- * is not_standard_layout, but has ACstrTag,
+ * is not_standard_layout, but has ArenaFullManagedTag,
  * can be Create in Arena, but can not be CreateArray.
  */
 class not_standard_layout {
    public: 
     Arena& arena;
-    ACstrTag;
+    ArenaFullManagedTag;
 };
 
 ```
@@ -161,7 +164,7 @@ std::pmr::vector(a.get_memory_resource());
 class with_ptr {
    public: 
     with_ptr(B* p);
-    ACstrTag;
+    ArenaFullManagedTag;
    private: 
     B* ptr;
 };
@@ -181,9 +184,9 @@ class 要持有一个 arena ref 或者 memory resource
 class with_container {
     with_container(Arena& arena): a(arena), mapper(a.get_memory_resource()) {};
     // for make Arena Create work
-    ACstrTag;
+    ArenaFullManagedTag;
     // to skip dstr, otherwise the memory will be double freed.
-    ADstrSkipTag;
+    ArenaManagedCreateOnlyTag;
    private:
     Arena& a;
     std::pmr::vector<uint32_t, uint64_t> mapper;
@@ -195,11 +198,11 @@ with_contaner* p = a.Create<with_container>();
 
 ```
 ### class just owning arena
-class 可以只是持有一个 arena ref，但是不打 ACstrTag，这样就不会被arena构造。(因为 ref member 让这个class 不满足于 standard_layout 约束)
+class 可以只是持有一个 arena ref，但是不打 ArenaFullManagedTag，这样就不会被arena构造。(因为 ref member 让这个class 不满足于 standard_layout 约束)
 ```cpp
 /*
  * own_arena can own an arena ref, 
- * but can not be construct in arena because without ACstrTag
+ * but can not be construct in arena because without ArenaFullManagedTag
  */
 class own_arena {
     own_arena(Arena& arena): a(arean) { }
@@ -215,8 +218,7 @@ class own_arena {
 ```cpp
 class arena_only_class {
     arena_only_class(Arena& arena): a(arena), ptrs(a.get_memory_resource()) {}
-    ACstrTag;
-    ADstrSkipTag;
+    ArenaManagedCreateOnlyTag;
    private:    
     Arena& a;
     B* ptr;
@@ -239,7 +241,7 @@ auto* failed = a.Create<arena_only_class>(a);
 class arena_with_arena {
    public:
     arena_with_arena(Arena* a):diff_arena(a){}
-    ACstrTag;
+    ArenaFullManagedTag;
    private:
     Arena* diff_arena;
 };

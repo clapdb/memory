@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <limits>
 #include <memory_resource>
+#include <string>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
@@ -45,8 +46,6 @@
 #define TYPENAME(type) boost::core::demangle(typeid(type).name())  // NOLINT
 
 namespace stdb::memory {
-using STring = std::string;
-using ::stdb::memory::align::AlignUpTo;
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
 using source_location = std::source_location;
@@ -56,8 +55,11 @@ using source_location = std::experimental::source_location;
 #error "no support for other compiler"
 #endif
 
+using STring = std::string;
 using ::std::size_t;
 using ::std::type_info;
+
+using align::AlignUpTo;
 
 /*
  * CleanupNode class store the cleanup closure in 128bits.
@@ -112,7 +114,6 @@ enum class ArenaContainStatus : uint8_t
     BlockUsed,
     BlockUnUsed,
 };
-
 /*
  * Arena is a session-ware allocator implementation,
  * it can be used to allocate memory blocks and de-allocate them in a single call.
@@ -130,7 +131,7 @@ enum class ArenaContainStatus : uint8_t
  * until Arena's destruction. A long-life-cycle Arena will make the system bearing memory starve, be care of the Arena's
  * life-cycle.
  *
- * Arena could be reused without destroy, just reset is ok, it will remain the first block and de-allocte the
+ * Arena could be reused without destruction, just reset is ok, it will remain the first block and deallocate the
  * followings.
  */
 class Arena
@@ -156,7 +157,7 @@ class Arena
     }
 
     /*
-     * Arena Options class for the Arena class 's configuration.
+     * Arena Options class for the Arena class' configuration.
      * the Options' parameters should be tune by the OS/CPU special features, and the App's scenarios.
      * only use size is align to pagesize in your environment.
      */
@@ -402,7 +403,11 @@ class Arena
         return nullptr;
     }
 
-    // new array from arena, and register cleanup function if needed
+    /*
+     * Create Array of Objects with num length.
+     * T should be Creatable, and TriviallyDestructible.
+     * because CreateArray do not RegisterDestructor.
+     */
     template <Creatable T>
     [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T* requires TriviallyDestructible<T> {
         if (num > std::numeric_limits<uint64_t>::max() / sizeof(T)) {

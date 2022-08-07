@@ -42,8 +42,8 @@ class ThreadLocalArenaMetricsTest
         ops.block_alloc = &alloc;
         ops.block_dealloc = &dealloc;
         ops.normal_block_size = 1024ULL;
-        ops.suggested_init_block_size = 0ULL;
-        ops.huge_block_size = 0ULL;
+        ops.suggested_init_block_size = 1024ULL;
+        ops.huge_block_size = 1024ULL;
 
         ops.on_arena_init = &metrics_probe_on_arena_init;
         ops.on_arena_reset = &metrics_probe_on_arena_reset;

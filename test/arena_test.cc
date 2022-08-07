@@ -25,14 +25,14 @@
 #include <memory>
 #include <typeinfo>
 #include <vector>
+
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 
 using stdb::memory::Arena;
 using stdb::memory::kBlockHeaderSize;
-using stdb::memory::align::AlignUp;
-using stdb::memory::align::AlignUpTo;
 namespace stdb::memory {
+using align::AlignUp;
 
 class alloc_class
 {
@@ -561,7 +561,7 @@ thread_local cstr_class* cstr;
 class mock_class_need_dstr
 {
    public:
-    ACstrTag;
+    ArenaFullManagedTag;
     mock_class_need_dstr(int i, STring name) : index_(i), n_(std::move(name)) { cstr->construct(n_); }
     ~mock_class_need_dstr() { cstr->destruct(n_); }
     auto verify(int i, const STring& name) -> bool { return (i == index_) && (name == n_); }
@@ -574,8 +574,7 @@ class mock_class_need_dstr
 class mock_class_without_dstr
 {
    public:
-    ACstrTag;
-    ADstrSkipTag;
+    ArenaManagedCreateOnlyTag;
     static void construct() { count++; }
     static void destruct() { count--; }
     explicit mock_class_without_dstr(STring name) : n_(std::move(name)) { cstr->construct(n_); }
@@ -590,7 +589,7 @@ class mock_class_without_dstr
 class mock_class_with_arena
 {
    public:
-    ACstrTag;
+    ArenaFullManagedTag;
     // explicit mock_class_with_arena(Arena* arena) : arena_(arena) {}
     mock_class_with_arena() = default;
 
@@ -750,7 +749,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocateAlignedAndAddCleanupTest") {
 TEST_CASE("ArenaTest.CheckTest") {
     struct destructible
     {
-        ACstrTag;
+        ArenaFullManagedTag;
         destructible() { to_free = new char[5]; }
         ~destructible() { delete[] to_free; }
         int x{0};
@@ -758,8 +757,7 @@ TEST_CASE("ArenaTest.CheckTest") {
     };
     struct skip_destructible
     {
-        ACstrTag;
-        ADstrSkipTag;
+        ArenaManagedCreateOnlyTag;
         skip_destructible() = default;
         ~skip_destructible() = default;
         int z{0};
@@ -1121,10 +1119,9 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
         mock = nullptr;
     }
 }
-
 TEST_CASE("ArenaTest.pmr-support") {
     auto options = Arena::Options::GetDefaultOptions();
-    Arena arena(std::move(options));
+    Arena arena(options);
     SUBCASE("String") {
         std::pmr::string str("stringstringstring..............213423423443242344", arena.get_memory_resource());
         CHECK_EQ(arena.check(str.c_str()), ArenaContainStatus::BlockUsed);
