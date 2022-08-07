@@ -40,8 +40,9 @@ auto Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept -> Arena::B
     uint64_t size = 0;
 
     if (min_bytes > std::numeric_limits<uint64_t>::max() - kBlockHeaderSize) {
-        fmt::print(stderr, "newBlock need too many min_bytes : {}, it add kBlockHeaderSize more than uint64_t max.",
-                   min_bytes);
+        auto output_message = fmt::format(
+          "newBlock need too many min_bytes : {}, it add kBlockHeaderSize more than uint64_t max.", min_bytes);
+        _options.logger_func(output_message);
     }
 
     // it was not called in the Arena's first chance.
@@ -124,7 +125,7 @@ auto Arena::allocateAligned(uint64_t bytes) noexcept -> char* {
     }
     char* result = _last_block->alloc(needed);
     // re make sure aligned in debug model
-    STDB_ASSERT((reinterpret_cast<uint64_t>(result) & 7UL) == 0);
+    assert((reinterpret_cast<uint64_t>(result) & 7UL) == 0);  // NOLINT
     return result;
 }
 

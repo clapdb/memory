@@ -20,7 +20,6 @@
 
 #pragma once
 
-#include <fmt/core.h>
 
 #include <atomic>
 #include <chrono>
@@ -31,6 +30,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include <fmt/core.h>
 #include "arena.hpp"
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
@@ -87,7 +87,7 @@ struct GlobalArenaMetrics
     std::array<atomic<uint64_t>, kAllocBucketSize> alloc_size_bucket_counter{0};
     // atomic<uint64_t> destruct_lifetime_bucket_counter[kLifetimeBucketSize] = {0};
     std::array<atomic<uint64_t>, kLifetimeBucketSize> destruct_lifetime_bucket_counter{0};
-    std::unordered_map<STring, atomic<uint64_t>> arena_alloc_counter = {};  // arena identified by init() location
+    std::unordered_map<std::string, atomic<uint64_t>> arena_alloc_counter = {};  // arena identified by init() location
 
     void reset() {  // lockless and races for metric-data is acceptable
         init_count.store(0, std::memory_order::relaxed);
@@ -110,8 +110,8 @@ struct GlobalArenaMetrics
         }
     }
 
-    [[nodiscard]] auto string() const -> STring {
-        STring str;
+    [[nodiscard]] auto string() const -> std::string {
+        std::string str;
         //        str.reserve(kKiloByte);
         str += fmt::format(
           "Summary:\n"
@@ -172,7 +172,7 @@ struct LocalArenaMetrics
     std::array<uint64_t, kAllocBucketSize> alloc_size_bucket_counter{0};
     // uint64_t destruct_lifetime_bucket_counter[kLifetimeBucketSize] = {0};
     std::array<uint64_t, kLifetimeBucketSize> destruct_lifetime_bucket_counter{0};
-    std::unordered_map<STring, uint64_t> arena_alloc_counter = {};  // arena identified by init() location
+    std::unordered_map<std::string, uint64_t> arena_alloc_counter = {};  // arena identified by init() location
 
     void reset() {
         init_count = 0;
@@ -211,7 +211,7 @@ struct LocalArenaMetrics
     }
 
     [[gnu::always_inline]] inline void increase_arena_alloc_counter(const source_location& loc, uint64_t size) {
-        const STring key = STring(loc.file_name()) + ":" + std::to_string(loc.line());
+        const std::string key = std::string(loc.file_name()) + ":" + std::to_string(loc.line());
         arena_alloc_counter[key] += size;
     }
 

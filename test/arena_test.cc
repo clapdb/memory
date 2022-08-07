@@ -18,13 +18,15 @@
  +------------------------------------------------------------------------------+
 */
 
-#include "arena/arena.hpp"
 
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <typeinfo>
 #include <vector>
+
+#include "arena/arena.hpp"
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 
@@ -258,6 +260,7 @@ class ArenaTest
         ops_complex.normal_block_size = 1024ULL;
         ops_complex.suggested_init_block_size = 4096ULL;
         ops_complex.huge_block_size = 1024ULL * 1024ULL;
+        ops_complex.logger_func = &default_logger_func;
 
         // initialize the ops_simple
         ops_simple.block_alloc = &mock_alloc;
@@ -265,6 +268,7 @@ class ArenaTest
         ops_simple.normal_block_size = 1024ULL;
         ops_simple.suggested_init_block_size = 1024ULL;
         ops_simple.huge_block_size = 1024ULL;
+        ops_simple.logger_func = &default_logger_func;
     }
 };
 
@@ -511,6 +515,27 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.DoCleanupTest") {
     delete mock;
 }
 
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.to_string<std::pmr::string>") {
+    auto* a = new Arena(ops_simple);
+    ArenaTestHelper ah(*a);
+    mock = new alloc_class;
+    std::string str = "this is a very very long string that need to be allocated on arena";
+    std::string s;
+
+    {
+        std::pmr::string pmr_str(str, a->get_memory_resource());
+        CHECK_EQ(ah.space_allocated(), 1024ULL);
+        CHECK_EQ(strcmp(pmr_str.c_str(), str.c_str()), 0);
+    }
+
+    delete a;
+    CHECK_EQ(mock->ptrs.size(), 1);
+    CHECK_EQ(mock->free_ptrs.size(), 1);
+    CHECK_EQ(mock->ptrs.front(), mock->free_ptrs.front());
+    CHECK_EQ(mock->alloc_sizes.front(), 1024);
+    delete mock;
+}
+
 class mock_own
 {
    public:
@@ -562,13 +587,13 @@ class mock_class_need_dstr
 {
    public:
     ArenaFullManagedTag;
-    mock_class_need_dstr(int i, STring name) : index_(i), n_(std::move(name)) { cstr->construct(n_); }
+    mock_class_need_dstr(int i, std::string name) : index_(i), n_(std::move(name)) { cstr->construct(n_); }
     ~mock_class_need_dstr() { cstr->destruct(n_); }
-    auto verify(int i, const STring& name) -> bool { return (i == index_) && (name == n_); }
+    auto verify(int i, const std::string& name) -> bool { return (i == index_) && (name == n_); }
 
    private:
     int index_;
-    const STring n_;
+    const std::string n_;
 };
 
 class mock_class_without_dstr
@@ -577,12 +602,13 @@ class mock_class_without_dstr
     ArenaManagedCreateOnlyTag;
     static void construct() { count++; }
     static void destruct() { count--; }
-    explicit mock_class_without_dstr(STring name) : n_(std::move(name)) { cstr->construct(n_); }
+    // NOLINTNEXTLINE
+    explicit mock_class_without_dstr(std::string name) : n_(std::move(name)) { cstr->construct(n_); }
     ~mock_class_without_dstr() { cstr->destruct(n_); }
-    auto verify(const STring& n) -> bool { return n_ == n; }
+    auto verify(const std::string& n) -> bool { return n_ == n; }
 
    private:
-    const STring n_;
+    const std::string n_;
     inline static int count = 0;
 };
 
@@ -602,8 +628,8 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.CreateTest") {
     cstr = new cstr_class;
     auto* a = new Arena(ops_complex);
     ArenaTestHelper ah(*a);
-    STring ss("hello world");
-    STring sss("fuck the world");
+    std::string ss("hello world");
+    std::string sss("fuck the world");
 
     auto* d2 = a->Create<mock_class_without_dstr>("fuck the world");
     CHECK_EQ(mock->alloc_sizes.front(), 4096);
@@ -765,7 +791,7 @@ TEST_CASE("ArenaTest.CheckTest") {
     Arena::Options realops = Arena::Options::GetDefaultOptions();
     Arena a(realops);
     int x = 0;
-    STring ss = "with dstr";
+    std::string ss = "with dstr";
     std::unique_ptr<int> ptr = std::make_unique<int>();
     auto* arena_managed_ptr = a.AllocateAligned(100);
     auto* with_dstr = a.Create<destructible>();
@@ -902,8 +928,8 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.NullTest") {
     CHECK_EQ(ah.space_allocated(), 0ULL);
     CHECK_EQ(a->cleanups(), 0ULL);
 
-    STring ss("hello world");
-    STring sss("fuck the world");
+    std::string ss("hello world");
+    std::string sss("fuck the world");
     CHECK_EQ(cstr->count, 0);
 
     auto* d2 = a->Create<mock_class_without_dstr>("fuck the world");
@@ -1170,7 +1196,7 @@ struct class_with_allocator
 TEST_CASE("ArenaTest.Create_Object_with_allocator") {
     auto options = Arena::Options::GetDefaultOptions();
     Arena a(options);
-    class_with_allocator* obj = a.Create<class_with_allocator>();
+    auto* obj = a.Create<class_with_allocator>();
     CHECK_EQ(a.check(obj->name.c_str()), ArenaContainStatus::BlockUsed);
 }
 

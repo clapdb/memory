@@ -20,11 +20,10 @@
 
 #pragma once
 
-#include <fmt/core.h>
-
 #include <cassert>
 #include <concepts>
 #include <cstdlib>
+#include <iostream>
 #include <limits>
 #include <memory_resource>
 #include <type_traits>
@@ -32,6 +31,7 @@
 #include <utility>
 
 #include "arenahelper.hpp"
+#include "fmt/core.h"
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
 #include <source_location>
@@ -41,7 +41,7 @@
 
 namespace stdb::memory {
 
-#define STDB_ASSERT(exp) assert(exp)
+using ::stdb::memory::align::AlignUpTo;
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
 using source_location = std::source_location;
@@ -55,8 +55,8 @@ using source_location = std::experimental::source_location;
 
 using ::std::size_t;
 using ::std::type_info;
-using STring = std::string;
-using ::stdb::memory::align::AlignUpTo;
+
+static void default_logger_func(const std::string& output) { std::cerr << output << std::endl; }
 
 /*
  * CleanupNode class store the cleanup closure in 128bits.
@@ -177,6 +177,8 @@ class Arena
         // A Function pointer to a dealloc method for the blocks in the Arena.
         void (*block_dealloc)(void*){nullptr};
 
+        void (*logger_func)(const std::string&){nullptr};
+
         // Arena hooked functions
         // Hooks for adding external functionality.
         // Init hook may return a pointer to a cookie to be stored in the arena.
@@ -197,11 +199,14 @@ class Arena
          * just for testing or examples,
          */
         [[nodiscard, gnu::always_inline]] inline static auto GetDefaultOptions() -> Options {
-            return {.normal_block_size = 4 * kKiloByte,
-                    .huge_block_size = 2 * kMegaByte,
-                    .suggested_init_block_size = 4 * kKiloByte,
-                    .block_alloc = &std::malloc,
-                    .block_dealloc = &std::free};
+            return {
+              .normal_block_size = 4 * kKiloByte,
+              .huge_block_size = 2 * kMegaByte,
+              .suggested_init_block_size = 4 * kKiloByte,
+              .block_alloc = &std::malloc,
+              .block_dealloc = &std::free,
+              .logger_func = &default_logger_func,
+            };
         }
     };  // struct Options
 
@@ -226,14 +231,14 @@ class Arena
         }
 
         auto alloc(uint64_t size) noexcept -> char* {
-            STDB_ASSERT(size <= (_limit - _pos));
+            assert(size <= (_limit - _pos));  // NOLINT
             char* ptr = Pos();
             _pos += size;
             return ptr;
         }
 
         [[gnu::always_inline]] inline auto alloc_cleanup() noexcept -> char* {
-            STDB_ASSERT(_pos + kCleanupNodeSize <= _limit);
+            assert(_pos + kCleanupNodeSize <= _limit);  // NOLINT
             _limit -= kCleanupNodeSize;
             return CleanupPos();
         }
@@ -252,7 +257,7 @@ class Arena
         [[gnu::always_inline, nodiscard]] inline auto pos() const noexcept -> uint64_t { return _pos; }
 
         [[nodiscard, gnu::always_inline]] inline auto remain() const noexcept -> uint64_t {
-            STDB_ASSERT(_limit >= _pos);
+            assert(_limit >= _pos);  // NOLINT
             return _limit - _pos;
         }
 
@@ -270,7 +275,7 @@ class Arena
 
         [[nodiscard, gnu::always_inline]] inline auto cleanups() const noexcept -> uint64_t {
             uint64_t space = _size - _limit;
-            STDB_ASSERT(space % kCleanupNodeSize == 0);
+            assert(space % kCleanupNodeSize == 0);  // NOLINT
             return space / kCleanupNodeSize;
         }
 
@@ -284,7 +289,7 @@ class Arena
     class memory_resource : public ::std::pmr::memory_resource
     {
        public:
-        explicit memory_resource(Arena* arena) : _arena(arena) { STDB_ASSERT(arena != nullptr); };
+        explicit memory_resource(Arena* arena) : _arena(arena) { assert(arena != nullptr); };  // NOLINT
         [[nodiscard]] auto get_arena() const -> Arena* { return _arena; }
 
        protected:
@@ -412,11 +417,11 @@ class Arena
     template <Creatable T>
     [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T* requires TriviallyDestructible<T> {
         if (num > std::numeric_limits<uint64_t>::max() / sizeof(T)) {
-            fmt::print(
-              stderr,
+            auto output_message = fmt::format(
               "CreateArray need too many memory, that more than max of uint64_t, the num of array is {}, and the Type "
               "is {}, sizeof T is {}",
               num, TYPENAME(T), sizeof(T));
+            _options.logger_func(output_message);
         }
         const uint64_t size = sizeof(T) * num;
         char* ptr = allocateAligned(size);
@@ -466,7 +471,7 @@ class Arena
     }
 
     [[gnu::always_inline]] inline auto get_memory_resource() noexcept -> memory_resource* {
-        STDB_ASSERT(_resource != nullptr);
+        assert(_resource != nullptr);  // NOLINT
         return _resource;
     };
 
@@ -498,7 +503,7 @@ class Arena
             _resource = new memory_resource{this};
         } catch (std::bad_alloc& ex) {
             _resource = nullptr;
-            fmt::print(stderr, "new memory resource failed while Arena::init");
+            _options.logger_func("new memory resource failed while Arena::init");
         }
         if (_options.on_arena_init != nullptr) [[likely]] {
             _cookie = _options.on_arena_init(this, loc);
