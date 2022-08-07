@@ -263,8 +263,8 @@ class ArenaTest
         ops_simple.block_alloc = &mock_alloc;
         ops_simple.block_dealloc = &mock_dealloc;
         ops_simple.normal_block_size = 1024ULL;
-        ops_simple.suggested_init_block_size = 0ULL;
-        ops_simple.huge_block_size = 0ULL;
+        ops_simple.suggested_init_block_size = 1024ULL;
+        ops_simple.huge_block_size = 1024ULL;
     }
 };
 
