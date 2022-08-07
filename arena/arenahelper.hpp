@@ -54,12 +54,12 @@ template <uint64_t N>
 
 }  // namespace align
 
-// class ArenaHelper is for helping the Type stored in the Arena memory.
-//
-// it use type_traits techneque to indicates supporting for arena for a
-// type T at compiler time.
-//
-//
+/*
+ * class ArenaHelper is for helping the Type stored in the Arena memory.
+ *
+ * it uses type_traits and constexpr techniques to indicates supporting for arena for a type T at compiler time.
+ */
+
 class Arena;
 template <typename T>
 class ArenaHelper
@@ -82,8 +82,10 @@ class ArenaHelper
     using is_arena_constructable =
       std::integral_constant<bool, sizeof(ArenaConstructable<T>(static_cast<const T*>(0))) == sizeof(char)>;
 
-    // because use new placement do not need allocate memory
-    // so no bad_alloc will be thrown
+    /*
+     * because of using 'new placement' do not need to allocate memory
+     * so no bad_alloc will be thrown
+     */
     template <typename... Args>
     [[gnu::always_inline]] inline static auto Construct(void* ptr, Arena& arena, Args&&... args) noexcept -> T* {
         // placement new make the new Object T is in the ptr-> memory.
@@ -99,15 +101,16 @@ class ArenaHelper
     friend class Arena;
 };
 
-// is_arena_constructable<T>::value is true if the message type T has arena
-// support enabled, and false otherwise.
-//
-// is_destructor_skippable<T>::value is true if the message type T has told
-// the arena that it is safe to skip the destructor, and false otherwise.
-//
-// This is inside Arena because only Arena has the friend relationships
-// necessary to see the underlying generated code traits.
-//
+/*
+ * is_arena_constructable<T>::value is true if the message type T has arena
+ * support enabled, and false otherwise.
+ *
+ * is_destructor_skippable<T>::value is true if the message type T has told
+ * the arena that it is safe to skip the destructor, and false otherwise.
+ *
+ * This is inside Arena because only Arena has the friend relationships
+ * necessary to see the underlying generated code traits.
+ */
 template <typename T>
 struct is_arena_constructable : ArenaHelper<T>::is_arena_constructable
 {};

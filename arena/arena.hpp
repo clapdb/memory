@@ -97,6 +97,26 @@ enum class ArenaContainStatus : uint8_t
     BlockUnUsed,
 };
 
+/*
+ * Arena is a session-ware allocator implementation,
+ * it can be used to allocate memory blocks and de-allocate them in a single call.
+ *
+ * Arena can make data-locality good as a c program.
+ * Arena make sure the memory allocation will always be aligned.
+ *
+ * Arena support std::pmr namespace through memory_resource.
+ *
+ *
+ * NOTICE:
+ * Arena is not the best choice in everytime.
+ * Arena will waste memory because of alignment;
+ * Arena will allocate a large memory-block is a single allocation, and the block will not be give back to system pool
+ * until Arena's destruction. A long-life-cycle Arena will make the system bearing memory starve, be care of the Arena's
+ * life-cycle.
+ *
+ * Arena could be reused without destroy, just reset is ok, it will remain the first block and de-allocte the
+ * followings.
+ */
 class Arena
 {
    public:
@@ -113,26 +133,26 @@ class Arena
     [[gnu::always_inline]] auto operator=(Arena&& other) noexcept -> Arena& {
         _options = other._options;
         _last_block = std::exchange(other._last_block, nullptr);
-        _resource= std::exchange(other._resource, nullptr);
+        _resource = std::exchange(other._resource, nullptr);
         _cookie = std::exchange(other._cookie, nullptr);
         _space_allocated = std::exchange(other._space_allocated, 0);
         return *this;
     }
 
-    // Arena Options class for the Arena class 's configuration
+    /*
+     * Arena Options class for the Arena class 's configuration.
+     * the Options' parameters should be tune by the OS/CPU special features, and the App's scenarios.
+     * only use size is align to pagesize in your environment.
+     */
     struct Options
     {
-        // following parameters should be determined by the OS/CPU Architecture
-        // this should make cache-line happy and memory locality better.
-        // a Block should is a memory page.
-
         // normal_block_size should match normal page of the OS.
         uint64_t normal_block_size;
 
         // huge_block_size should match big memory page of the OS.
         uint64_t huge_block_size;
 
-        // suggested block-size
+        // suggested block-size, it should match your most recently memory usage.
         uint64_t suggested_init_block_size;
 
         // A Function pointer to an alloc method for the new block in the Arena.
@@ -156,41 +176,24 @@ class Arena
         void (*on_arena_newblock)(uint64_t blk_num, uint64_t blk_size, void* cookie){nullptr};
         void* (*on_arena_destruction)(Arena* arena, void* cookie, uint64_t space_used, uint64_t space_wasted){nullptr};
 
-        inline static auto GetDefaultOptions() -> Options {
+        /*
+         * A simplest function to get Options.
+         * just for testing or examples,
+         */
+        [[nodiscard, gnu::always_inline]] inline static auto GetDefaultOptions() -> Options {
             return {.normal_block_size = 4 * kKiloByte,
                     .huge_block_size = 2 * kMegaByte,
                     .suggested_init_block_size = 4 * kKiloByte,
                     .block_alloc = &std::malloc,
                     .block_dealloc = &std::free};
         }
-
-        /*
-        Options()
-            : normal_block_size(4 * kKiloByte),  // 4k is the normal pagesize of modern os
-              huge_block_size(2 * kMegaByte),    // TODO(hurricane1026): maybe support 1G
-              suggested_init_block_size(4 * kKiloByte) {}
-         */
-
-        // Options(const Options&) = default;
-
-        // auto operator=(const Options&) -> Options& = default;
-
-        // Options(Options&&) = default;
-
-        // auto operator=(Options&&) -> Options& = default;
-        // ~Options() = default;
-
-        void init() noexcept {
-            STDB_ASSERT(normal_block_size > 0);
-            if (suggested_init_block_size == 0) {
-                suggested_init_block_size = normal_block_size;
-            }
-            if (huge_block_size == 0) {
-                huge_block_size = normal_block_size;
-            }
-        }
     };  // struct Options
 
+    /*
+     * Block struct of the memory block, it was always placement in a continuous memory area.
+     * Block has a header.
+     * and Arena's a Blocks' single linked-list
+     */
     class Block
     {
        public:
@@ -289,18 +292,25 @@ class Arena
         Arena* _arena;
     };
 
-    // Arena constructor
+    /*
+     * Arena constructor copy version, copy the Options content to Arena
+     */
     explicit Arena(const Options& ops) : _options(ops), _last_block(nullptr), _cookie(nullptr), _space_allocated(0ULL) {
-        _options.init();
         init();
     }
 
+    /*
+     * Arena constructor move version, just support eXpire Options object.
+     */
     explicit Arena(Options&& ops) noexcept
         : _options(ops), _last_block(nullptr), _cookie(nullptr), _space_allocated(0ULL) {
-        _options.init();
         init();
     }
 
+    /*
+     * destructor of Arena will delete resource ptr.
+     * and free_all_blocks of the Arena.
+     */
     ~Arena() {
         // free memory_resource first
         delete _resource;
@@ -312,11 +322,22 @@ class Arena
         }
     }
 
+    /*
+     * Own function is used to control the memory and object outside of Arena.
+     * this function just register the destructor to the Arena, to make sure the Object owned
+     * has same life-cycle as the Arena object.
+     */
     template <NonConstructable T>
     [[gnu::noinline]] auto Own(T* obj) noexcept -> bool {
         return addCleanup(obj, &arena_delete_object<T>);
     }
 
+    /*
+     * Reset the Arena's internal status.
+     * it will free all blocks except the first.
+     * and reset all status of the Arena object.
+     * After Reset, Arena can be used as the new Arena Object.
+     */
     inline auto Reset() noexcept -> uint64_t {
         // free all blocks except the first block
         uint64_t all_waste_space = free_blocks_except_head();
@@ -330,6 +351,9 @@ class Arena
         return reset_size;
     }
 
+    /*
+     * SpaceAllocated() return the Arena totally owned memory.
+     */
     [[nodiscard, gnu::always_inline]] inline auto SpaceAllocated() const noexcept -> uint64_t {
         return _space_allocated;
     }
@@ -341,9 +365,11 @@ class Arena
         return remains;
     }
 
-    // new from arena, and register cleanup function if needed
-    // always allocating in the arena memory
-    // the type T should have the tag:
+    /*
+     * Create Array of Objects with num length.
+     * T should be Creatable, and TriviallyDestructible.
+     * because CreateArray do not RegisterDestructor.
+     */
     template <Creatable T, typename... Args>
     [[nodiscard]] auto Create(Args&&... args) noexcept -> T* {
         char* ptr = allocateAligned(sizeof(T));
@@ -389,6 +415,7 @@ class Arena
     /*
      * Allocate a piece of aligned memory in the arena.
      * return nullptr means failure
+     * this function is used for replacement of std::malloc.
      */
     [[nodiscard]] auto AllocateAligned(uint64_t bytes) noexcept -> char* {
         if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
@@ -422,6 +449,9 @@ class Arena
         return _resource;
     };
 
+    /*
+     * check the ptr whether be included by the Arena.
+     */
     auto check(const char* ptr) -> ArenaContainStatus;
 
     /*
@@ -574,6 +604,7 @@ class Arena
     friend class ArenaTestHelper;
 };  // class Arena
 
+// the size of the Block's header.
 static constexpr uint64_t kBlockHeaderSize = AlignUpTo<kByteSize>(sizeof(memory::Arena::Block));
 
 }  // namespace stdb::memory
