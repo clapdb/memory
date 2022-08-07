@@ -1,7 +1,7 @@
 BasedOnStyle: google
 ColumnLimit: 120
 ContinuationIndentWidth: 2
-IndentWidth: 2
+IndentWidth: 4
 TabWidth: 2
 UseTab: Never
 FixNamespaceComments: true

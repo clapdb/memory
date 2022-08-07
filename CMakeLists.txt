@@ -16,6 +16,20 @@
 ]]
 
 cmake_minimum_required(VERSION 3.10)
+# position matters, must define before project
+if(DEFINED ENV{CC})
+  set(CMAKE_C_COMPILER $ENV{CC})
+else()
+  set(CMAKE_C_COMPILER "/usr/bin/clang")
+endif()
+
+if(DEFINED ENV{CXX})
+  set(CMAKE_CXX_COMPILER $ENV{CXX})
+else()
+  set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+endif()
+
+
 project(arena)
 
 aux_source_directory(. ARENA_SRC)
@@ -27,14 +41,11 @@ set(CMAKE_CXX_EXTENSIONS ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-include (cmake/FindGTest.cmake)
-include (cmake/FindGMock.cmake)
+include_directories(SYSTEM doctest/)
 
-find_package(GTest REQUIRED)
-find_package(GMock REQUIRED)
+# fmt
+find_package(fmt REQUIRED)
 
-add_library(arena ${ARENA_SRC})
-target_link_libraries(arena glog fmt)
 set(ARENA_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 if(${CMAKE_BUILD_TYPE} MATCHES Debug)
@@ -50,5 +61,10 @@ if(${CMAKE_BUILD_TYPE} MATCHES Debug)
     EXECUTABLE test/test
   )
 endif()
+
+add_subdirectory(doctest)
+
+### build arena
+add_subdirectory(arena)
 
 add_subdirectory(test)
