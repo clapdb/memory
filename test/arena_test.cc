@@ -25,14 +25,14 @@
 #include <memory>
 #include <typeinfo>
 #include <vector>
-
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 
 using stdb::memory::Arena;
 using stdb::memory::kBlockHeaderSize;
+using stdb::memory::align::AlignUp;
+using stdb::memory::align::AlignUpTo;
 namespace stdb::memory {
-using align::AlignUp;
 
 class alloc_class
 {
@@ -720,7 +720,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.RemainsTest") {
     auto* next_ptr = x->AllocateAligned(755);
     CHECK_EQ(next_ptr, static_cast<char*>(mock->ptrs.back()) + sizeof(Arena::Block));
 
-    CHECK_EQ(x->Remains(), 1024ULL - kBlockHeaderSize - 760);
+    CHECK_EQ(x->SpaceRemains(), 1024ULL - kBlockHeaderSize - 760);
     CHECK_EQ(xh.last_block(), mock->ptrs.back());
 
     delete x;
@@ -1119,6 +1119,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
         mock = nullptr;
     }
 }
+
 TEST_CASE("ArenaTest.pmr-support") {
     auto options = Arena::Options::GetDefaultOptions();
     Arena arena(options);
@@ -1127,11 +1128,50 @@ TEST_CASE("ArenaTest.pmr-support") {
         CHECK_EQ(arena.check(str.c_str()), ArenaContainStatus::BlockUsed);
     }
     SUBCASE("vector") {
-        std::pmr::vector<std::pmr::string> strings;
+        std::pmr::vector<std::pmr::string> strings(arena.get_memory_resource());
         strings.emplace_back(std::pmr::string("123123123_+23423432423agsagasb+234324b1321312bsafs........a2423",
                                               arena.get_memory_resource()));
         CHECK_EQ(strings.size(), 1);
+        CHECK_EQ(arena.check(strings.front().c_str()), ArenaContainStatus::BlockUsed);
     }
+}
+
+TEST_CASE("ArenaTest.Create-support-pmr") {
+    auto options = Arena::Options::GetDefaultOptions();
+    Arena arena(options);
+    SUBCASE("String") {
+        auto* pmr_str = arena.Create<std::pmr::string>("safsdaf_sadgsadf21321300000");
+        CHECK_EQ(arena.check(pmr_str->c_str()), ArenaContainStatus::BlockUsed);
+    }
+
+    SUBCASE("vector-emplace") {
+        auto* strings = arena.Create<std::pmr::vector<std::pmr::string>>();
+        strings->emplace_back("123123123_+23423432423agsagasb+234324b1321312bsafs........a2423");
+        CHECK_EQ(strings->size(), 1);
+        CHECK_EQ(arena.check(strings->front().c_str()), ArenaContainStatus::BlockUsed);
+    }
+
+    SUBCASE("vector-push") {
+        auto* strings = arena.Create<std::pmr::vector<std::pmr::string>>();
+        auto* pmr_str = arena.Create<std::pmr::string>("safsdaf_sadgsadf21321300000");
+        strings->push_back(*pmr_str);
+        CHECK_EQ(strings->size(), 1);
+        CHECK_EQ(arena.check(strings->front().c_str()), ArenaContainStatus::BlockUsed);
+        CHECK_NE(pmr_str->c_str(), strings->front().c_str());
+    }
+}
+struct class_with_allocator
+{
+    using allocator_type = std::pmr::polymorphic_allocator<char>;
+    std::pmr::string name;
+    explicit class_with_allocator(allocator_type alloc = {}) : name(alloc) {}
+};
+
+TEST_CASE("ArenaTest.Create_Object_with_allocator") {
+    auto options = Arena::Options::GetDefaultOptions();
+    Arena a(options);
+    class_with_allocator* obj = a.Create<class_with_allocator>();
+    CHECK_EQ(a.check(obj->name.c_str()), ArenaContainStatus::BlockUsed);
 }
 
 }  // namespace stdb::memory

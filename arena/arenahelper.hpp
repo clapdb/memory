@@ -29,6 +29,7 @@
 #define ArenaManagedCreateOnlyTag using ArenaManagedSkipDestruct_ = void;  // NOLINT
 
 namespace stdb::memory {
+
 namespace align {
 
 inline constexpr uint64_t kMaxAlignSize = 64;
@@ -80,22 +81,6 @@ class ArenaHelper
 
     using is_arena_constructable =
       std::integral_constant<bool, sizeof(ArenaConstructable<T>(static_cast<const T*>(0))) == sizeof(char)>;
-
-    /*
-     * because of using 'new placement' do not need to allocate memory
-     * so no bad_alloc will be thrown
-     */
-    template <typename... Args>
-    [[gnu::always_inline]] inline static auto Construct(void* ptr, Arena& arena, Args&&... args) noexcept -> T* {
-        if constexpr (std::is_constructible<T, Arena&, Args...>::value) {
-            // placement new make the new Object T is in the ptr-> memory.
-            return new (ptr) T(arena, std::forward<Args>(args)...);
-        } else {
-            return new (ptr) T(std::forward<Args>(args)...);
-        }
-    }
-
-    [[gnu::always_inline]] inline static auto GetArena(const T* p) noexcept -> Arena* { return p->GetArena(); }
 
     friend class Arena;
 };

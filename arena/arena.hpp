@@ -27,7 +27,6 @@
 #include <cstdlib>
 #include <limits>
 #include <memory_resource>
-#include <string>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
@@ -40,12 +39,9 @@
 #include <experimental/source_location>
 #endif
 
-#define STDB_ASSERT(exp) assert(exp)
-
-#include <boost/core/demangle.hpp>
-#define TYPENAME(type) boost::core::demangle(typeid(type).name())  // NOLINT
-
 namespace stdb::memory {
+
+#define STDB_ASSERT(exp) assert(exp)
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
 using source_location = std::source_location;
@@ -54,12 +50,13 @@ using source_location = std::experimental::source_location;
 #else
 #error "no support for other compiler"
 #endif
+#include <boost/core/demangle.hpp>
+#define TYPENAME(type) boost::core::demangle(typeid(type).name())  // NOLINT
 
-using STring = std::string;
 using ::std::size_t;
 using ::std::type_info;
-
-using align::AlignUpTo;
+using STring = std::string;
+using ::stdb::memory::align::AlignUpTo;
 
 /*
  * CleanupNode class store the cleanup closure in 128bits.
@@ -96,9 +93,11 @@ inline constexpr uint64_t kMegaByte = 1024 * 1024;
 
 /*
  * Creatable concept requires the T is simple enough, or has Tags
+ * otherwise it is a pmr container.
  */
 template <typename T>
-concept Creatable = Constructable<T> ||(std::is_standard_layout<T>::value&& std::is_trivial<T>::value);
+concept Creatable = Constructable<T> ||(std::is_standard_layout<T>::value&& std::is_trivial<T>::value) ||
+                    std::is_constructible_v<T, std::pmr::polymorphic_allocator<T>>;
 
 /*
  * TriviallyDestructible concept requires T just has default destructor.
@@ -329,14 +328,14 @@ class Arena
      * and free_all_blocks of the Arena.
      */
     ~Arena() {
-        // free memory_resource first
-        delete _resource;
         // free blocks
         uint64_t all_waste_space = free_all_blocks();
         // make sure the on_arena_destruction was not free.
         if (_options.on_arena_destruction != nullptr) [[likely]] {
             _options.on_arena_destruction(this, _cookie, _space_allocated, all_waste_space);
         }
+        // free memory_resource first
+        delete _resource;
     }
 
     /*
@@ -379,7 +378,9 @@ class Arena
      * get remaining size of the last_block.
      * caller can use is function to test whether the Arena will allocate a new block.
      */
-    [[nodiscard, gnu::always_inline]] inline auto Remains() const noexcept -> uint64_t { return _last_block->remain(); }
+    [[nodiscard, gnu::always_inline]] inline auto SpaceRemains() const noexcept -> uint64_t {
+        return _last_block->remain();
+    }
 
     /*
      * Create by the Arena, and register cleanup function if needed
@@ -390,7 +391,7 @@ class Arena
     [[nodiscard]] auto Create(Args&&... args) noexcept -> T* {
         char* ptr = allocateAligned(sizeof(T));
         if (ptr != nullptr) [[likely]] {
-            ArenaHelper<T>::Construct(ptr, *this, std::forward<Args>(args)...);
+            Construct<T>(ptr, *this, std::forward<Args>(args)...);
             T* result = reinterpret_cast<T*>(ptr);
             if (!RegisterDestructor<T>(result)) [[unlikely]] {
                 return nullptr;
@@ -418,16 +419,16 @@ class Arena
               num, TYPENAME(T), sizeof(T));
         }
         const uint64_t size = sizeof(T) * num;
-        char* p = allocateAligned(size);
-        if (p != nullptr) [[likely]] {
-            T* curr = reinterpret_cast<T*>(p);
+        char* ptr = allocateAligned(size);
+        if (ptr != nullptr) [[likely]] {
+            T* curr = reinterpret_cast<T*>(ptr);
             for (uint64_t i = 0; i < num; ++i) {
-                ArenaHelper<T>::Construct(curr++, *this);
+                Construct<T>(curr++, *this);
             }
             if (_options.on_arena_allocation != nullptr) [[likely]] {
                 _options.on_arena_allocation(&typeid(T), size, _cookie);
             }
-            return reinterpret_cast<T*>(p);
+            return reinterpret_cast<T*>(ptr);
         }
         return nullptr;
     }
@@ -622,6 +623,23 @@ class Arena
     static constexpr uint64_t kThresholdHuge = 4;
 
     friend class ArenaTestHelper;
+
+    /*
+     * because of using 'new placement' do not need to allocate memory
+     * so no bad_alloc will be thrown
+     */
+    template <typename T, typename... Args>
+    [[gnu::always_inline]] inline static auto Construct(void* ptr, Arena& arena, Args&&... args) noexcept -> T* {
+        // placement new make the new Object T is in the ptr-> memory.
+        if constexpr (std::is_constructible_v<T, Args..., std::pmr::polymorphic_allocator<T>>) {
+            return new (ptr) T(std::forward<Args>(args)..., arena.get_memory_resource());
+        } else if constexpr (std::is_constructible_v<T, Arena&, Args...>) {
+            return new (ptr) T(arena, std::forward<Args>(args)...);
+        } else {
+            return new (ptr) T(std::forward<Args>(args)...);
+        }
+    }
+
 };  // class Arena
 
 // the size of the Block's header.

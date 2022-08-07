@@ -136,7 +136,7 @@ ArenaManagedCreateOnlyTag 要酌情使用。
 ```c++
 /*
  * is not_standard_layout, but has ArenaFullManagedTag,
- * can be Create in Arena, but can not be CreateArray.
+ * can be Created in Arena, but can not be CreateArray.
  */
 class not_standard_layout {
    public: 
@@ -245,6 +245,20 @@ class arena_with_arena {
    private:
     Arena* diff_arena;
 };
+
+```
+
+```cpp
+void create_pmr_with_arena(Arena& arena) {
+   auto* str = arena.Create<std::pmr::string>();
+   auto* vec = arena.Create<std::pmr::vector<std::pmr::string>>();
+   // create pmr::string directly in the arena and no copy occurs.
+   auto* another_str = vec.emplace_back("sdfas3_2342_4321421_@!3423143241");
+   
+   // copy pmr::string to the vector, and copy occurs.
+   auto* third_str = vec.push_back(*str);
+   
+}
 
 ```
 ## TODO
