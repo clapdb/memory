@@ -107,11 +107,13 @@ class Arena
     [[gnu::always_inline]] inline Arena(Arena&& other) noexcept
         : _options(other._options),
           _last_block(std::exchange(other._last_block, nullptr)),
+          _resource(std::exchange(other._resource, nullptr)),
           _cookie(std::exchange(other._cookie, nullptr)),
           _space_allocated(std::exchange(other._space_allocated, 0)) {}
     [[gnu::always_inline]] auto operator=(Arena&& other) noexcept -> Arena& {
         _options = other._options;
         _last_block = std::exchange(other._last_block, nullptr);
+        _resource= std::exchange(other._resource, nullptr);
         _cookie = std::exchange(other._cookie, nullptr);
         _space_allocated = std::exchange(other._space_allocated, 0);
         return *this;
