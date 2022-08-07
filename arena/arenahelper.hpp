@@ -47,9 +47,11 @@ template <uint64_t N>
 }
 
 [[gnu::always_inline]] inline auto AlignUp(uint64_t n, uint64_t block_size) noexcept -> uint64_t {
-    uint64_t m = n % block_size;
-    return n - m + (static_cast<int>(static_cast<bool>(m))) * block_size;
+    uint64_t reminder = n % block_size;
+    return n - reminder + (static_cast<uint64_t>(static_cast<bool>(reminder))) * block_size;
 }
+
+
 
 }  // namespace align
 
