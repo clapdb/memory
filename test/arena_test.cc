@@ -1122,4 +1122,19 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
     }
 }
 
+TEST_CASE("ArenaTest.pmr-support") {
+    auto options = Arena::Options::GetDefaultOptions();
+    Arena arena(std::move(options));
+    SUBCASE("String") {
+        std::pmr::string str("stringstringstring..............213423423443242344", arena.get_memory_resource());
+        CHECK_EQ(arena.check(str.c_str()), ArenaContainStatus::BlockUsed);
+    }
+    SUBCASE("vector") {
+        std::pmr::vector<std::pmr::string> strings;
+        strings.emplace_back(std::pmr::string("123123123_+23423432423agsagasb+234324b1321312bsafs........a2423",
+                                              arena.get_memory_resource()));
+        CHECK_EQ(strings.size(), 1);
+    }
+}
+
 }  // namespace stdb::memory
