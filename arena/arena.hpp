@@ -59,7 +59,11 @@ using source_location = std::experimental::source_location;
 using ::std::size_t;
 using ::std::type_info;
 
-// Cleanup Node
+/*
+ * CleanupNode class store the cleanup closure in 128bits.
+ * element store the obj.
+ * cleanup store the destructor ptr.
+ */
 struct CleanupNode
 {
     void* element;
@@ -69,11 +73,17 @@ struct CleanupNode
 inline constexpr uint64_t kByteSize = 8;
 static constexpr uint64_t kCleanupNodeSize = AlignUpTo<kByteSize>(sizeof(memory::CleanupNode));
 
+/*
+ * destructor closure of type T
+ */
 template <typename T>
 void arena_destruct_object(void* obj) noexcept {
     reinterpret_cast<T*>(obj)->~T();
 }
 
+/*
+ * delete closure of type T
+ */
 template <typename T>
 void arena_delete_object(void* obj) noexcept {
     delete reinterpret_cast<T*>(obj);
@@ -82,9 +92,15 @@ void arena_delete_object(void* obj) noexcept {
 inline constexpr uint64_t kKiloByte = 1024;
 inline constexpr uint64_t kMegaByte = 1024 * 1024;
 
+/*
+ * Creatable concept requires the T is simple enough, or has Tags
+ */
 template <typename T>
 concept Creatable = Constructable<T> ||(std::is_standard_layout<T>::value&& std::is_trivial<T>::value);
 
+/*
+ * TriviallyDestructible concept requires T just has default destructor.
+ */
 template <typename T>
 concept TriviallyDestructible = std::is_trivially_destructible<T>::value;
 
