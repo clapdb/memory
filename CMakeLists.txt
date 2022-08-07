@@ -16,6 +16,20 @@
 ]]
 
 cmake_minimum_required(VERSION 3.10)
+# position matters, must define before project
+if(DEFINED ENV{CC})
+  set(CMAKE_C_COMPILER $ENV{CC})
+else()
+  set(CMAKE_C_COMPILER "/usr/bin/clang")
+endif()
+
+if(DEFINED ENV{CXX})
+  set(CMAKE_CXX_COMPILER $ENV{CXX})
+else()
+  set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+endif()
+
+
 project(arena)
 
 aux_source_directory(. ARENA_SRC)
