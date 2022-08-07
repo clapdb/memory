@@ -128,4 +128,25 @@ auto Arena::allocateAligned(uint64_t bytes) noexcept -> char* {
     return result;
 }
 
+auto Arena::check(const char* ptr) -> ArenaContainStatus {
+    auto* block = _last_block;
+    while (block != nullptr) {
+        int64_t offset = ptr - reinterpret_cast<char*>(block);
+        if (offset >= 0 && offset < static_cast<int64_t>(kBlockHeaderSize)) {
+            return ArenaContainStatus::BlockHeader;
+        }
+        if (offset >= static_cast<int64_t>(kBlockHeaderSize) && offset < static_cast<int64_t>(block->pos())) {
+            return ArenaContainStatus::BlockUsed;
+        }
+        if (offset >= static_cast<int64_t>(block->pos()) && offset < static_cast<int64_t>(block->limit())) {
+            return ArenaContainStatus::BlockUnUsed;
+        }
+        if (offset >= static_cast<int64_t>(block->limit()) && offset < static_cast<int64_t>(block->size())) {
+            return ArenaContainStatus::BlockCleanup;
+        }
+        block = block->prev();
+    }
+    return ArenaContainStatus::NotContain;
+}
+
 }  // namespace stdb::memory

@@ -27,7 +27,6 @@
 #include <cstdlib>
 #include <limits>
 #include <memory_resource>
-#include <string>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
@@ -43,13 +42,11 @@
 #define STDB_ASSERT(exp) assert(exp)
 
 #include <boost/core/demangle.hpp>
-#define TYPENAME(type) \
-    boost::core::demangle(typeid(type).name())  // NOLINT
-                                                //
-namespace stdb::memory {
+#define TYPENAME(type) boost::core::demangle(typeid(type).name())  // NOLINT
 
-using ::stdb::memory::align::AlignUpTo;
+namespace stdb::memory {
 using STring = std::string;
+using ::stdb::memory::align::AlignUpTo;
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
 using source_location = std::source_location;
@@ -91,6 +88,15 @@ concept Creatable = Constructable<T> ||(std::is_standard_layout<T>::value&& std:
 template <typename T>
 concept TriviallyDestructible = std::is_trivially_destructible<T>::value;
 
+enum class ArenaContainStatus : uint8_t
+{
+    NotContain = 0,
+    BlockHeader,
+    BlockCleanup,
+    BlockUsed,
+    BlockUnUsed,
+};
+
 class Arena
 {
    public:
@@ -103,7 +109,7 @@ class Arena
           _last_block(std::exchange(other._last_block, nullptr)),
           _cookie(std::exchange(other._cookie, nullptr)),
           _space_allocated(std::exchange(other._space_allocated, 0)) {}
-    [[gnu::always_inline]] inline auto operator=(Arena&& other) noexcept -> Arena& {
+    [[gnu::always_inline]] auto operator=(Arena&& other) noexcept -> Arena& {
         _options = other._options;
         _last_block = std::exchange(other._last_block, nullptr);
         _cookie = std::exchange(other._cookie, nullptr);
@@ -156,6 +162,22 @@ class Arena
                     .block_dealloc = &std::free};
         }
 
+        /*
+        Options()
+            : normal_block_size(4 * kKiloByte),  // 4k is the normal pagesize of modern os
+              huge_block_size(2 * kMegaByte),    // TODO(hurricane1026): maybe support 1G
+              suggested_init_block_size(4 * kKiloByte) {}
+         */
+
+        // Options(const Options&) = default;
+
+        // auto operator=(const Options&) -> Options& = default;
+
+        // Options(Options&&) = default;
+
+        // auto operator=(Options&&) -> Options& = default;
+        // ~Options() = default;
+
         void init() noexcept {
             STDB_ASSERT(normal_block_size > 0);
             if (suggested_init_block_size == 0) {
@@ -200,9 +222,13 @@ class Arena
             new (ptr) CleanupNode{obj, cleanup};
         }
 
-        [[gnu::always_inline]] [[nodiscard]] inline auto prev() const noexcept -> Block* { return _prev; }
+        [[gnu::always_inline, nodiscard]] inline auto prev() const noexcept -> Block* { return _prev; }
 
-        [[gnu::always_inline]] [[nodiscard]] inline auto size() const noexcept -> uint64_t { return _size; }
+        [[gnu::always_inline, nodiscard]] inline auto size() const noexcept -> uint64_t { return _size; }
+
+        [[gnu::always_inline, nodiscard]] inline auto limit() const noexcept -> uint64_t { return _limit; }
+
+        [[gnu::always_inline, nodiscard]] inline auto pos() const noexcept -> uint64_t { return _pos; }
 
         [[nodiscard, gnu::always_inline]] inline auto remain() const noexcept -> uint64_t {
             STDB_ASSERT(_limit >= _pos);
@@ -274,7 +300,7 @@ class Arena
     }
 
     ~Arena() {
-        // free memory_resource ptr first
+        // free memory_resource first
         delete _resource;
         // free blocks
         uint64_t all_waste_space = free_all_blocks();
@@ -381,7 +407,7 @@ class Arena
         if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
             if (addCleanup(element, cleanup)) [[likely]] {
                 if (_options.on_arena_allocation != nullptr) [[likely]] {
-                    _options.on_arena_allocation(nullptr, bytes, _cookie);
+                    { _options.on_arena_allocation(nullptr, bytes, _cookie); }
                 }
                 return ptr;
             }
@@ -393,6 +419,8 @@ class Arena
         STDB_ASSERT(_resource != nullptr);
         return _resource;
     };
+
+    auto check(const char* ptr) -> ArenaContainStatus;
 
     /*
      * get all cleanup nodes, just for testing.
@@ -414,8 +442,8 @@ class Arena
      */
     [[gnu::always_inline]] inline void init(const source_location& loc = source_location::current()) noexcept {
         try {
-            _resource = new memory_resource(this);
-        } catch (const std::bad_alloc& ex) {
+            _resource = new memory_resource{this};
+        } catch (std::bad_alloc& ex) {
             _resource = nullptr;
             fmt::print(stderr, "new memory resource failed while Arena::init");
         }
@@ -448,7 +476,7 @@ class Arena
     [[nodiscard]] auto addCleanup(void* obj, void (*cleanup)(void*)) noexcept -> bool {
         if (need_create_new_block(kCleanupNodeSize)) [[unlikely]] {
             Block* curr = newBlock(kCleanupNodeSize, _last_block);
-            if (curr != nullptr) [[likely]] {
+            if (curr != nullptr) {
                 _last_block = curr;
             } else {
                 return false;

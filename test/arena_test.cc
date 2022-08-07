@@ -22,6 +22,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <typeinfo>
 #include <vector>
 
@@ -107,6 +108,8 @@ TEST_CASE_FIXTURE(BlockTest, "BlockTest.CotrTest1") {
     auto* b = new (Pointer()) Arena::Block(1024, nullptr);
     CHECK_EQ(b->Pos(), reinterpret_cast<char*>(Pointer()) + kBlockHeaderSize);
     CHECK_EQ(b->size(), 1024ULL);
+    CHECK_EQ(b->pos(), kBlockHeaderSize);
+    CHECK_EQ(b->limit(), 1024ULL);
     CHECK_EQ(b->prev(), nullptr);
     CHECK_EQ(b->remain(), 1024ULL - kBlockHeaderSize);
 }
@@ -128,6 +131,9 @@ TEST_CASE_FIXTURE(BlockTest, "BlockTest.AllocTest") {
     CHECK_NE(x, nullptr);
     CHECK_EQ(b->remain(), 1024ULL - kBlockHeaderSize - 200ULL);
     CHECK_EQ(b->Pos() - x, 200LL);
+    CHECK_EQ(b->pos(), kBlockHeaderSize + 200LL);
+    CHECK_EQ(b->size(), 1024ULL);
+    CHECK_EQ(b->limit(), 1024ULL);
 }
 
 TEST_CASE_FIXTURE(BlockTest, "BlockTest.AllocCleanupTest") {
@@ -135,8 +141,10 @@ TEST_CASE_FIXTURE(BlockTest, "BlockTest.AllocCleanupTest") {
     char* x = b->alloc_cleanup();
     CHECK_NE(x, nullptr);
     CHECK_EQ(b->remain(), 1024ULL - kBlockHeaderSize - kCleanupNodeSize);
+    CHECK_EQ(b->limit(), b->size() - kCleanupNodeSize);
     char* x1 = b->alloc_cleanup();
     CHECK_EQ(x - x1, kCleanupNodeSize);
+    CHECK_EQ(b->limit(), b->size() - 2 * kCleanupNodeSize);
 }
 
 TEST_CASE_FIXTURE(BlockTest, "BlockTest.RegCleanupTest") {
@@ -144,6 +152,7 @@ TEST_CASE_FIXTURE(BlockTest, "BlockTest.RegCleanupTest") {
     mock_cleaners = new cleanup_mock;
     b->register_cleanup(mock_cleaners, &cleanup_mock_fn1);
     CHECK_EQ(b->remain(), 1024ULL - kBlockHeaderSize - kCleanupNodeSize);
+    CHECK_EQ(b->limit(), b->size() - kCleanupNodeSize);
     b->run_cleanups();
     CHECK(mock_cleaners->clean1);
     delete mock_cleaners;
@@ -166,10 +175,13 @@ TEST_CASE_FIXTURE(BlockTest, "BlockTest.ResetTest") {
     auto* b = new (Pointer()) Arena::Block(1024, nullptr);
     char* x = b->alloc(200);
     CHECK_NE(x, nullptr);
+    CHECK_EQ(b->size(), 1024ULL);
+    CHECK_EQ(b->limit(), 1024ULL);
     CHECK_EQ(b->remain(), 1024ULL - 200ULL - kBlockHeaderSize);
     CHECK_EQ(b->Pos() - x, 200LL);
     b->Reset();
     CHECK_EQ(b->remain(), 1024ULL - kBlockHeaderSize);
+    CHECK_EQ(b->limit(), 1024ULL);
     CHECK_EQ(b->Pos() - x, 0LL);
 }
 
@@ -180,13 +192,16 @@ TEST_CASE_FIXTURE(BlockTest, "BlockTest.ResetwithCleanupTest") {
     CHECK_NE(x, nullptr);
     CHECK_EQ(b->remain(), 1024ULL - 200ULL - kBlockHeaderSize);
     CHECK_EQ(b->Pos() - x, 200LL);
+    CHECK_EQ(b->limit(), 1024ULL);
 
     b->register_cleanup(mock_cleaners, &cleanup_mock_fn1);
     CHECK_EQ(b->remain(), 1024ULL - kBlockHeaderSize - kCleanupNodeSize - 200);
+    CHECK_EQ(b->limit(), 1024ULL - kCleanupNodeSize);
 
     b->Reset();
     CHECK_EQ(b->remain(), 1024ULL - kBlockHeaderSize);
     CHECK_EQ(b->Pos() - x, 0LL);
+    CHECK_EQ(b->limit(), 1024ULL);
 
     CHECK(mock_cleaners->clean1);
     delete mock_cleaners;
@@ -713,6 +728,44 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocateAlignedAndAddCleanupTest") {
     delete mock_cleaners;
 }
 
+TEST_CASE("ArenaTest.CheckTest") {
+    struct destructible
+    {
+        ACstrTag;
+        destructible() { to_free = new char[5]; }
+        ~destructible() { delete[] to_free; }
+        int x{0};
+        char* to_free;
+    };
+    struct skip_destructible
+    {
+        ACstrTag;
+        ADstrSkipTag;
+        skip_destructible() = default;
+        ~skip_destructible() = default;
+        int z{0};
+    };
+    Arena::Options realops = Arena::Options::GetDefaultOptions();
+    Arena a(realops);
+    int x = 0;
+    STring ss = "with dstr";
+    std::unique_ptr<int> ptr = std::make_unique<int>();
+    auto* arena_managed_ptr = a.AllocateAligned(100);
+    auto* with_dstr = a.Create<destructible>();
+    auto* without_dstr = a.Create<skip_destructible>();
+    ArenaTestHelper helper(a);
+    auto* block = helper.last_block();
+
+    CHECK_EQ(a.check(reinterpret_cast<char*>(block)), ArenaContainStatus::BlockHeader);
+    CHECK_EQ(a.check(reinterpret_cast<char*>(&x)), ArenaContainStatus::NotContain);
+    CHECK_EQ(a.check(reinterpret_cast<char*>(ptr.get())), ArenaContainStatus::NotContain);
+    CHECK_EQ(a.check(reinterpret_cast<char*>(with_dstr)), ArenaContainStatus::BlockUsed);
+    CHECK_EQ(a.check(reinterpret_cast<char*>(without_dstr)), ArenaContainStatus::BlockUsed);
+    CHECK_EQ(a.check(reinterpret_cast<char*>(arena_managed_ptr)), ArenaContainStatus::BlockUsed);
+    CHECK_EQ(a.check(reinterpret_cast<char*>(with_dstr) + 200), ArenaContainStatus::BlockUnUsed);
+    CHECK_EQ(a.check(reinterpret_cast<char*>(block) + 4090), ArenaContainStatus::BlockCleanup);
+}
+
 class mock_hook
 {
    public:
@@ -1042,24 +1095,6 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
         CHECK_EQ(mock->ptrs.front(), mock->free_ptrs.front());
         CHECK_EQ(mock->alloc_sizes.front(), 256);
 
-        // move with another arena
-        /*
-        mock->reset();
-        auto* arena2 = new Arena(opts);
-        ArenaTestHelper ah2(*arena2);
-        Arena::memory_resource res2{arena2};
-
-        Foo foo4(std::move(foo3), &res2);
-        CHECK_EQ(256 - 16 - kBlockHeaderSize, ah2.last_block()->remain());
-        // NOLINTNEXTLINE
-        CHECK_EQ(0, foo3.vec_.size());
-        CHECK_EQ(4, foo4.vec_.size());
-        delete arena2;
-        CHECK_EQ(mock->ptrs.size(), 1);
-        CHECK_EQ(mock->free_ptrs.size(), 1);
-        CHECK_EQ(mock->ptrs.front(), mock->free_ptrs.front());
-        CHECK_EQ(mock->alloc_sizes.front(), 256);
-         */
         delete mock;
         mock = nullptr;
     }
