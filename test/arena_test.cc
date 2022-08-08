@@ -25,7 +25,9 @@
 #include <string>
 #include <typeinfo>
 #include <vector>
+#ifndef MT_TEST
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#endif
 #include "doctest/doctest.h"
 
 using stdb::memory::align::AlignUp;

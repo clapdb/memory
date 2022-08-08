@@ -30,7 +30,7 @@ else()
 endif()
 
 
-project(arena)
+project(memory)
 
 aux_source_directory(. ARENA_SRC)
 
