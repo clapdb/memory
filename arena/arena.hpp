@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <boost/core/demangle.hpp>
 #include <cassert>
 #include <concepts>
 #include <cstdlib>
@@ -50,8 +51,7 @@ using source_location = std::experimental::source_location;
 #else
 #error "no support for other compiler"
 #endif
-#include <boost/core/demangle.hpp>
-#define TYPENAME(type) boost::core::demangle(typeid(type).name())  // NOLINT
+#define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
 
 using ::std::size_t;
 using ::std::type_info;
