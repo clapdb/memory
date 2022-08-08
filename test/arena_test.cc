@@ -25,7 +25,7 @@
 #include <string>
 #include <typeinfo>
 #include <vector>
-#ifndef MT_TEST
+#ifndef _MULTI_THREAD_TEST_
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #endif
 #include "doctest/doctest.h"
