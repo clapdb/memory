@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <boost/core/demangle.hpp>
 #include <cassert>
 #include <concepts>
 #include <cstdlib>
@@ -50,8 +51,7 @@ using source_location = std::experimental::source_location;
 #else
 #error "no support for other compiler"
 #endif
-#include <boost/core/demangle.hpp>
-#define TYPENAME(type) boost::core::demangle(typeid(type).name())  // NOLINT
+#define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
 
 using ::std::size_t;
 using ::std::type_info;
@@ -608,6 +608,7 @@ class Arena
             _options.block_dealloc(curr);
             curr = prev;
         }
+        assert(curr != nullptr);
         // add the curr blk remain to result
         remain_size += curr->remain();
         // reset the last_block_ to the first block

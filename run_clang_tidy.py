@@ -236,7 +236,7 @@ def construct_jobs(files):
 def lookup_dirs():
     def is_excluded(file):
         exclude_patterns = [
-            r"^\..*", "build.*", "cmake"
+            r"^\..*", "build.*", "cmake", "doctest"
         ]
         for pattern in exclude_patterns:
             regexp = re.compile(pattern)

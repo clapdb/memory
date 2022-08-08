@@ -19,14 +19,11 @@
 */
 #include "arena/metrics.hpp"
 
-#include <doctest/doctest.h>
-
 #include <thread>
 
 #include "arena/arena.hpp"
 #include "doctest/doctest.h"
 
-using stdb::memory::Arena;
 namespace stdb::memory {
 
 class ThreadLocalArenaMetricsTest

@@ -20,24 +20,22 @@
 
 #pragma once
 #include <cstdint>
+#include <string>
 
-namespace stdb::memory::align {
+namespace stdb::memory::literals {
+constexpr auto is_digit(char c) noexcept -> bool { return c <= '9' && c >= '0'; }
 
-inline constexpr uint64_t kMaxAlignSize = 64;
-// Align to next 8 multiple
-template <uint64_t N>
-[[gnu::always_inline]] constexpr auto AlignUpTo(uint64_t n) noexcept -> uint64_t {
-    // Align n to next multiple of N
-    // (from <Hacker's Delight 2rd edition>,Chapter 3.)
-    static_assert((N & (N - 1)) == 0, "AlignUpToN, N is power of 2");
-    static_assert(N > 2, "AlignUpToN, N is than 4");
-    static_assert(N < kMaxAlignSize, "AlignUpToN, N is more than 64");
-    return (n + N - 1) & static_cast<uint64_t>(-N);
+constexpr auto stoi_impl(const char* str, uint64_t value = 0) -> uint64_t {
+    return *str ? is_digit(*str) ? stoi_impl(str + 1, static_cast<uint64_t>(*str - '0') + value * 10)
+                                 : throw "compile-time-error: not a digit"
+                : value;
 }
 
-[[gnu::always_inline]] inline auto AlignUp(uint64_t n, uint64_t block_size) noexcept -> uint64_t {
-    uint64_t reminder = n % block_size;
-    return n - reminder + (static_cast<uint64_t>(static_cast<bool>(reminder))) * block_size;
-}
+constexpr auto stoi(const char* str) -> uint64_t { return stoi_impl(str); }
 
-}  // namespace stdb::memory::align
+inline constexpr auto operator""_KB(const char* uint_str) noexcept -> uint64_t { return stoi(uint_str) * 1024; }
+inline constexpr auto operator""_MB(const char* uint_str) noexcept -> uint64_t { return stoi(uint_str) * 1024 * 1024; }
+inline constexpr auto operator""_GB(const char* uint_str) noexcept -> uint64_t {
+    return stoi(uint_str) * 1024 * 1024 * 1024;
+}
+}  // namespace stdb::memory::literals

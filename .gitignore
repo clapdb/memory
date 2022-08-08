@@ -32,7 +32,7 @@
 *.app
 
 cmake-*
-build
+build-*
 compile_commands.json
 .ccls-cache/
 .cache/

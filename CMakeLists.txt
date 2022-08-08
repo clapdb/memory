@@ -41,30 +41,16 @@ set(CMAKE_CXX_EXTENSIONS ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-include_directories(SYSTEM doctest/)
 
 # fmt
 find_package(fmt REQUIRED)
 
 set(ARENA_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
-
-if(${CMAKE_BUILD_TYPE} MATCHES Debug)
-  include(CodeCoverage)
-  append_coverage_compiler_flags()
-
-  set(COVERAGE_EXCLUDES
-    "test/*"
-    "/usr/*")
-
-  setup_target_for_coverage_gcovr_html(
-    NAME coverage
-    EXECUTABLE test/test
-  )
-endif()
-
-add_subdirectory(doctest)
+include_directories(SYSTEM ${ARENA_SOURCE_DIR}/doctest/)
+include_directories(${ARENA_SOURCE_DIR}/)
 
 ### build arena
 add_subdirectory(arena)
 
-add_subdirectory(test)
+add_subdirectory(doctest EXCLUE_FROM_ALL)
+add_subdirectory(test EXCLUDE_FROM_ALL)

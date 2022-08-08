@@ -18,26 +18,37 @@
 +------------------------------------------------------------------------------+
 */
 
-#pragma once
-#include <cstdint>
+#include "memory.hpp"
 
-namespace stdb::memory::align {
+#include "doctest/doctest.h"
 
-inline constexpr uint64_t kMaxAlignSize = 64;
-// Align to next 8 multiple
-template <uint64_t N>
-[[gnu::always_inline]] constexpr auto AlignUpTo(uint64_t n) noexcept -> uint64_t {
-    // Align n to next multiple of N
-    // (from <Hacker's Delight 2rd edition>,Chapter 3.)
-    static_assert((N & (N - 1)) == 0, "AlignUpToN, N is power of 2");
-    static_assert(N > 2, "AlignUpToN, N is than 4");
-    static_assert(N < kMaxAlignSize, "AlignUpToN, N is more than 64");
-    return (n + N - 1) & static_cast<uint64_t>(-N);
+namespace stdb::memory {
+using namespace ::stdb::memory::literals;  // NOLINT(google-build-using-namespace)
+
+TEST_CASE("literals::is_digit") {
+    constexpr bool five_is_digit = is_digit('5');
+    constexpr bool a_is_digit = is_digit('a');
+    CHECK_EQ(five_is_digit, true);
+    CHECK_EQ(a_is_digit, false);
 }
 
-[[gnu::always_inline]] inline auto AlignUp(uint64_t n, uint64_t block_size) noexcept -> uint64_t {
-    uint64_t reminder = n % block_size;
-    return n - reminder + (static_cast<uint64_t>(static_cast<bool>(reminder))) * block_size;
+TEST_CASE("Literals::stoi") {
+    constexpr uint64_t sixteen = stoi_impl("16", 0);
+    CHECK_EQ(sixteen, 16ULL);
 }
 
-}  // namespace stdb::memory::align
+TEST_CASE("Literals:KB") {
+    constexpr auto size = 4_KB;
+    CHECK_EQ(size, 4096ULL);
+}
+
+TEST_CASE("Literals:MB") {
+    constexpr auto size = 4_MB;
+    CHECK_EQ(size, 4096ULL * 1024);
+}
+
+TEST_CASE("Literals:GB") {
+    constexpr auto size = 4_GB;
+    CHECK_EQ(size, 4096ULL * 1024 * 1024);
+}
+}  // namespace stdb::memory
