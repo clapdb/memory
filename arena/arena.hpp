@@ -608,6 +608,7 @@ class Arena
             _options.block_dealloc(curr);
             curr = prev;
         }
+        assert(curr != nullptr);
         // add the curr blk remain to result
         remain_size += curr->remain();
         // reset the last_block_ to the first block

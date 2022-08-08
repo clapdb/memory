@@ -1,0 +1,148 @@
+---
+Checks: '-*,
+  boost-use-to-string,
+  misc-d*,
+  misc-m*,
+  misc-new-*,
+  misc-no-*,
+  misc-non-copyable-objects,
+  misc-r*,
+  misc-s*,
+  misc-t*,
+  misc-u*,
+  cppcoreguidelines-avoid-goto,
+  cppcoreguidelines-i*,
+  cppcoreguidelines-narrowing-conversions,
+  /*cppcoreguidelines-prefer-*,*/
+  cppcoreguidelines-pro-bounds-arr*,
+  cppcoreguidelines-pro-bounds-constant*,
+  cppcoreguidelines-pro-type-c*,
+  cppcoreguidelines-pro-type-member-init,
+  /*cppcoreguidelines-pro-type-static-cast-downcast,*/
+  cppcoreguidelines-pro-type-union-access,
+  cppcoreguidelines-slicing,
+  /*cppcoreguidelines-sp*,*/
+  hicpp-avoid-goto,
+  hicpp-exception-baseclass,
+  hicpp-multiway-paths-covered,
+  hicpp-no-assembler
+  hicpp-signed-bitwise,
+  readability-a*,
+  /*readability-b*,*/
+  readability-c*,
+  readability-d*,
+  readability-e*,
+  /*readability-function-size,*/
+  readability-i*,
+  readability-make-*,
+  readability-mis*,
+  readability-non-const-parameter,
+  readability-q*,
+  readability-r*,
+  readability-s*,
+  readability-u*,
+  performance-*,
+  bugprone-argument-comment,
+  bugprone-assert-side-effect,
+  bugprone-bad-signal-to-kill-thread,
+  bugprone-bool-pointer-implicit-conversion,
+  bugprone-branch-clone,
+  bugprone-copy-constructor-init,
+  bugprone-dangling-handle,
+  bugprone-dynamic-static-initializers,
+  bugprone-exception-escape,
+  bugprone-fold-init-type,
+  bugprone-forward-declaration-namespace,
+  bugprone-forwarding-reference-overload,
+  bugprone-implicit-widening-of-multipilication-result,
+  bugprone-inaccurate-erase,
+  bugprone-incorrect-roundings,
+  bugprone-infinite-loop,
+  bugprone-integer-division,
+  bugprone-lambda-function-name,
+  bugprone-macro-repeated-side-effects,
+  bugprone-misplaced-operator-in-strlen-in-alloc,
+  bugprone-misplaced-pointer-arithmetic-in-alloc,
+  bugprone-move-forwarding-reference,
+  bugprone-multiple-statement-macro,
+  bugprone-no-escape,
+  bugprone-not-null-terminated-result,
+  bugprone-parent-virtual-call,
+  bugprone-posix-return,
+  bugprone-redundant-branch-condition,
+  bugprone-reserved-identifier,
+  bugprone-signal-handler,
+  bugprone-signed-char-misuse,
+  bugprone-sizeof-container,
+  bugprone-sizeof-expression,
+  bugprone-spuriously-wake-up-functions,
+  bugprone-string-*,
+  bugprone-suspicious-*,
+  bugprone-swapped-arguments,
+  bugprone-terminating-continue,
+  bugprone-throw-keyword-missing,
+  bugprone-too-small-loop-variable,
+  bugprone-undefined-memory-manipulation,
+  bugprone-undelegated-constructor,
+  bugprone-unhandled-*,
+  bugprone-unused-*,
+  bugprone-use-after-move,
+  bugprone-virtual-near-miss,
+  google-build-explicit-make-pair,
+  google-build-namespaces,
+  google-build-using-namespace,
+  google-default-arguments,
+  google-explicit-constructor,
+  google-global-names-in-headers,
+  google-readability-avoid-underscore-in-googletest-name,
+  google-readability-casting,
+  google-readability-todo,
+  google-runtime-int,
+  google-runtime-operator,
+  google-upgrade-googletest-case,
+  hicpp-multiway-paths-covered,
+  hicpp-signed-bitwise,
+  modernize-avoid-bind,
+  modernize-c*,
+  modernize-d*,
+  modernize-l*,
+  modernize-m*,
+  modernize-p*,
+  modernize-r*,
+  modernize-s*,
+  modernize-use-auto,
+  modernize-use-bool*,
+  modernize-use-default-*,
+  modernize-use-e*,
+  modernize-use-n*,
+  modernize-use-o*,
+  modernize-use-transparent-functors,
+  modernize-use-u*,
+  llvm-namespace-comment'
+WarningsAsErrors: '*'
+HeaderFilterRegex: '^?!(.*build.*|.*test.*|.*CMake.*|.*thirdparty.*)$'
+AnalyzeTemporaryDtors: false
+FormatStyle:    file
+CheckOptions:
+  - key:             cert-dcl16-c.NewSuffixes
+    value:           'L;LL;LU;LLU'
+  - key:             cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField
+    value:           0
+  - key:             cppcoreguidelines-explicit-virtual-functions.IgnoreDestructors
+    value:           1
+  - key:             misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value:           1
+  - key:             modernize-loop-convert.MaxCopySize
+    value:           16
+  - key:             modernize-loop-convert.MinConfidence
+    value:           reasonable
+  - key:             modernize-pass-by-value.IncludeStyle
+    value:           llvm
+  - key:             modernize-replace-auto-ptr.IncludeStyle
+    value:           llvm
+  - key:             modernize-use-nullptr.NullMacros
+    value:           NULL
+  - key:             SystemHeaders
+    value:           0
+...
+

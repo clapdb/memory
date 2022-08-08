@@ -18,20 +18,16 @@
  +------------------------------------------------------------------------------+
 */
 
+#include "arena/arena.hpp"
 
 #include <cstdlib>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <typeinfo>
 #include <vector>
-
-#include "arena/arena.hpp"
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 
-using stdb::memory::Arena;
-using stdb::memory::kBlockHeaderSize;
 using stdb::memory::align::AlignUp;
 using stdb::memory::align::AlignUpTo;
 namespace stdb::memory {
