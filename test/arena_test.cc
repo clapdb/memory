@@ -33,7 +33,6 @@
 using stdb::memory::align::AlignUp;
 using stdb::memory::align::AlignUpTo;
 namespace stdb::memory {
-
 class alloc_class
 {
    public:
@@ -1197,5 +1196,20 @@ TEST_CASE("ArenaTest.Create_Object_with_allocator") {
     auto* obj = a.Create<class_with_allocator>();
     CHECK_EQ(a.check(obj->name.c_str()), ArenaContainStatus::BlockUsed);
 }
+
+struct simple_test_struct {
+    int _s;
+};
+
+struct simple_test_struct_with_tag {
+    int _s;
+    ArenaFullManagedTag;
+};
+
+TEST_CASE("ArenaTagOverhead") {
+    CHECK_EQ(sizeof(simple_test_struct), 4);
+    CHECK_EQ(sizeof(simple_test_struct_with_tag), 4);
+}
+
 
 }  // namespace stdb::memory
