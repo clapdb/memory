@@ -21,6 +21,8 @@
 
 namespace stdb::memory {
 
+// port from folly/lang/CheckedMath.h
+
 template <typename T, typename = std::enable_if_t<std::is_unsigned<T>::value>>
 auto checked_add(T* result, T a, T b) -> bool {  // NOLINT
     if (!__builtin_add_overflow(a, b, result)) [[likely]] {
@@ -53,6 +55,8 @@ auto checked_muladd(T* result, T base, T mul, T add) -> bool {
     *result = tmp;
     return true;
 }
+
+// port from folly/memory/Malloc.h
 
 /**
  * Trivial wrappers around malloc, calloc, realloc that check for allocation
