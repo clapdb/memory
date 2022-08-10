@@ -1,5 +1,3 @@
-
-
 #include "string.hpp"
 
 #include <fmt/core.h>

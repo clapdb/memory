@@ -115,7 +115,7 @@ constexpr auto isLittleEndian() -> bool { return std::endian::native == std::end
 // Note that this flag doesn't remove support for in-situ strings, as
 // that would break ABI-compatibility and wouldn't allow linking code
 // compiled with this flag with code compiled without.
-#ifdef FOLLY_SANITIZE_ADDRESS
+#ifndef NDEBUG
 #define FBSTRING_DISABLE_SSO true
 #else
 #define FBSTRING_DISABLE_SSO false
@@ -710,7 +710,7 @@ inline void string_core<Char>::initSmall(const Char* const data, const size_t si
 // The word-wise path reads bytes which are outside the range of
 // the string, and makes ASan unhappy, so we disable it when
 // compiling with ASan.
-#ifndef FOLLY_SANITIZE_ADDRESS
+#ifdef NDEBUG
     if ((reinterpret_cast<size_t>(data) & (sizeof(size_t) - 1)) == 0) {
         const size_t byteSize = size * sizeof(Char);
         constexpr size_t wordWidth = sizeof(size_t);
