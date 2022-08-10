@@ -31,4 +31,4 @@ list(APPEND TEST_FLAGS
 target_include_directories(test PRIVATE ${ARENA_SOURCE_DIR}/)
 
 target_compile_options(test PRIVATE ${TEST_FLAGS})
-target_link_libraries(test arena doctest)
+target_link_libraries(test arena doctest xxhash)
