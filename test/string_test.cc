@@ -1,6 +1,6 @@
 
 
-#include "fbstring.hpp"
+#include "string.hpp"
 
 #include <fmt/core.h>
 
@@ -142,7 +142,7 @@ void clause11_21_4_2_h(String& test) {
     wchar_t t[20];
     t[0] = 'a';
     t[1] = 'b';
-    fbstring s5(t, t + 2);
+    string s5(t, t + 2);
     CHECK_EQ("ab", s5);
 }
 template <class String>
@@ -175,7 +175,7 @@ void clause11_21_4_2_k(String& test) {
         s[i] = random('a', 'z');
     }
     test = std::move(s);
-    if (std::is_same<String, fbstring>::value) {
+    if (std::is_same<String, string>::value) {
         CHECK_LE(s.size(), 128);
     }
 }
@@ -358,7 +358,7 @@ void clause11_21_4_6_3_a(String& test) {
     CHECK_EQ(test, s);
     // move assign
     test.assign(std::move(s));
-    if (std::is_same<String, fbstring>::value) {
+    if (std::is_same<String, string>::value) {
         CHECK_LE(s.size(), 128);
     }
 }
@@ -962,14 +962,14 @@ void clause11_21_4_8_9_a(String& test) {
     }
 }
 
-TEST_CASE("FBString::testAllClauses") {
+TEST_CASE("string::testAllClauses") {
     std::cout << "Starting with seed: " << seed << std::endl;
     std::string r;
-    fbstring c;
+    string c;
 
     uint count = 0;
 
-    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_fbstring)(fbstring&)) {
+    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_fbstring)(string&)) {
         do {
             if (true) {
             } else {
@@ -988,7 +988,7 @@ TEST_CASE("FBString::testAllClauses") {
         } while (++count % 100 != 0);
     };
 
-#define TEST_CLAUSE(x) l(#x, clause11_##x<std::string>, clause11_##x<fbstring>);
+#define TEST_CLAUSE(x) l(#x, clause11_##x<std::string>, clause11_##x<string>);
 
     TEST_CLAUSE(21_4_2_a);
     TEST_CLAUSE(21_4_2_b);
@@ -1079,90 +1079,90 @@ TEST_CASE("FBString::testAllClauses") {
     TEST_CLAUSE(21_4_8_9_a);
 }
 
-TEST_CASE("FBString::arena") {
+TEST_CASE("string::arena") {
     auto arena = Arena(Arena::Options::GetDefaultOptions());
 
     {
-        auto* str = arena.Create<fbstring>();
+        auto* str = arena.Create<string>();
         CHECK(str != nullptr);
         CHECK_EQ(str->size(), 0);
         CHECK_EQ(*str, "");
     }
     {
-        auto* str = arena.Create<fbstring>("");
+        auto* str = arena.Create<string>("");
         CHECK(str != nullptr);
         CHECK_EQ(str->size(), 0);
         CHECK_EQ(*str, "");
     }
     {
-        auto* str = arena.Create<fbstring>("\0");
+        auto* str = arena.Create<string>("\0");
         CHECK(str != nullptr);
         CHECK_EQ(str->size(), 0);
         CHECK_EQ(*str, "");
     }
 
     {
-        auto* str = arena.Create<fbstring>("12345");
+        auto* str = arena.Create<string>("12345");
         CHECK(str != nullptr);
         CHECK_EQ(str->size(), 5);
         CHECK_EQ(*str, "12345");
     }
     {
-        auto* str = arena.Create<fbstring>("12345\0");
+        auto* str = arena.Create<string>("12345\0");
         CHECK(str != nullptr);
         CHECK_EQ(str->size(), 5);
         CHECK_EQ(*str, "12345");
     }
     {
-        auto* str = arena.Create<fbstring>("1234567890abcdefghijklmnopqrstuvwxyz");
+        auto* str = arena.Create<string>("1234567890abcdefghijklmnopqrstuvwxyz");
         CHECK(str != nullptr);
         CHECK_EQ(str->size(), 36);
         CHECK_EQ(*str, "1234567890abcdefghijklmnopqrstuvwxyz");
     }
 }
 
-TEST_CASE("FBString::testMoveCtor") {
+TEST_CASE("string::testMoveCtor") {
     // Move constructor. Make sure we allocate a large string, so the
     // small string optimization doesn't kick in.
     size_t size = random(100, 2000U);
-    fbstring s(size, 'a');
-    fbstring test = std::move(s);
+    string s(size, 'a');
+    string test = std::move(s);
     CHECK(s.empty());
     CHECK_EQ(size, test.size());
 }
 
-TEST_CASE("FBString::testMoveAssign") {
+TEST_CASE("string::testMoveAssign") {
     // Move constructor. Make sure we allocate a large string, so the
     // small string optimization doesn't kick in.
     size_t size = random(100, 2000U);
-    fbstring s(size, 'a');
-    fbstring test;
+    string s(size, 'a');
+    string test;
     test = std::move(s);
     CHECK(s.empty());
     CHECK_EQ(size, test.size());
 }
 
-TEST_CASE("FBString::testMoveOperatorPlusLhs") {
+TEST_CASE("string::testMoveOperatorPlusLhs") {
     // Make sure we allocate a large string, so the
     // small string optimization doesn't kick in.
     size_t size1 = random(100, 2000U);
     size_t size2 = random(100, 2000U);
-    fbstring s1(size1, 'a');
-    fbstring s2(size2, 'b');
-    fbstring test;
+    string s1(size1, 'a');
+    string s2(size2, 'b');
+    string test;
     test = std::move(s1) + s2;
     CHECK(s1.empty());
     CHECK_EQ(size1 + size2, test.size());
 }
 
-TEST_CASE("FBString::testMoveOperatorPlusRhs") {
+TEST_CASE("string::testMoveOperatorPlusRhs") {
     // Make sure we allocate a large string, so the
     // small string optimization doesn't kick in.
     size_t size1 = random(100, 2000U);
     size_t size2 = random(100, 2000U);
-    fbstring s1(size1, 'a');
-    fbstring s2(size2, 'b');
-    fbstring test;
+    string s1(size1, 'a');
+    string s2(size2, 'b');
+    string test;
     test = s1 + std::move(s2);
     CHECK_EQ(size1 + size2, test.size());
 }
@@ -1173,89 +1173,89 @@ TEST_CASE("FBString::testMoveOperatorPlusRhs") {
 // N.B. We behave this way even if the C++ library being used is something
 //      other than libstdc++. Someday if we deem it important to present
 //      identical undefined behavior for other platforms, we can re-visit this.
-TEST_CASE("FBString::testConstructionFromLiteralZero") { CHECK_THROWS_AS(fbstring s(nullptr), std::logic_error); }
+TEST_CASE("string::testConstructionFromLiteralZero") { CHECK_THROWS_AS(string s(nullptr), std::logic_error); }
 
-TEST_CASE("FBString::testFixedBugs_D479397") {
-    fbstring str(1337, 'f');
-    fbstring cp = str;
+TEST_CASE("string::testFixedBugs_D479397") {
+    string str(1337, 'f');
+    string cp = str;
     cp.clear();
     (void)cp.c_str();
     CHECK_EQ(str.front(), 'f');
 }
 
-TEST_CASE("FBString::testFixedBugs_D481173") {
-    fbstring str(1337, 'f');
+TEST_CASE("string::testFixedBugs_D481173") {
+    string str(1337, 'f');
     for (int i = 0; i < 2; ++i) {
-        fbstring cp = str;
+        string cp = str;
         cp[1] = 'b';
         CHECK_EQ(cp.c_str()[cp.size()], '\0');
         cp.push_back('?');
     }
 }
 
-TEST_CASE("FBString::testFixedBugs_D580267_push_back") {
-    fbstring str(1337, 'f');
-    fbstring cp = str;
+TEST_CASE("string::testFixedBugs_D580267_push_back") {
+    string str(1337, 'f');
+    string cp = str;
     cp.push_back('f');
 }
 
-TEST_CASE("FBString::testFixedBugs_D580267_operator_add_assign") {
-    fbstring str(1337, 'f');
-    fbstring cp = str;
+TEST_CASE("string::testFixedBugs_D580267_operator_add_assign") {
+    string str(1337, 'f');
+    string cp = str;
     cp += "bb";
 }
 
-TEST_CASE("FBString::testFixedBugs_D661622") {
-    stdb::memory::basic_fbstring<wchar_t> s;
+TEST_CASE("string::testFixedBugs_D661622") {
+    stdb::memory::basic_string<wchar_t> s;
     CHECK_EQ(0, s.size());
 }
 
-TEST_CASE("FBString::testFixedBugs_D785057") {
-    fbstring str(1337, 'f');
+TEST_CASE("string::testFixedBugs_D785057") {
+    string str(1337, 'f');
     std::swap(str, str);
     CHECK_EQ(1337, str.size());
 }
 
-TEST_CASE("FBString::testFixedBugs_D1012196_allocator_malloc") {
-    fbstring str(128, 'f');
-    str.clear();         // Empty medium string.
-    fbstring copy(str);  // Medium string of 0 capacity.
+TEST_CASE("string::testFixedBugs_D1012196_allocator_malloc") {
+    string str(128, 'f');
+    str.clear();       // Empty medium string.
+    string copy(str);  // Medium string of 0 capacity.
     copy.push_back('b');
     CHECK(copy.capacity() >= 1);
 }
 
-TEST_CASE("FBString::testFixedBugs_D2813713") {
-    fbstring s1("a");
+TEST_CASE("string::testFixedBugs_D2813713") {
+    string s1("a");
     s1.reserve(8);  // Trigger the optimized code path.
     auto test1 = '\0' + std::move(s1);
     CHECK_EQ(2, test1.size());
 
-    fbstring s2(1, '\0');
+    string s2(1, '\0');
     s2.reserve(8);
     auto test2 = "a" + std::move(s2);
     CHECK_EQ(2, test2.size());
 }
 
-TEST_CASE("FBString::testFixedBugs_D3698862") { CHECK_EQ(fbstring().find(fbstring(), 4), fbstring::npos); }
+TEST_CASE("string::testFixedBugs_D3698862") { CHECK_EQ(string().find(string(), 4), string::npos); }
 
-TEST_CASE("FBString::findWithNpos") {
-    fbstring fbstr("localhost:80");
-    CHECK_EQ(fbstring::npos, fbstr.find(":", fbstring::npos));
+TEST_CASE("string::findWithNpos") {
+    string fbstr("localhost:80");
+    CHECK_EQ(string::npos, fbstr.find(":", string::npos));
 }
 
-TEST_CASE("FBString::testHash") {
-    fbstring a;
-    fbstring b;
+TEST_CASE("string::testHash") {
+    string a;
+    string b;
     a.push_back(0);
     a.push_back(1);
     b.push_back(0);
     b.push_back(2);
-    std::hash<fbstring> hashfunc;
+    std::hash<string> hashfunc;
     CHECK_NE(hashfunc(a), hashfunc(b));
 }
 
-TEST_CASE("FBString::testFrontBack") {
-    fbstring str("hello");
+TEST_CASE("string::testFrontBack") {
+    string str("hello");
     CHECK_EQ(str.front(), 'h');
     CHECK_EQ(str.back(), 'o');
     str.front() = 'H';
@@ -1265,36 +1265,36 @@ TEST_CASE("FBString::testFrontBack") {
     CHECK_EQ(str, "HellO");
 }
 
-TEST_CASE("FBString::noexcept") {
-    CHECK(noexcept(fbstring()));
-    fbstring x;
-    CHECK_FALSE(noexcept(fbstring(x)));
-    CHECK(noexcept(fbstring(std::move(x))));
-    fbstring y;
+TEST_CASE("string::noexcept") {
+    CHECK(noexcept(string()));
+    string x;
+    CHECK_FALSE(noexcept(string(x)));
+    CHECK(noexcept(string(std::move(x))));
+    string y;
     CHECK_FALSE(noexcept(y = x));
     CHECK(noexcept(y = std::move(x)));
 }
 
-TEST_CASE("FBString::rvalueIterators") {
+TEST_CASE("string::rvalueIterators") {
     // you cannot take &* of a move-iterator, so use that for testing
-    fbstring s = "base";
-    fbstring r = "hello";
+    string s = "base";
+    string r = "hello";
     r.replace(r.begin(), r.end(), std::make_move_iterator(s.begin()), std::make_move_iterator(s.end()));
     CHECK_EQ("base", r);
 
     // The following test is probably not required by the standard.
     // i.e. this could be in the realm of undefined behavior.
-    fbstring b = "123abcXYZ";
+    string b = "123abcXYZ";
     auto ait = b.begin() + 3;
     auto Xit = b.begin() + 6;
     b.replace(ait, b.end(), b.begin(), Xit);
     CHECK_EQ("123123abc", b);  // if things go wrong, you'd get "123123123"
 }
 
-TEST_CASE("FBString::moveTerminator") {
+TEST_CASE("string::moveTerminator") {
     // The source of a move must remain in a valid state
-    fbstring s(100, 'x');  // too big to be in-situ
-    fbstring k;
+    string s(100, 'x');  // too big to be in-situ
+    string k;
     k = std::move(s);
 
     CHECK_EQ(0, s.size());
@@ -1308,16 +1308,16 @@ TEST_CASE("FBString::moveTerminator") {
  * they compile.
  *
  * In diff D2632953 the old constructor:
- *   explicit basic_fbstring(const A& a = A()) noexcept;
+ *   explicit basic_string(const A& a = A()) noexcept;
  *
  * was split into these two, as a workaround:
- *   basic_fbstring() noexcept;
- *   explicit basic_fbstring(const A& a) noexcept;
+ *   basic_string() noexcept;
+ *   explicit basic_string(const A& a) noexcept;
  */
 
 struct TestStructDefaultAllocator
 {
-    stdb::memory::basic_fbstring<char> stringMember;
+    stdb::memory::basic_string<char> stringMember;
 };
 
 std::atomic<size_t> allocatorConstructedCount(0);
@@ -1334,7 +1334,7 @@ TEST_CASE("FBStringCtorTest::DefaultInitStructDefaultAlloc") {
 TEST_CASE("FBStringCtorTest::NullZeroConstruction") {
     char* p = nullptr;
     size_t n = 0;
-    stdb::memory::fbstring f(p, n);
+    stdb::memory::string f(p, n);
     CHECK_EQ(f.size(), 0);
 }
 
@@ -1342,13 +1342,13 @@ TEST_CASE("FBStringCtorTest::NullZeroConstruction") {
 // because what's under test is the operator rather than the relation between
 // the objects.
 
-TEST_CASE("FBString::compareToStdString") {
-    using stdb::memory::fbstring;
+TEST_CASE("string::compareToStdString") {
+    using stdb::memory::string;
     using namespace std::string_literals;
     auto stdA = "a"s;
     auto stdB = "b"s;
-    fbstring fbA("a");
-    fbstring fbB("b");
+    string fbA("a");
+    string fbB("b");
     CHECK(stdA == fbA);
     CHECK(fbB == stdB);
     CHECK(stdA != fbB);
@@ -1368,12 +1368,12 @@ TEST_CASE("FBString::compareToStdString") {
 }
 
 // TEST_CASE("U16FBString::compareToStdU16String") {
-//     using stdb::memory::basic_fbstring;
+//     using stdb::memory::basic_string;
 //     using namespace std::string_literals;
 //     auto stdA = u"a"s;
 //     auto stdB = u"b"s;
-//     basic_fbstring<char16_t> fbA(u"a");
-//     basic_fbstring<char16_t> fbB(u"b");
+//     basic_string<char16_t> fbA(u"a");
+//     basic_string<char16_t> fbB(u"b");
 //     CHECK(stdA == fbA);
 //     CHECK(fbB == stdB);
 //     CHECK(stdA != fbB);
@@ -1393,12 +1393,12 @@ TEST_CASE("FBString::compareToStdString") {
 // }
 
 // TEST_CASE("U32FBString::compareToStdU32String") {
-//     using stdb::memory::basic_fbstring;
+//     using stdb::memory::basic_string;
 //     using namespace std::string_literals;
 //     auto stdA = U"a"s;
 //     auto stdB = U"b"s;
-//     basic_fbstring<char32_t> fbA(U"a");
-//     basic_fbstring<char32_t> fbB(U"b");
+//     basic_string<char32_t> fbA(U"a");
+//     basic_string<char32_t> fbB(U"b");
 //     CHECK(stdA == fbA);
 //     CHECK(fbB == stdB);
 //     CHECK(stdA != fbB);
@@ -1418,12 +1418,12 @@ TEST_CASE("FBString::compareToStdString") {
 // }
 
 // TEST_CASE("WFBString::compareToStdWString") {
-//     using stdb::memory::basic_fbstring;
+//     using stdb::memory::basic_string;
 //     using namespace std::string_literals;
 //     auto stdA = L"a"s;
 //     auto stdB = L"b"s;
-//     basic_fbstring<wchar_t> fbA(L"a");
-//     basic_fbstring<wchar_t> fbB(L"b");
+//     basic_string<wchar_t> fbA(L"a");
+//     basic_string<wchar_t> fbB(L"b");
 //     CHECK(stdA == fbA);
 //     CHECK(fbB == stdB);
 //     CHECK(stdA != fbB);
@@ -1445,13 +1445,13 @@ TEST_CASE("FBString::compareToStdString") {
 // Same again, but with a more challenging input - a common prefix and different
 // lengths.
 
-TEST_CASE("FBString::compareToStdStringLong") {
-    using stdb::memory::fbstring;
+TEST_CASE("string::compareToStdStringLong") {
+    using stdb::memory::string;
     using namespace std::string_literals;
     auto stdA = "1234567890a"s;
     auto stdB = "1234567890ab"s;
-    fbstring fbA("1234567890a");
-    fbstring fbB("1234567890ab");
+    string fbA("1234567890a");
+    string fbB("1234567890ab");
     CHECK(stdA == fbA);
     CHECK(fbB == stdB);
     CHECK(stdA != fbB);
@@ -1471,12 +1471,12 @@ TEST_CASE("FBString::compareToStdStringLong") {
 }
 
 // TEST_CASE("U16FBString::compareToStdU16StringLong") {
-//     using stdb::memory::basic_fbstring;
+//     using stdb::memory::basic_string;
 //     using namespace std::string_literals;
 //     auto stdA = u"1234567890a"s;
 //     auto stdB = u"1234567890ab"s;
-//     basic_fbstring<char16_t> fbA(u"1234567890a");
-//     basic_fbstring<char16_t> fbB(u"1234567890ab");
+//     basic_string<char16_t> fbA(u"1234567890a");
+//     basic_string<char16_t> fbB(u"1234567890ab");
 //     CHECK(stdA == fbA);
 //     CHECK(fbB == stdB);
 //     CHECK(stdA != fbB);
@@ -1498,19 +1498,19 @@ TEST_CASE("FBString::compareToStdStringLong") {
 struct custom_traits : public std::char_traits<char>
 {};
 
-TEST_CASE("FBString::convertToStringView") {
-    fbstring s("foo");
+TEST_CASE("string::convertToStringView") {
+    string s("foo");
     std::string_view sv = s;
     CHECK_EQ(sv, "foo");
-    basic_fbstring<char, custom_traits> s2("bar");
+    basic_string<char, custom_traits> s2("bar");
     std::basic_string_view<char, custom_traits> sv2 = s2;
     CHECK_EQ(sv2, "bar");
 }
 
-TEST_CASE("FBString::Format") { CHECK_EQ("  foo", fmt::format("{:>5}", stdb::memory::fbstring("foo"))); }
+TEST_CASE("string::Format") { CHECK_EQ("  foo", fmt::format("{:>5}", stdb::memory::string("foo"))); }
 
-TEST_CASE("FBString::OverLarge") {
-    CHECK_THROWS_AS(fbstring().reserve((size_t)0xFFFF'FFFF'FFFF'FFFF), std::length_error);
-    CHECK_THROWS_AS(fbstring_core<char32_t>().reserve((size_t)0x4000'0000'4000'0000), std::length_error);
+TEST_CASE("string::OverLarge") {
+    CHECK_THROWS_AS(string().reserve((size_t)0xFFFF'FFFF'FFFF'FFFF), std::length_error);
+    CHECK_THROWS_AS(string_core<char32_t>().reserve((size_t)0x4000'0000'4000'0000), std::length_error);
 }
 }  // namespace stdb::memory
