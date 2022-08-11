@@ -13,6 +13,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -459,6 +460,7 @@ class string_core
                 }
                 break;
             case Category::isMedium:
+                break;
             default:
                 __builtin_unreachable();
         }
@@ -1045,6 +1047,9 @@ class basic_string
     // Specialization for const char*, const char*
     // NOLINTNEXTLINE
     basic_string(const value_type* b, const value_type* e, const A& /*a*/ = A()) : store_(b, size_type(e - b)) {}
+
+    // NOLINTNEXTLINE
+    basic_string(std::basic_string_view<value_type> view, const A& /*a*/ = A()) : store_(view.data(), view.size()) {}
 
     // Construction from initialization list
     basic_string(std::initializer_list<value_type> init_list) { assign(init_list.begin(), init_list.end()); }
