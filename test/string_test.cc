@@ -64,7 +64,7 @@ void clause11_21_4_2_a(String& test) {
 }
 template <class String>
 void clause11_21_4_2_b(String& test) {
-    String test2(test);
+    String test2(test); // NOLINT
     assert(test2 == test);
 }
 template <class String>
@@ -77,7 +77,7 @@ void clause11_21_4_2_c(String& test) {
     // Technically not required, but all implementations that actually
     // support move will move large strings. Make a guess for 128 as the
     // maximum small string optimization that's reasonable.
-    CHECK_LE(donor.size(), 128);
+    CHECK_LE(donor.size(), 128); // NOLINT
 }
 template <class String>
 void clause11_21_4_2_d(String& test) {
@@ -174,7 +174,7 @@ void clause11_21_4_2_k(String& test) {
     }
     test = std::move(s);
     if (std::is_same<String, string>::value) {
-        CHECK_LE(s.size(), 128);
+        CHECK_LE(s.size(), 128); // NOLINT
     }
 }
 template <class String>
@@ -185,7 +185,7 @@ void clause11_21_4_2_l(String& test) {
     for (; i != s.size(); ++i) {
         s[i] = random('a', 'z');
     }
-    test = s.c_str();
+    test = s.c_str(); // NOLINT
 }
 template <class String>
 void clause11_21_4_2_lprime(String& test) {
@@ -219,9 +219,9 @@ void clause11_21_4_3(String& test) {
     CHECK_EQ(test.size(), test.crend() - test.crbegin());
 
     auto s = test.size();
-    test.resize(size_t(test.end() - test.begin()));
+    test.resize(size_t(test.end() - test.begin())); // NOLINT
     CHECK_EQ(s, test.size());
-    test.resize(size_t(test.rend() - test.rbegin()));
+    test.resize(size_t(test.rend() - test.rbegin())); // NOLINT
     CHECK_EQ(s, test.size());
 }
 
@@ -335,7 +335,7 @@ void clause11_21_4_6_2(String& test) {
     randomString(&s, maxString);
     test.append(s.c_str(), random(0, s.size()));
     randomString(&s, maxString);
-    test.append(s.c_str());
+    test.append(s.c_str()); // NOLINT
     test.append(random(0, maxString), random('a', 'z'));
     std::list<char> lst(RandomList(maxString));
     test.append(lst.begin(), lst.end());
@@ -357,7 +357,7 @@ void clause11_21_4_6_3_a(String& test) {
     // move assign
     test.assign(std::move(s));
     if (std::is_same<String, string>::value) {
-        CHECK_LE(s.size(), 128);
+        CHECK_LE(s.size(), 128); // NOLINT
     }
 }
 
@@ -382,7 +382,7 @@ void clause11_21_4_6_3_d(String& test) {
     // assign
     String s;
     randomString(&s, maxString);
-    test.assign(s.c_str());
+    test.assign(s.c_str()); // NOLINT
 }
 
 template <class String>
@@ -421,7 +421,7 @@ void clause11_21_4_6_3_i(String& test) {
 template <class String>
 void clause11_21_4_6_3_j(String& test) {
     // assign from aliased source
-    test.assign(test.c_str());
+    test.assign(test.c_str()); // NOLINT
 }
 
 template <class String>
@@ -442,20 +442,20 @@ void clause11_21_4_6_4(String& test) {
     randomString(&s, maxString);
     test.insert(random(0, test.size()), s.c_str(), random(0, s.size()));
     randomString(&s, maxString);
-    test.insert(random(0, test.size()), s.c_str());
+    test.insert(random(0, test.size()), s.c_str()); // NOLINT
     test.insert(random(0, test.size()), random(0, maxString), random('a', 'z'));
     typename String::size_type pos = random(0, test.size());
-    typename String::iterator res = test.insert(test.begin() + int(pos), random('a', 'z'));
+    typename String::iterator res = test.insert(test.begin() + int(pos), random('a', 'z'));  // NOLINT
     CHECK_EQ(res - test.begin(), pos);
     std::list<char> lst(RandomList(maxString));
     pos = random(0, test.size());
     // Uncomment below to see a bug in gcc
-    /*res = */ test.insert(test.begin() + int(pos), lst.begin(), lst.end());
+    /*res = */ test.insert(test.begin() + int(pos), lst.begin(), lst.end()); // NOLINT
     // insert from initializer_list
     std::initializer_list<typename String::value_type> il{'a', 'b', 'c'};
     pos = random(0, test.size());
     // Uncomment below to see a bug in gcc
-    /*res = */ test.insert(test.begin() + int(pos), il);
+    /*res = */ test.insert(test.begin() + int(pos), il); // NOLINT
 
     // Test with actual input iterators
     std::stringstream ss;
@@ -471,11 +471,11 @@ void clause11_21_4_6_5(String& test) {
         test.erase(random(0, test.size()), random(0, maxString));
     }
     if (!test.empty()) {
-        // TODO: is erase(end()) allowed?
-        test.erase(test.begin() + int(random(0, test.size() - 1)));
+        // TODO(longqimin): is erase(end()) allowed?
+        test.erase(test.begin() + int(random(0, test.size() - 1))); // NOLINT
     }
     if (!test.empty()) {
-        auto const i = test.begin() + int(random(0, test.size()));
+        auto const i = test.begin() + int(random(0, test.size()));  // NOLINT
         if (i != test.end()) {
             test.erase(i, i + random(0, test.end() - i));
         }
@@ -528,16 +528,20 @@ void clause11_21_4_6_6(String& test) {
     pos = random(0, test.size());
     if (avoidAliasing) {
         auto newString = String(test);
+        // NOLINTNEXTLINE
         test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), newString);
     } else {
+        // NOLINTNEXTLINE
         test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), test);
     }
     pos = random(0, test.size());
     if (avoidAliasing) {
         auto newString = String(test);
+        // NOLINTNEXTLINE
         test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), newString.c_str(),
                      test.size() - random(0, test.size()));
     } else {
+        // NOLINTNEXTLINE
         test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), test.c_str(),
                      test.size() - random(0, test.size()));
     }
@@ -547,9 +551,12 @@ void clause11_21_4_6_6(String& test) {
     String str1;
     randomString(&str1, maxString);
     const String& str3 = str1;
+    // NOLINTNEXTLINE
     const typename String::value_type* ss = str3.c_str();
+    // NOLINTNEXTLINE
     test.replace(b + int(pos), b + int(pos) + int(n), ss);
     pos = random(0, test.size());
+    // NOLINTNEXTLINE
     test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), random(0, maxString),
                  random('a', 'z'));
 }
@@ -628,12 +635,14 @@ void clause11_21_4_7_2_b2(String& test) {
 template <class String>
 void clause11_21_4_7_2_c(String& test) {
     String str = test.substr(random(0, test.size()), random(0, test.size()));
+    // NOLINTNEXTLINE
     Num2String(test, test.find(str.c_str(), random(0, test.size())));
 }
 
 template <class String>
 void clause11_21_4_7_2_c1(String& test) {
     String str = String(test).substr(random(0, test.size()), random(0, test.size()));
+    // NOLINTNEXTLINE
     Num2String(test, test.find(str.c_str(), random(0, test.size())));
 }
 
@@ -641,6 +650,7 @@ template <class String>
 void clause11_21_4_7_2_c2(String& test) {
     const auto& cTest = test;
     String str = cTest.substr(random(0, test.size()), random(0, test.size()));
+    // NOLINTNEXTLINE
     Num2String(test, test.find(str.c_str(), random(0, test.size())));
 }
 
@@ -664,6 +674,7 @@ void clause11_21_4_7_3_b(String& test) {
 template <class String>
 void clause11_21_4_7_3_c(String& test) {
     String str = test.substr(random(0, test.size()), random(0, test.size()));
+    // NOLINTNEXTLINE
     Num2String(test, test.rfind(str.c_str(), random(0, test.size())));
 }
 
@@ -683,6 +694,7 @@ template <class String>
 void clause11_21_4_7_4_b(String& test) {
     String str;
     randomString(&str, maxString);
+    // NOLINTNEXTLINE
     Num2String(test, test.find_first_of(str.c_str(), random(0, test.size()), random(0, str.size())));
 }
 
@@ -690,6 +702,7 @@ template <class String>
 void clause11_21_4_7_4_c(String& test) {
     String str;
     randomString(&str, maxString);
+    // NOLINTNEXTLINE
     Num2String(test, test.find_first_of(str.c_str(), random(0, test.size())));
 }
 
@@ -716,6 +729,7 @@ template <class String>
 void clause11_21_4_7_5_c(String& test) {
     String str;
     randomString(&str, maxString);
+    // NOLINTNEXTLINE
     Num2String(test, test.find_last_of(str.c_str(), random(0, test.size())));
 }
 
@@ -742,6 +756,7 @@ template <class String>
 void clause11_21_4_7_6_c(String& test) {
     String str;
     randomString(&str, maxString);
+    // NOLINTNEXTLINE
     Num2String(test, test.find_first_not_of(str.c_str(), random(0, test.size())));
 }
 
@@ -768,6 +783,7 @@ template <class String>
 void clause11_21_4_7_7_c(String& test) {
     String str;
     randomString(&str, maxString);
+    // NOLINTNEXTLINE
     Num2String(test, test.find_last_not_of(str.c_str(), random(0, test.size())));
 }
 
@@ -825,6 +841,7 @@ template <class String>
 void clause11_21_4_7_9_d(String& test) {
     String s;
     randomString(&s, maxString);
+    // NOLINTNEXTLINE
     int tristate = test.compare(s.c_str());
     if (tristate > 0) {
         tristate = 1;
@@ -889,6 +906,7 @@ void clause11_21_4_8_1_e(String& test) {
     randomString(&s, maxString);
     String s1;
     randomString(&s1, maxString);
+    // NOLINTNEXTLINE
     test = s.c_str() + s1;
 }
 
@@ -898,6 +916,7 @@ void clause11_21_4_8_1_f(String& test) {
     randomString(&s, maxString);
     String s1;
     randomString(&s1, maxString);
+    // NOLINTNEXTLINE
     test = s.c_str() + move(s1);
 }
 
@@ -905,6 +924,7 @@ template <class String>
 void clause11_21_4_8_1_g(String& test) {
     String s;
     randomString(&s, maxString);
+    // NOLINTNEXTLINE
     test = typename String::value_type(random('a', 'z')) + s;
 }
 
@@ -912,6 +932,7 @@ template <class String>
 void clause11_21_4_8_1_h(String& test) {
     String s;
     randomString(&s, maxString);
+    // NOLINTNEXTLINE
     test = typename String::value_type(random('a', 'z')) + move(s);
 }
 
@@ -921,6 +942,7 @@ void clause11_21_4_8_1_i(String& test) {
     randomString(&s, maxString);
     String s1;
     randomString(&s1, maxString);
+    // NOLINTNEXTLINE
     test = s + s1.c_str();
 }
 
@@ -930,6 +952,7 @@ void clause11_21_4_8_1_j(String& test) {
     randomString(&s, maxString);
     String s1;
     randomString(&s1, maxString);
+    // NOLINTNEXTLINE
     test = move(s) + s1.c_str();
 }
 
@@ -937,6 +960,7 @@ template <class String>
 void clause11_21_4_8_1_k(String& test) {
     String s;
     randomString(&s, maxString);
+    // NOLINTNEXTLINE
     test = s + typename String::value_type(random('a', 'z'));
 }
 
@@ -946,6 +970,7 @@ void clause11_21_4_8_1_l(String& test) {
     randomString(&s, maxString);
     String s1;
     randomString(&s1, maxString);
+    // NOLINTNEXTLINE
     test = move(s) + s1.c_str();
 }
 
@@ -969,6 +994,7 @@ TEST_CASE("string::testAllClauses") {
 
     auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_fbstring)(string&)) {
         do {
+            // NOLINTNEXTLINE
             if (true) {
             } else {
                 std::cout << "Testing clause " << clause << std::endl;
@@ -1125,6 +1151,7 @@ TEST_CASE("string::testMoveCtor") {
     size_t size = random(100, 2000U);
     string s(size, 'a');
     string test = std::move(s);
+    // NOLINTNEXTLINE
     CHECK(s.empty());
     CHECK_EQ(size, test.size());
 }
@@ -1136,6 +1163,7 @@ TEST_CASE("string::testMoveAssign") {
     string s(size, 'a');
     string test;
     test = std::move(s);
+    // NOLINTNEXTLINE
     CHECK(s.empty());
     CHECK_EQ(size, test.size());
 }
@@ -1149,6 +1177,7 @@ TEST_CASE("string::testMoveOperatorPlusLhs") {
     string s2(size2, 'b');
     string test;
     test = std::move(s1) + s2;
+    // NOLINTNEXTLINE
     CHECK(s1.empty());
     CHECK_EQ(size1 + size2, test.size());
 }
@@ -1171,7 +1200,7 @@ TEST_CASE("string::testMoveOperatorPlusRhs") {
 // N.B. We behave this way even if the C++ library being used is something
 //      other than libstdc++. Someday if we deem it important to present
 //      identical undefined behavior for other platforms, we can re-visit this.
-TEST_CASE("string::testConstructionFromLiteralZero") { CHECK_THROWS_AS(string s(nullptr), std::logic_error); }
+TEST_CASE("string::testConstructionFromLiteralZero") { CHECK_THROWS_AS(string s(nullptr), std::logic_error); } // NOLINT
 
 TEST_CASE("string::testFixedBugs_D479397") {
     string str(1337, 'f');
@@ -1283,8 +1312,8 @@ TEST_CASE("string::rvalueIterators") {
     // The following test is probably not required by the standard.
     // i.e. this could be in the realm of undefined behavior.
     string b = "123abcXYZ";
-    auto ait = b.begin() + 3;
-    auto Xit = b.begin() + 6;
+    auto ait = b.begin() + 3; // NOLINT
+    auto Xit = b.begin() + 6; // NOLINT
     b.replace(ait, b.end(), b.begin(), Xit);
     CHECK_EQ("123123abc", b);  // if things go wrong, you'd get "123123123"
 }
@@ -1295,7 +1324,7 @@ TEST_CASE("string::moveTerminator") {
     string k;
     k = std::move(s);
 
-    CHECK_EQ(0, s.size());
+    CHECK_EQ(0, s.size()); // NOLINT
     CHECK_EQ('\0', *s.c_str());
 }
 
