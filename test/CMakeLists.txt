@@ -19,7 +19,7 @@ cmake_minimum_required(VERSION 3.10)
 
 aux_source_directory(. TEST_SRC)
 
-add_executable(test EXCLUDE_FROM_ALL ${TEST_SRC})
+add_executable(memory_test EXCLUDE_FROM_ALL ${TEST_SRC})
 
 ## test flags
 list(APPEND TEST_FLAGS
@@ -28,7 +28,7 @@ list(APPEND TEST_FLAGS
 )
 
 ### include arena src
-target_include_directories(test PRIVATE ${ARENA_SOURCE_DIR}/)
+target_include_directories(memory_test PRIVATE ${ARENA_SOURCE_DIR}/)
 
-target_compile_options(test PRIVATE ${TEST_FLAGS})
-target_link_libraries(test arena doctest xxhash)
+target_compile_options(memory_test PRIVATE ${TEST_FLAGS})
+target_link_libraries(memory_test arena doctest xxhash)
