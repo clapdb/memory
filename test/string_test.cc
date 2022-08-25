@@ -1,22 +1,22 @@
 #include "string.hpp"
 
-#include <fmt/core.h>
+#include <fmt/core.h>         // for format
+#include <bits/chrono.h>      // for duration, system_clock, system_clock::t...
+#include <cxxabi.h>           // for __forced_unwind
+#include <sys/types.h>        // for uint
+#include <algorithm>          // for for_each
+#include <atomic>             // for atomic, __atomic_base
+#include <cstddef>            // for size_t
+#include <iterator>           // for move_iterator, make_move_iterator, oper...
+#include <list>               // for list, operator==, _List_iterator, _List...
+#include <random>             // for mt19937, uniform_int_distribution
+#include <sstream>            // for operator<<, basic_istream, basic_string...
+#include <type_traits>        // for is_same
+#include <iostream>           // for cout
+#include <vector>             // for vector
 
-#include <algorithm>
-#include <atomic>
-#include <boost/algorithm/string.hpp>
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-#include <iomanip>
-#include <iterator>
-#include <list>
-#include <random>
-#include <sstream>
-#include <type_traits>
-
-#include "arena/arena.hpp"
-#include "doctest/doctest.h"
+#include "arena/arena.hpp"    // for size_t, Arena, Arena::Options
+#include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK
 
 namespace stdb::memory {
 

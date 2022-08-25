@@ -3,22 +3,32 @@
 #pragma once
 
 #include <fmt/format.h>
+#include <ctype.h>                // for isspace
+#include <fmt/core.h>             // for string_view, formatter, formatter<>...
+#include <stdint.h>               // for uint8_t, int64_t, int32_t
+#include <stdio.h>                // for getline, ssize_t
+#include <stdlib.h>               // for free, malloc, realloc
+#include <algorithm>              // for min, max, copy, fill
+#include <cassert>                // for assert
+#include <cstddef>                // for size_t, offsetof
+#include <cstring>                // for memcpy, memcmp, memmove, memset
+#include <iosfwd>                 // for basic_istream
+#include <limits>                 // for numeric_limits
+#include <stdexcept>              // for out_of_range, length_error, logic_e...
+#include <string>                 // for basic_string, allocator, string
+#include <string_view>            // for hash, basic_string_view
+#include <type_traits>            // for integral_constant, true_type, is_same
+#include <utility>                // for move, make_pair, pair
+#include <bit>                    // for endian, endian::little, endian::native
+#include <functional>             // for less_equal
+#include <initializer_list>       // for initializer_list
+#include <istream>                // for basic_istream, basic_ostream, __ost...
+#include <iterator>               // for forward_iterator_tag, input_iterato...
+#include <memory>                 // for allocator_traits
+#include <new>                    // for bad_alloc, operator new
 
-#include <algorithm>
-#include <atomic>
-#include <cassert>
-#include <cstddef>
-#include <cstring>
-#include <iosfwd>
-#include <limits>
-#include <stdexcept>
-#include <string>
-#include <string_view>
-#include <type_traits>
-#include <utility>
-
-#include "arena/arenahelper.hpp"
-#include "xxhash.h"  // for XXH32
+#include "arena/arenahelper.hpp"  // for ArenaFullManagedTag
+#include "xxhash.h"               // for XXH32
 
 namespace stdb::memory {
 
