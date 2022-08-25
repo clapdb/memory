@@ -20,15 +20,18 @@
 
 #include "arena/arena.hpp"
 
-#include <cstdlib>
-#include <memory>
-#include <string>
-#include <typeinfo>
-#include <vector>
+#include <cstring>               // for memcmp, strcmp
+#include <cstdlib>                // for free, malloc
+#include <memory>                 // for allocator, make_unique, unique_ptr
+#include <string>                 // for string, operator==, basic_string
+#include <typeinfo>               // for type_info
+#include <vector>                 // for vector, vector<>::allocator_type
+#include <cstdint>                // for uint64_t
 #ifndef _MULTI_THREAD_TEST_
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #endif
-#include "doctest/doctest.h"
+#include "doctest/doctest.h"      // for binary_assert, CHECK_EQ, TestCase
+#include "arena/arenahelper.hpp"  // for ArenaFullManagedTag, ArenaManagedCr...
 
 using stdb::memory::align::AlignUp;
 using stdb::memory::align::AlignUpTo;

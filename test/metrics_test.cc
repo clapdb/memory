@@ -19,10 +19,11 @@
 */
 #include "arena/metrics.hpp"
 
-#include <thread>
+#include <thread>             // for thread
+#include <cstdlib>            // for free, malloc
 
-#include "arena/arena.hpp"
-#include "doctest/doctest.h"
+#include "arena/arena.hpp"    // for Arena, Arena::Options
+#include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK
 
 namespace stdb::memory {
 

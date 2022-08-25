@@ -21,22 +21,24 @@
 #pragma once
 
 
-#include <atomic>
-#include <chrono>
-#include <cstring>
-#include <iostream>
-#include <map>
-#include <thread>
-#include <unordered_map>
-#include <utility>
+#include <fmt/core.h>                    // for format
+#include <bits/chrono.h>                 // for operator""ms, duration, stea...
+#include <atomic>                        // for atomic, memory_order, memory...
+#include <unordered_map>                 // for unordered_map, operator==
+#include <utility>                       // for tuple_element<>::type
+#include <array>                         // for array, array<>::value_type
+#include <compare>                       // for operator<=, strong_ordering
+#include <cstdint>                       // for uint64_t, uint32_t
+#include <memory>                        // for allocator, unique_ptr
+#include <string>                        // for string, char_traits, hash
+#include <typeinfo>                      // for type_info
 
-#include <fmt/core.h>
-#include "arena.hpp"
+#include "arena.hpp"                     // for Arena
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
 #include <source_location>
 #elif defined(__clang__)
-#include <experimental/source_location>
+#include <experimental/source_location>  // for source_location
 #endif
 
 namespace stdb::memory {

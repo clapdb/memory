@@ -19,8 +19,7 @@
 */
 
 #pragma once
-#include <cstdint>
-#include <string>
+#include <cstdint>  // for uint64_t
 
 namespace stdb::memory::literals {
 constexpr auto is_digit(char chr) noexcept -> bool { return chr <= '9' && chr >= '0'; }

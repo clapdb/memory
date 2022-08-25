@@ -20,24 +20,30 @@
 
 #pragma once
 
-#include <boost/core/demangle.hpp>
-#include <cassert>
+#include <boost/core/demangle.hpp>       // for demangle
+#include <stdint.h>                      // for uint64_t, uint8_t
+#include <cassert>                       // for assert
 #include <concepts>
-#include <cstdlib>
-#include <iostream>
-#include <limits>
-#include <memory_resource>
-#include <type_traits>
-#include <typeinfo>
-#include <utility>
+#include <cstdlib>                       // for free, malloc, size_t
+#include <iostream>                      // for endl, basic_ostream, cerr
+#include <limits>                        // for numeric_limits
+#include <memory_resource>               // for memory_resource
+#include <type_traits>                   // for false_type, is_standard_layout
+#include <typeinfo>                      // for bad_cast, type_info
+#include <utility>                       // for exchange, forward
+#include <exception>                     // for type_info
+#include <new>                           // for operator new, bad_alloc
+#include <string>                        // for allocator, operator<<, string
+#include <unordered_map>                 // for polymorphic_allocator
 
-#include "arenahelper.hpp"
-#include "fmt/core.h"
+#include "arenahelper.hpp"               // for ArenaHelper
+#include "fmt/core.h"                    // for format
+#include "align.hpp"                     // for AlignUpTo
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
 #include <source_location>
 #elif defined(__clang__)
-#include <experimental/source_location>
+#include <experimental/source_location>  // for source_location
 #endif
 
 namespace stdb::memory {
