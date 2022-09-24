@@ -20,20 +20,20 @@
 
 #pragma once
 
+#include <bits/chrono.h>  // for operator""ms, duration, stea...
+#include <fmt/core.h>     // for format
 
-#include <fmt/core.h>                    // for format
-#include <bits/chrono.h>                 // for operator""ms, duration, stea...
-#include <atomic>                        // for atomic, memory_order, memory...
-#include <unordered_map>                 // for unordered_map, operator==
-#include <utility>                       // for tuple_element<>::type
-#include <array>                         // for array, array<>::value_type
-#include <compare>                       // for operator<=, strong_ordering
-#include <cstdint>                       // for uint64_t, uint32_t
-#include <memory>                        // for allocator, unique_ptr
-#include <string>                        // for string, char_traits, hash
-#include <typeinfo>                      // for type_info
+#include <array>          // for array, array<>::value_type
+#include <atomic>         // for atomic, memory_order, memory...
+#include <compare>        // for operator<=, strong_ordering
+#include <cstdint>        // for uint64_t, uint32_t
+#include <memory>         // for allocator, unique_ptr
+#include <string>         // for string, char_traits, hash
+#include <typeinfo>       // for type_info
+#include <unordered_map>  // for unordered_map, operator==
+#include <utility>        // for tuple_element<>::type
 
-#include "arena.hpp"                     // for Arena
+#include "arena.hpp"  // for Arena
 
 #if defined(__GNUC__) && (__GNUC__ >= 11)
 #include <source_location>
