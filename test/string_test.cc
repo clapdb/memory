@@ -1540,4 +1540,74 @@ TEST_CASE("string::OverLarge") {
     CHECK_THROWS_AS(string().reserve((size_t)0xFFFF'FFFF'FFFF'FFFF), std::length_error);
     CHECK_THROWS_AS(string_core<char32_t>().reserve((size_t)0x4000'0000'4000'0000), std::length_error);
 }
+
+TEST_CASE("string::Clone") {
+    SUBCASE("stack-based-small") {
+        string s1("foo");
+        auto s2 = s1.clone();
+        CHECK_EQ(s1, s2);
+        auto* data1 = s1.data();
+        auto* data2 = s2.data();
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("stack-based-medium") {
+        string m1("1234567890123456789012345678901234567890");
+        auto m2 = m1.clone();
+        CHECK_EQ(m1.length(), 40);
+        CHECK_EQ(m1, m2);
+        auto* data1 = m1.data();
+        auto* data2 = m2.data();
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("stack-based-large") {
+        string m1("1234567890123456789012345678901234567890");
+        string l1;
+        for (int i = 0; i < 125; ++i) {
+            l1.append(m1);
+        }
+        CHECK_EQ(l1.length(), 5000);
+        auto l2_cow = l1;
+        auto l2 = l1.clone();
+        CHECK_EQ(l2_cow.data(), l1.data());
+        CHECK_NE(l2.data(), l1.data());
+    }
+
+    SUBCASE("heap-based-small") {
+        auto s1_up = std::make_unique<string>("123");
+        auto s2_up = std::make_unique<string>(s1_up->clone());
+        CHECK_EQ(*s1_up, *s2_up);
+        auto* data1 = s1_up->data();
+        auto* data2 = s2_up->data();
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("heap-based-medium") {
+        auto m1_up = std::make_unique<string>("1234567890123456789012345678901234567890");
+        auto m2_up = std::make_unique<string>(m1_up->clone());
+        CHECK_EQ(m1_up->length(), 40);
+        CHECK_EQ(*m1_up, *m2_up);
+        auto* data1 = m1_up->data();
+        auto* data2 = m2_up->data();
+        CHECK_NE(data1, data2);
+    }
+    SUBCASE("heap-based-large") {
+        string m1("1234567890123456789012345678901234567890");
+        auto l1_up = std::make_unique<string>();
+        for (int i = 0; i < 125; ++i) {
+            l1_up->append(m1);
+        }
+        CHECK_EQ(l1_up->length(), 5000);
+        auto l2_up = std::make_unique<string>(l1_up->clone());
+        auto l2_cow = *l1_up;
+        CHECK_EQ(*l1_up, *l2_up);
+        auto* data1 = l1_up->data();
+        auto* data2 = l2_up->data();
+        auto* data2_cow = l2_cow.data();
+        CHECK_EQ(data1, data2_cow);
+        CHECK_NE(data1, data2);
+    }
+}
+
 }  // namespace stdb::memory

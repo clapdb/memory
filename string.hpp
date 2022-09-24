@@ -302,6 +302,9 @@ template <class Char>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class string_core
 {
+    template <typename E, class T, class A, class Storage>
+    friend class basic_string;
+
    public:
     string_core() noexcept { reset(); }
 
@@ -1104,6 +1107,16 @@ class basic_string
 
     auto operator=(std::initializer_list<value_type> init_list) -> basic_string& {
         return assign(init_list.begin(), init_list.end());  // NOLINT
+    }
+
+    auto clone() const -> basic_string {
+        if (store_.category() == Storage::Category::isLarge) {
+            // copy cstr
+            basic_string rst(*this);
+            rst.store_.unshare();
+            return rst;
+        }
+        return {*this};
     }
 
     // NOLINTNEXTLINE
