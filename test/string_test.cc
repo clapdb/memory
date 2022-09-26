@@ -1573,6 +1573,8 @@ TEST_CASE("string::Clone") {
         CHECK_EQ(l1.length(), 5000);
         auto l2_cow = l1;
         auto l2 = l1.clone();
+        CHECK_EQ(l1, l2);
+        CHECK_EQ(l1, l2_cow);
         CHECK_EQ(l2_cow.data(), l1.data());
         CHECK_NE(l2.data(), l1.data());
     }
