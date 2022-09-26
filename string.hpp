@@ -1110,13 +1110,20 @@ class basic_string
         return assign(init_list.begin(), init_list.end());  // NOLINT
     }
 
+    /*
+     * with clone function, caller can get a truely deep copy string from the original string, default copy constructor
+     * and copy assignment operator will get a CoW string if the string in the large mode(size > 255). this feature will
+     * make string safe in cross cpu-core argument passing. because memory::string do not use atomic int, so the
+     * refCounted ++/-- is not thread safe.
+     */
     auto clone() const -> basic_string {
         if (store_.category() == Storage::Category::isLarge) {
-            // copy cstr
+            // call copy constructor
             basic_string rst(*this);
             rst.store_.unshare();
             return rst;
         }
+        // directly call copy constructor.
         return {*this};
     }
 
