@@ -19,8 +19,8 @@
 */
 #include "arena/metrics.hpp"
 
-#include <thread>             // for thread
-#include <cstdlib>            // for free, malloc
+#include <cstdlib>  // for free, malloc
+#include <thread>   // for thread
 
 #include "arena/arena.hpp"    // for Arena, Arena::Options
 #include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK

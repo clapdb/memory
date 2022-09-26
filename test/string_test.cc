@@ -1,19 +1,20 @@
 #include "string.hpp"
 
-#include <fmt/core.h>         // for format
-#include <bits/chrono.h>      // for duration, system_clock, system_clock::t...
-#include <cxxabi.h>           // for __forced_unwind
-#include <sys/types.h>        // for uint
-#include <algorithm>          // for for_each
-#include <atomic>             // for atomic, __atomic_base
-#include <cstddef>            // for size_t
-#include <iterator>           // for move_iterator, make_move_iterator, oper...
-#include <list>               // for list, operator==, _List_iterator, _List...
-#include <random>             // for mt19937, uniform_int_distribution
-#include <sstream>            // for operator<<, basic_istream, basic_string...
-#include <type_traits>        // for is_same
-#include <iostream>           // for cout
-#include <vector>             // for vector
+#include <bits/chrono.h>  // for duration, system_clock, system_clock::t...
+#include <cxxabi.h>       // for __forced_unwind
+#include <fmt/core.h>     // for format
+#include <sys/types.h>    // for uint
+
+#include <algorithm>    // for for_each
+#include <atomic>       // for atomic, __atomic_base
+#include <cstddef>      // for size_t
+#include <iostream>     // for cout
+#include <iterator>     // for move_iterator, make_move_iterator, oper...
+#include <list>         // for list, operator==, _List_iterator, _List...
+#include <random>       // for mt19937, uniform_int_distribution
+#include <sstream>      // for operator<<, basic_istream, basic_string...
+#include <type_traits>  // for is_same
+#include <vector>       // for vector
 
 #include "arena/arena.hpp"    // for size_t, Arena, Arena::Options
 #include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK
@@ -64,7 +65,7 @@ void clause11_21_4_2_a(String& test) {
 }
 template <class String>
 void clause11_21_4_2_b(String& test) {
-    String test2(test); // NOLINT
+    String test2(test);  // NOLINT
     assert(test2 == test);
 }
 template <class String>
@@ -77,7 +78,7 @@ void clause11_21_4_2_c(String& test) {
     // Technically not required, but all implementations that actually
     // support move will move large strings. Make a guess for 128 as the
     // maximum small string optimization that's reasonable.
-    CHECK_LE(donor.size(), 128); // NOLINT
+    CHECK_LE(donor.size(), 128);  // NOLINT
 }
 template <class String>
 void clause11_21_4_2_d(String& test) {
@@ -174,7 +175,7 @@ void clause11_21_4_2_k(String& test) {
     }
     test = std::move(s);
     if (std::is_same<String, string>::value) {
-        CHECK_LE(s.size(), 128); // NOLINT
+        CHECK_LE(s.size(), 128);  // NOLINT
     }
 }
 template <class String>
@@ -185,7 +186,7 @@ void clause11_21_4_2_l(String& test) {
     for (; i != s.size(); ++i) {
         s[i] = random('a', 'z');
     }
-    test = s.c_str(); // NOLINT
+    test = s.c_str();  // NOLINT
 }
 template <class String>
 void clause11_21_4_2_lprime(String& test) {
@@ -219,9 +220,9 @@ void clause11_21_4_3(String& test) {
     CHECK_EQ(test.size(), test.crend() - test.crbegin());
 
     auto s = test.size();
-    test.resize(size_t(test.end() - test.begin())); // NOLINT
+    test.resize(size_t(test.end() - test.begin()));  // NOLINT
     CHECK_EQ(s, test.size());
-    test.resize(size_t(test.rend() - test.rbegin())); // NOLINT
+    test.resize(size_t(test.rend() - test.rbegin()));  // NOLINT
     CHECK_EQ(s, test.size());
 }
 
@@ -335,7 +336,7 @@ void clause11_21_4_6_2(String& test) {
     randomString(&s, maxString);
     test.append(s.c_str(), random(0, s.size()));
     randomString(&s, maxString);
-    test.append(s.c_str()); // NOLINT
+    test.append(s.c_str());  // NOLINT
     test.append(random(0, maxString), random('a', 'z'));
     std::list<char> lst(RandomList(maxString));
     test.append(lst.begin(), lst.end());
@@ -357,7 +358,7 @@ void clause11_21_4_6_3_a(String& test) {
     // move assign
     test.assign(std::move(s));
     if (std::is_same<String, string>::value) {
-        CHECK_LE(s.size(), 128); // NOLINT
+        CHECK_LE(s.size(), 128);  // NOLINT
     }
 }
 
@@ -382,7 +383,7 @@ void clause11_21_4_6_3_d(String& test) {
     // assign
     String s;
     randomString(&s, maxString);
-    test.assign(s.c_str()); // NOLINT
+    test.assign(s.c_str());  // NOLINT
 }
 
 template <class String>
@@ -421,7 +422,7 @@ void clause11_21_4_6_3_i(String& test) {
 template <class String>
 void clause11_21_4_6_3_j(String& test) {
     // assign from aliased source
-    test.assign(test.c_str()); // NOLINT
+    test.assign(test.c_str());  // NOLINT
 }
 
 template <class String>
@@ -442,7 +443,7 @@ void clause11_21_4_6_4(String& test) {
     randomString(&s, maxString);
     test.insert(random(0, test.size()), s.c_str(), random(0, s.size()));
     randomString(&s, maxString);
-    test.insert(random(0, test.size()), s.c_str()); // NOLINT
+    test.insert(random(0, test.size()), s.c_str());  // NOLINT
     test.insert(random(0, test.size()), random(0, maxString), random('a', 'z'));
     typename String::size_type pos = random(0, test.size());
     typename String::iterator res = test.insert(test.begin() + int(pos), random('a', 'z'));  // NOLINT
@@ -450,12 +451,12 @@ void clause11_21_4_6_4(String& test) {
     std::list<char> lst(RandomList(maxString));
     pos = random(0, test.size());
     // Uncomment below to see a bug in gcc
-    /*res = */ test.insert(test.begin() + int(pos), lst.begin(), lst.end()); // NOLINT
+    /*res = */ test.insert(test.begin() + int(pos), lst.begin(), lst.end());  // NOLINT
     // insert from initializer_list
     std::initializer_list<typename String::value_type> il{'a', 'b', 'c'};
     pos = random(0, test.size());
     // Uncomment below to see a bug in gcc
-    /*res = */ test.insert(test.begin() + int(pos), il); // NOLINT
+    /*res = */ test.insert(test.begin() + int(pos), il);  // NOLINT
 
     // Test with actual input iterators
     std::stringstream ss;
@@ -472,7 +473,7 @@ void clause11_21_4_6_5(String& test) {
     }
     if (!test.empty()) {
         // TODO(longqimin): is erase(end()) allowed?
-        test.erase(test.begin() + int(random(0, test.size() - 1))); // NOLINT
+        test.erase(test.begin() + int(random(0, test.size() - 1)));  // NOLINT
     }
     if (!test.empty()) {
         auto const i = test.begin() + int(random(0, test.size()));  // NOLINT
@@ -1200,7 +1201,9 @@ TEST_CASE("string::testMoveOperatorPlusRhs") {
 // N.B. We behave this way even if the C++ library being used is something
 //      other than libstdc++. Someday if we deem it important to present
 //      identical undefined behavior for other platforms, we can re-visit this.
-TEST_CASE("string::testConstructionFromLiteralZero") { CHECK_THROWS_AS(string s(nullptr), std::logic_error); } // NOLINT
+TEST_CASE("string::testConstructionFromLiteralZero") {
+    CHECK_THROWS_AS(string s(nullptr), std::logic_error);
+}  // NOLINT
 
 TEST_CASE("string::testFixedBugs_D479397") {
     string str(1337, 'f');
@@ -1312,8 +1315,8 @@ TEST_CASE("string::rvalueIterators") {
     // The following test is probably not required by the standard.
     // i.e. this could be in the realm of undefined behavior.
     string b = "123abcXYZ";
-    auto ait = b.begin() + 3; // NOLINT
-    auto Xit = b.begin() + 6; // NOLINT
+    auto ait = b.begin() + 3;  // NOLINT
+    auto Xit = b.begin() + 6;  // NOLINT
     b.replace(ait, b.end(), b.begin(), Xit);
     CHECK_EQ("123123abc", b);  // if things go wrong, you'd get "123123123"
 }
@@ -1324,7 +1327,7 @@ TEST_CASE("string::moveTerminator") {
     string k;
     k = std::move(s);
 
-    CHECK_EQ(0, s.size()); // NOLINT
+    CHECK_EQ(0, s.size());  // NOLINT
     CHECK_EQ('\0', *s.c_str());
 }
 
@@ -1540,4 +1543,76 @@ TEST_CASE("string::OverLarge") {
     CHECK_THROWS_AS(string().reserve((size_t)0xFFFF'FFFF'FFFF'FFFF), std::length_error);
     CHECK_THROWS_AS(string_core<char32_t>().reserve((size_t)0x4000'0000'4000'0000), std::length_error);
 }
+
+TEST_CASE("string::Clone") {
+    SUBCASE("stack-based-small") {
+        string s1("foo");
+        auto s2 = s1.clone();
+        CHECK_EQ(s1, s2);
+        auto* data1 = s1.data();
+        auto* data2 = s2.data();
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("stack-based-medium") {
+        string m1("1234567890123456789012345678901234567890");
+        auto m2 = m1.clone();
+        CHECK_EQ(m1.length(), 40);
+        CHECK_EQ(m1, m2);
+        auto* data1 = m1.data();
+        auto* data2 = m2.data();
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("stack-based-large") {
+        string m1("1234567890123456789012345678901234567890");
+        string l1;
+        for (int i = 0; i < 125; ++i) {
+            l1.append(m1);
+        }
+        CHECK_EQ(l1.length(), 5000);
+        auto l2_cow = l1;
+        auto l2 = l1.clone();
+        CHECK_EQ(l1, l2);
+        CHECK_EQ(l1, l2_cow);
+        CHECK_EQ(l2_cow.data(), l1.data());
+        CHECK_NE(l2.data(), l1.data());
+    }
+
+    SUBCASE("heap-based-small") {
+        auto s1_up = std::make_unique<string>("123");
+        auto s2_up = std::make_unique<string>(s1_up->clone());
+        CHECK_EQ(*s1_up, *s2_up);
+        auto* data1 = s1_up->data();
+        auto* data2 = s2_up->data();
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("heap-based-medium") {
+        auto m1_up = std::make_unique<string>("1234567890123456789012345678901234567890");
+        auto m2_up = std::make_unique<string>(m1_up->clone());
+        CHECK_EQ(m1_up->length(), 40);
+        CHECK_EQ(*m1_up, *m2_up);
+        auto* data1 = m1_up->data();
+        auto* data2 = m2_up->data();
+        CHECK_NE(data1, data2);
+    }
+    SUBCASE("heap-based-large") {
+        string m1("1234567890123456789012345678901234567890");
+        auto l1_up = std::make_unique<string>();
+        for (int i = 0; i < 125; ++i) {
+            l1_up->append(m1);
+        }
+        CHECK_EQ(l1_up->length(), 5000);
+        auto l2_up = std::make_unique<string>(l1_up->clone());
+        auto l2_cow = *l1_up;
+        CHECK_EQ(*l1_up, *l2_up);
+        auto* data1 = l1_up->data();
+        auto* data2 = l2_up->data();
+        auto* data2_cow = l2_cow.data();
+        CHECK_EQ(data1, data2_cow);
+        CHECK_NE(data1, data2);
+    }
+}
+
 }  // namespace stdb::memory

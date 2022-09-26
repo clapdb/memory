@@ -2,30 +2,31 @@
 
 #pragma once
 
+#include <ctype.h>     // for isspace
+#include <fmt/core.h>  // for string_view, formatter, formatter<>...
 #include <fmt/format.h>
-#include <ctype.h>                // for isspace
-#include <fmt/core.h>             // for string_view, formatter, formatter<>...
-#include <stdint.h>               // for uint8_t, int64_t, int32_t
-#include <stdio.h>                // for getline, ssize_t
-#include <stdlib.h>               // for free, malloc, realloc
-#include <algorithm>              // for min, max, copy, fill
-#include <cassert>                // for assert
-#include <cstddef>                // for size_t, offsetof
-#include <cstring>                // for memcpy, memcmp, memmove, memset
-#include <iosfwd>                 // for basic_istream
-#include <limits>                 // for numeric_limits
-#include <stdexcept>              // for out_of_range, length_error, logic_e...
-#include <string>                 // for basic_string, allocator, string
-#include <string_view>            // for hash, basic_string_view
-#include <type_traits>            // for integral_constant, true_type, is_same
-#include <utility>                // for move, make_pair, pair
-#include <bit>                    // for endian, endian::little, endian::native
-#include <functional>             // for less_equal
-#include <initializer_list>       // for initializer_list
-#include <istream>                // for basic_istream, basic_ostream, __ost...
-#include <iterator>               // for forward_iterator_tag, input_iterato...
-#include <memory>                 // for allocator_traits
-#include <new>                    // for bad_alloc, operator new
+#include <stdint.h>  // for uint8_t, int64_t, int32_t
+#include <stdio.h>   // for getline, ssize_t
+#include <stdlib.h>  // for free, malloc, realloc
+
+#include <algorithm>         // for min, max, copy, fill
+#include <bit>               // for endian, endian::little, endian::native
+#include <cassert>           // for assert
+#include <cstddef>           // for size_t, offsetof
+#include <cstring>           // for memcpy, memcmp, memmove, memset
+#include <functional>        // for less_equal
+#include <initializer_list>  // for initializer_list
+#include <iosfwd>            // for basic_istream
+#include <istream>           // for basic_istream, basic_ostream, __ost...
+#include <iterator>          // for forward_iterator_tag, input_iterato...
+#include <limits>            // for numeric_limits
+#include <memory>            // for allocator_traits
+#include <new>               // for bad_alloc, operator new
+#include <stdexcept>         // for out_of_range, length_error, logic_e...
+#include <string>            // for basic_string, allocator, string
+#include <string_view>       // for hash, basic_string_view
+#include <type_traits>       // for integral_constant, true_type, is_same
+#include <utility>           // for move, make_pair, pair
 
 #include "arena/arenahelper.hpp"  // for ArenaFullManagedTag
 #include "xxhash.h"               // for XXH32
@@ -302,6 +303,9 @@ template <class Char>
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class string_core
 {
+    template <typename E, class T, class A, class Storage>
+    friend class basic_string;
+
    public:
     string_core() noexcept { reset(); }
 
@@ -1104,6 +1108,23 @@ class basic_string
 
     auto operator=(std::initializer_list<value_type> init_list) -> basic_string& {
         return assign(init_list.begin(), init_list.end());  // NOLINT
+    }
+
+    /*
+     * with clone function, caller can get a truely deep copy string from the original string, default copy constructor
+     * and copy assignment operator will get a CoW string if the string in the large mode(size > 255). this feature will
+     * make string safe in cross cpu-core argument passing. because memory::string do not use atomic int, so the
+     * refCounted ++/-- is not thread safe.
+     */
+    auto clone() const -> basic_string {
+        if (store_.category() == Storage::Category::isLarge) {
+            // call copy constructor
+            basic_string rst(*this);
+            rst.store_.unshare();
+            return rst;
+        }
+        // directly call copy constructor.
+        return {*this};
     }
 
     // NOLINTNEXTLINE

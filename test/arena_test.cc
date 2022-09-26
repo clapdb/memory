@@ -20,18 +20,18 @@
 
 #include "arena/arena.hpp"
 
-#include <cstring>               // for memcmp, strcmp
-#include <cstdlib>                // for free, malloc
-#include <memory>                 // for allocator, make_unique, unique_ptr
-#include <string>                 // for string, operator==, basic_string
-#include <typeinfo>               // for type_info
-#include <vector>                 // for vector, vector<>::allocator_type
-#include <cstdint>                // for uint64_t
+#include <cstdint>   // for uint64_t
+#include <cstdlib>   // for free, malloc
+#include <cstring>   // for memcmp, strcmp
+#include <memory>    // for allocator, make_unique, unique_ptr
+#include <string>    // for string, operator==, basic_string
+#include <typeinfo>  // for type_info
+#include <vector>    // for vector, vector<>::allocator_type
 #ifndef _MULTI_THREAD_TEST_
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #endif
-#include "doctest/doctest.h"      // for binary_assert, CHECK_EQ, TestCase
 #include "arena/arenahelper.hpp"  // for ArenaFullManagedTag, ArenaManagedCr...
+#include "doctest/doctest.h"      // for binary_assert, CHECK_EQ, TestCase
 
 using stdb::memory::align::AlignUp;
 using stdb::memory::align::AlignUpTo;
@@ -1200,11 +1200,13 @@ TEST_CASE("ArenaTest.Create_Object_with_allocator") {
     CHECK_EQ(a.check(obj->name.c_str()), ArenaContainStatus::BlockUsed);
 }
 
-struct simple_test_struct {
+struct simple_test_struct
+{
     int _s;
 };
 
-struct simple_test_struct_with_tag {
+struct simple_test_struct_with_tag
+{
     int _s;
     ArenaFullManagedTag;
 };
@@ -1213,6 +1215,5 @@ TEST_CASE("ArenaTagOverhead") {
     CHECK_EQ(sizeof(simple_test_struct), 4);
     CHECK_EQ(sizeof(simple_test_struct_with_tag), 4);
 }
-
 
 }  // namespace stdb::memory
