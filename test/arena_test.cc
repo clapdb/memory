@@ -758,10 +758,10 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocateAlignedAndAddCleanupTest") {
     auto* a = new Arena(ops_complex);
     mock_cleaners = new cleanup_mock;
     mock = new alloc_class;
-    auto* new_ptr = a->AllocateAlignedAndAddCleanup(3500, mock_cleaners, cleanup_mock_fn1);
+    auto* new_ptr = a->AllocateAlignedAndAddCleanup(3500, cleanup_mock_fn1, mock_cleaners);
     CHECK_EQ(new_ptr, static_cast<char*>(mock->ptrs.front()) + sizeof(Arena::Block));
 
-    auto* next_ptr = a->AllocateAlignedAndAddCleanup(755, mock_cleaners, cleanup_mock_fn2);
+    auto* next_ptr = a->AllocateAlignedAndAddCleanup(755, cleanup_mock_fn2, mock_cleaners);
 
     CHECK_EQ(next_ptr, static_cast<char*>(mock->ptrs.back()) + sizeof(Arena::Block));
     delete a;
@@ -881,7 +881,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.HookTest") {
     CHECK_NE(r, nullptr);
     CHECK_EQ(hook_instance->allocated, 2);
 
-    auto* rr = a->AllocateAlignedAndAddCleanup(150, mock_cleaners, &cleanup_mock_fn1);
+    auto* rr = a->AllocateAlignedAndAddCleanup(150, &cleanup_mock_fn1, mock_cleaners);
     CHECK_NE(rr, nullptr);
     CHECK_EQ(hook_instance->allocated, 3);
 
@@ -923,7 +923,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.NullTest") {
     CHECK_EQ(y, nullptr);
     CHECK_EQ(ah.space_allocated(), 0ULL);
 
-    y = a->AllocateAlignedAndAddCleanup(1000, mock_cleaners, cleanup_mock_fn1);
+    y = a->AllocateAlignedAndAddCleanup(1000, cleanup_mock_fn1, mock_cleaners);
     CHECK_EQ(y, nullptr);
     CHECK_EQ(ah.space_allocated(), 0ULL);
     CHECK_EQ(a->cleanups(), 0ULL);
