@@ -2598,3 +2598,11 @@ struct fmt::formatter<stdb::memory::string> : private formatter<fmt::string_view
         return formatter<fmt::string_view>::format({str.data(), str.size()}, ctx);
     }
 };
+
+namespace std {
+
+auto to_string(const ::stdb::memory::string& str) -> std::string {
+    return {str.data()};
+}
+
+}
