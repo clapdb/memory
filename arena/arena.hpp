@@ -464,10 +464,10 @@ class Arena
      * Allocate a piece of aligned memory, and place a cleanup node in end of block.
      * return nullptr means failure
      */
-    [[nodiscard]] auto AllocateAlignedAndAddCleanup(uint64_t bytes, void* element, void (*cleanup)(void*)) noexcept
-      -> char* {
+    [[nodiscard]] auto AllocateAlignedAndAddCleanup(uint64_t bytes, void (*cleanup)(void*),
+                                                    void* element = nullptr) noexcept -> char* {
         if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
-            if (addCleanup(element, cleanup)) [[likely]] {
+            if (addCleanup(element == nullptr ? ptr : element, cleanup)) [[likely]] {
                 if (_options.on_arena_allocation != nullptr) [[likely]] {
                     { _options.on_arena_allocation(nullptr, bytes, _cookie); }
                 }
