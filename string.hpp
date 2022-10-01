@@ -2601,8 +2601,8 @@ struct fmt::formatter<stdb::memory::string> : private formatter<fmt::string_view
 
 namespace std {
 
-auto to_string(const ::stdb::memory::string& str) -> std::string {
+[[gnu::always_inline, nodiscard]] inline auto to_string(const ::stdb::memory::string& str) -> std::string {
     return {str.data()};
 }
 
-}
+}  // namespace std
