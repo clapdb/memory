@@ -82,8 +82,6 @@ inline auto checkedMalloc(size_t size) -> void* {
     return ptr;
 }
 
-[[gnu::always_inline]] inline auto goodMallocSize(size_t minSize) noexcept -> size_t { return minSize; }
-
 inline auto checkedRealloc(void* ptr, size_t size) -> void* {
     ptr = realloc(ptr, size);
     if (ptr == nullptr) {
@@ -543,11 +541,11 @@ class string_core
             if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset())) {
                 throw(std::length_error(""));
             }
-            const size_t allocSize = goodMallocSize(capacityBytes);
-            auto result = static_cast<RefCounted*>(checkedMalloc(allocSize));
+//            const size_t allocSize = capacityBytes;
+            auto result = static_cast<RefCounted*>(checkedMalloc(capacityBytes));
             // result->refCount_.store(1, std::memory_order_release);
             result->refCount_ = 1;
-            *size = (allocSize - getDataOffset()) / sizeof(Char) - 1;
+            *size = (capacityBytes - getDataOffset()) / sizeof(Char) - 1;
             return result;
         }
 
@@ -570,16 +568,16 @@ class string_core
             if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset())) {
                 throw(std::length_error(""));
             }
-            const size_t allocNewCapacity = goodMallocSize(capacityBytes);
+//            const size_t allocNewCapacity = goodMallocSize(capacityBytes);
             auto const dis = fromData(data);
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
             assert(dis->refCount_ == 1);
             auto result = static_cast<RefCounted*>(smartRealloc(dis, getDataOffset() + (currentSize + 1) * sizeof(Char),
                                                                 getDataOffset() + (currentCapacity + 1) * sizeof(Char),
-                                                                allocNewCapacity));
+                                                                capacityBytes));
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
             assert(result->refCount_ == 1);
-            *newCapacity = (allocNewCapacity - getDataOffset()) / sizeof(Char) - 1;
+            *newCapacity = (capacityBytes - getDataOffset()) / sizeof(Char) - 1;
             return result;
         }
     };
@@ -695,7 +693,8 @@ template <class Char>
 void string_core<Char>::copyMedium(const string_core& rhs) {
     // Medium strings are copied eagerly. Don't forget to allocate
     // one extra Char for the null terminator.
-    auto const allocSize = goodMallocSize((1 + rhs.ml_.size_) * sizeof(Char));  // NOLINT
+//    auto const allocSize = goodMallocSize((1 + rhs.ml_.size_) * sizeof(Char));  // NOLINT
+    auto const allocSize = (1 + rhs.ml_.size_) * sizeof(Char);  // NOLINT
     ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));                   // NOLINT
     // Also copies terminator.
     string_detail::podCopy(rhs.ml_.data_, rhs.ml_.data_ + rhs.ml_.size_ + 1, ml_.data_);  // NOLINT
@@ -757,7 +756,8 @@ template <class Char>
 void string_core<Char>::initMedium(const Char* const data, const size_t size) {
     // Medium strings are allocated normally. Don't forget to
     // allocate one extra Char for the terminating null.
-    auto const allocSize = goodMallocSize((1 + size) * sizeof(Char));
+//    auto const allocSize = goodMallocSize((1 + size) * sizeof(Char));
+    auto const allocSize = (1 + size) * sizeof(Char);
     ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));  // NOLINT
     if (size > 0) [[likely]] {
         string_detail::podCopy(data, data + size, ml_.data_);  // NOLINT
@@ -835,7 +835,8 @@ void string_core<Char>::reserveMedium(const size_t minCapacity) {
     if (minCapacity <= maxMediumSize) {
         // Keep the string at medium size. Don't forget to allocate
         // one extra Char for the terminating null.
-        size_t capacityBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
+//        size_t capacityBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
+        size_t capacityBytes = (1 + minCapacity) * sizeof(Char);
         // Also copies terminator.
         ml_.data_ = static_cast<Char*>(  // NOLINT
                                          //  NOLINTNEXTLINE
@@ -863,7 +864,8 @@ void string_core<Char>::reserveSmall(size_t minCapacity, const bool disableSSO) 
     } else if (minCapacity <= maxMediumSize) {
         // medium
         // Don't forget to allocate one extra Char for the terminating null
-        auto const allocSizeBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
+//        auto const allocSizeBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
+        auto const allocSizeBytes = (1 + minCapacity) * sizeof(Char);
         auto const pData = static_cast<Char*>(checkedMalloc(allocSizeBytes));
         auto const size = smallSize();
         // Also copies terminator.
