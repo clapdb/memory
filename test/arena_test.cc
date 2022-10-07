@@ -1228,14 +1228,12 @@ TEST_CASE("Arena-memory::string") {
 }
 
 struct struct_with_string {
-//    ArenaFullManagedTag;
-    ArenaManagedCreateOnlyTag;
+    ArenaFullManagedTag;
     int x;
     fb_string name;
-    int* p = new int (100);
 };
 
-TEST_CASE("Arena-memory::sturct_with_string") {
+TEST_CASE("Arena-memory::struct_with_string") {
     auto options = Arena::Options::GetDefaultOptions();
     Arena a(options);
     auto* ptr = a.Create<struct_with_string>();
