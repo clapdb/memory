@@ -1,4 +1,5 @@
 #include "string.hpp"
+#include "arena_string.hpp"
 
 #include <bits/chrono.h>  // for duration, system_clock, system_clock::t...
 #include <cxxabi.h>       // for __forced_unwind
