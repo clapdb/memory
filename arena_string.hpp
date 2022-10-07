@@ -70,7 +70,12 @@ class arena_string_core
 
     auto operator=(const arena_string_core& rhs) -> arena_string_core& = delete;
 
-    arena_string_core(arena_string_core&& goner) noexcept = delete;
+    arena_string_core(arena_string_core&& goner) noexcept {
+        // Take goner's guts
+        ml_ = goner.ml_;  // NOLINT
+        // Clean goner's carcass
+        goner.reset();
+    }
 
     arena_string_core(std::pmr::memory_resource* allocator, const Char* const data, const size_t size) {
         allocator_ = allocator;
