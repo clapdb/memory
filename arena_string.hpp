@@ -50,6 +50,7 @@ class arena_string_core
 
     arena_string_core(const arena_string_core& rhs) {
         assert(&rhs != this);
+        allocator_ = rhs.allocator_;
         switch (rhs.category()) {
             case Category::isSmall:
                 copySmall(rhs);
@@ -69,14 +70,10 @@ class arena_string_core
 
     auto operator=(const arena_string_core& rhs) -> arena_string_core& = delete;
 
-    arena_string_core(arena_string_core&& goner) noexcept {
-        // Take goner's guts
-        ml_ = goner.ml_;  // NOLINT
-        // Clean goner's carcass
-        goner.reset();
-    }
+    arena_string_core(arena_string_core&& goner) noexcept = delete;
 
-    arena_string_core(const Char* const data, const size_t size) {
+    arena_string_core(std::pmr::memory_resource* allocator, const Char* const data, const size_t size) {
+        allocator_ = allocator;
         if (size <= maxSmallSize) {
             initSmall(data, size);
         } else if (size <= maxMediumSize) {
@@ -88,35 +85,13 @@ class arena_string_core
         assert(size == 0 || memcmp(this->data(), data, size * sizeof(Char)) == 0);
     }
 
-    ~arena_string_core() noexcept {
+    ~arena_string_core() noexcept = default;
+    /*{
         if (category() == Category::isSmall) {
             return;
         }
         destroyMediumLarge();
-    }
-
-    // Snatches a previously mallocated string. The parameter "size"
-    // is the size of the string, and the parameter "allocatedSize"
-    // is the size of the mallocated block.  The string must be
-    // \0-terminated, so allocatedSize >= size + 1 and data[size] == '\0'.
-    //
-    // So if you want a 2-character string, pass malloc(3) as "data",
-    // pass 2 as "size", and pass 3 as "allocatedSize".
-    arena_string_core(Char* const data, const size_t size, const size_t allocatedSize) {
-        if (size > 0) {
-            assert(allocatedSize >= size + 1);
-            assert(data[size] == '\0');  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-            // Use the medium string storage
-            ml_.data_ = data;  // NOLINT
-            ml_.size_ = size;  // NOLINT
-            // Don't forget about null terminator
-            ml_.setCapacity(allocatedSize - 1, Category::isMedium);  // NOLINT
-        } else {
-            // No need for the memory
-            free(data);
-            reset();
-        }
-    }
+    }*/
 
     // swap below doesn't test whether &rhs == this (and instead
     // potentially does extra work) on the premise that the rarity of
@@ -235,6 +210,7 @@ class arena_string_core
 
     void reset() { setSmallSize(0); }
 
+    /*
     void destroyMediumLarge() noexcept {
         auto const c = category();  // NOLINT
         assert(c != Category::isSmall);
@@ -244,6 +220,7 @@ class arena_string_core
             RefCounted::decrementRefs(ml_.data_);  // NOLINT
         }
     }
+     */
 
     struct RefCounted
     {
@@ -269,9 +246,11 @@ class arena_string_core
             // size_t oldcnt = dis->refCount_.fetch_sub(1, std::memory_order_acq_rel);
             size_t oldcnt = dis->refCount_--;
             assert(oldcnt > 0);
+            /*
             if (oldcnt == 1) {
                 free(dis);
             }
+             */
         }
 
         static auto create(std::pmr::memory_resource* allocator, size_t* size) -> RefCounted* {
