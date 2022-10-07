@@ -22,8 +22,24 @@
 #include "arena/arena.hpp"
 
 namespace stdb::memory {
-template <class Char>
+
+inline auto arena_smartRealloc(std::pmr::memory_resource* allocator, void* ptr, const size_t currentSize, const size_t currentCapacity, const size_t newCapacity)
+  -> void* {
+    assert(ptr);
+    assert(currentSize <= currentCapacity && currentCapacity < newCapacity);
+
+    // arena do not support realloc, just allocate, and memcpy.
+    if (auto* const result = allocator->allocate(newCapacity); result != nullptr) [[likely]] {
+        std::memcpy(result, ptr, currentSize);
+        return result;
+    }
+    throw std::bad_alloc();
+    __builtin_unreachable();
+}
+
+
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
+template <class Char>
 class arena_string_core
 {
     template <typename E, class T, class A, class Storage>
@@ -258,7 +274,7 @@ class arena_string_core
             }
         }
 
-        static auto create(size_t* size) -> RefCounted* {
+        static auto create(std::pmr::memory_resource* allocator, size_t* size) -> RefCounted* {
             size_t capacityBytes = 0;
             if (!checked_add(&capacityBytes, *size, static_cast<size_t>(1))) {
                 throw(std::length_error(""));
@@ -267,23 +283,26 @@ class arena_string_core
                 throw(std::length_error(""));
             }
 //            const size_t allocSize = goodMallocSize(capacityBytes);
-            auto result = static_cast<RefCounted*>(checkedMalloc(capacityBytes));
-            // result->refCount_.store(1, std::memory_order_release);
-            result->refCount_ = 1;
-            *size = (capacityBytes - getDataOffset()) / sizeof(Char) - 1;
-            return result;
+            if (auto result = static_cast<RefCounted*>(allocator->allocate(capacityBytes, 0)); result != nullptr) {
+                // result->refCount_.store(1, std::memory_order_release);
+                result->refCount_ = 1;
+                *size = (capacityBytes - getDataOffset()) / sizeof(Char) - 1;
+                return result;
+            }
+            throw std::bad_alloc();
+            __builtin_unreachable();
         }
 
-        static auto create(const Char* data, size_t* size) -> RefCounted* {
+        static auto create(std::pmr::memory_resource* allocator, const Char* data, size_t* size) -> RefCounted* {
             const size_t effectiveSize = *size;
-            auto result = create(size);
+            auto result = create(allocator, size);
             if (effectiveSize > 0) [[likely]] {
                 string_detail::podCopy(data, data + effectiveSize, result->data_);
             }
             return result;
         }
 
-        static auto reallocate(Char* const data, const size_t currentSize, const size_t currentCapacity,
+        static auto reallocate(std::pmr::memory_resource* allocator, Char* const data, const size_t currentSize, const size_t currentCapacity,
                                size_t* newCapacity) -> RefCounted* {
             assert(*newCapacity > 0 && *newCapacity > currentSize);
             size_t capacityBytes = 0;
@@ -297,7 +316,8 @@ class arena_string_core
             auto const dis = fromData(data);
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
             assert(dis->refCount_ == 1);
-            auto result = static_cast<RefCounted*>(smartRealloc(dis, getDataOffset() + (currentSize + 1) * sizeof(Char),
+//            auto result = static_cast<RefCounted*>(smartRealloc(dis, getDataOffset() + (currentSize + 1) * sizeof(Char),
+            auto result = static_cast<RefCounted*>(arena_smartRealloc(allocator, dis, getDataOffset() + (currentSize + 1) * sizeof(Char),
                                                                 getDataOffset() + (currentCapacity + 1) * sizeof(Char),
                                                                 capacityBytes));
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
@@ -359,6 +379,15 @@ class arena_string_core
 
     static_assert((sizeof(MediumLarge) % sizeof(Char)) == 0U, "Corrupt memory layout for string.");
 
+    [[nodiscard]] auto alloc(::size_t size) -> void * {
+        assert(allocator_ != nullptr);
+        if (auto * rst = allocator_->allocate(size, 0 /*useless*/);rst != nullptr) [[likely]] {
+            return rst;
+        }
+        throw std::bad_alloc();
+        __builtin_unreachable();
+    }
+
     [[nodiscard]] auto smallSize() const -> size_t {
         assert(category() == Category::isSmall);
         constexpr auto shift = isLittleEndian() ? 0U : 2U;
@@ -419,8 +448,10 @@ template <class Char>
 void arena_string_core<Char>::copyMedium(const arena_string_core& rhs) {
     // Medium strings are copied eagerly. Don't forget to allocate
     // one extra Char for the null terminator.
-    auto const allocSize = goodMallocSize((1 + rhs.ml_.size_) * sizeof(Char));  // NOLINT
-    ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));                   // NOLINT
+//    auto const allocSize = goodMallocSize((1 + rhs.ml_.size_) * sizeof(Char));  // NOLINT
+    auto const allocSize = (1 + rhs.ml_.size_) * sizeof(Char);  // NOLINT
+//    ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));                   // NOLINT
+    ml_.data_ = static_cast<Char*>(alloc(allocSize));                   // NOLINT
     // Also copies terminator.
     string_detail::podCopy(rhs.ml_.data_, rhs.ml_.data_ + rhs.ml_.size_ + 1, ml_.data_);  // NOLINT
     ml_.size_ = rhs.ml_.size_;                                                            // NOLINT
@@ -483,7 +514,8 @@ void arena_string_core<Char>::initMedium(const Char* const data, const size_t si
     // allocate one extra Char for the terminating null.
 //    auto const allocSize = goodMallocSize((1 + size) * sizeof(Char));
     auto const allocSize = (1 + size) * sizeof(Char);
-    ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));  // NOLINT
+//    ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));  // NOLINT
+    ml_.data_ = static_cast<Char*>(alloc(allocSize));  // NOLINT
     if (size > 0) [[likely]] {
         string_detail::podCopy(data, data + size, ml_.data_);  // NOLINT
     }
@@ -565,7 +597,7 @@ void arena_string_core<Char>::reserveMedium(const size_t minCapacity) {
         // Also copies terminator.
         ml_.data_ = static_cast<Char*>(  // NOLINT
                                          //  NOLINTNEXTLINE
-          smartRealloc(ml_.data_, (ml_.size_ + 1) * sizeof(Char), (ml_.capacity() + 1) * sizeof(Char), capacityBytes));
+          arena_smartRealloc(allocator_, ml_.data_, (ml_.size_ + 1) * sizeof(Char), (ml_.capacity() + 1) * sizeof(Char), capacityBytes));
         ml_.setCapacity(capacityBytes / sizeof(Char) - 1, Category::isMedium);  // NOLINT
     } else {
         // Conversion from medium to large string
@@ -591,7 +623,8 @@ void arena_string_core<Char>::reserveSmall(size_t minCapacity, const bool disabl
         // Don't forget to allocate one extra Char for the terminating null
 //        auto const allocSizeBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
         auto const allocSizeBytes = (1 + minCapacity) * sizeof(Char);
-        auto const pData = static_cast<Char*>(checkedMalloc(allocSizeBytes));
+//        auto const pData = static_cast<Char*>(checkedMalloc(allocSizeBytes));
+        auto const pData = static_cast<Char*>(alloc(allocSizeBytes));
         auto const size = smallSize();
         // Also copies terminator.
         string_detail::podCopy(small_, small_ + size + 1, pData);                // NOLINT
