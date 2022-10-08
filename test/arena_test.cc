@@ -32,6 +32,7 @@
 #endif
 #include "arena/arenahelper.hpp"  // for ArenaFullManagedTag, ArenaManagedCr...
 #include "doctest/doctest.h"      // for binary_assert, CHECK_EQ, TestCase
+#include "string.hpp"
 
 using stdb::memory::align::AlignUp;
 using stdb::memory::align::AlignUpTo;
@@ -1214,6 +1215,29 @@ struct simple_test_struct_with_tag
 TEST_CASE("ArenaTagOverhead") {
     CHECK_EQ(sizeof(simple_test_struct), 4);
     CHECK_EQ(sizeof(simple_test_struct_with_tag), 4);
+}
+
+using fb_string = ::stdb::memory::string;
+TEST_CASE("Arena-memory::string") {
+    /*
+    auto options = Arena::Options::GetDefaultOptions();
+    Arena a(options);
+    (void)a.Create<fb_string>("123213124");
+    (void)a.Create<fb_string>("1232131241231231231231231231212312124sdfaafafasdfasfasfasfasfsafa");
+     */
+}
+
+struct struct_with_string {
+    ArenaFullManagedTag;
+    int x;
+    fb_string name;
+};
+
+TEST_CASE("Arena-memory::struct_with_string") {
+    auto options = Arena::Options::GetDefaultOptions();
+    Arena a(options);
+    auto* ptr = a.Create<struct_with_string>();
+    ptr->name.append("agadsgavb123421341234lk1234jl231jk4lkjasdlkfjasdlkfjalskfj");
 }
 
 }  // namespace stdb::memory

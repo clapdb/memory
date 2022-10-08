@@ -82,8 +82,6 @@ inline auto checkedMalloc(size_t size) -> void* {
     return ptr;
 }
 
-[[gnu::always_inline]] inline auto goodMallocSize(size_t minSize) noexcept -> size_t { return minSize; }
-
 inline auto checkedRealloc(void* ptr, size_t size) -> void* {
     ptr = realloc(ptr, size);
     if (ptr == nullptr) {
@@ -309,6 +307,8 @@ class string_core
    public:
     string_core() noexcept { reset(); }
 
+    string_core(const std::allocator<Char>& /*noused*/) noexcept { reset(); }
+
     string_core(const string_core& rhs) {
         assert(&rhs != this);
         switch (rhs.category()) {
@@ -337,7 +337,7 @@ class string_core
         goner.reset();
     }
 
-    string_core(const Char* const data, const size_t size, bool disableSSO = FBSTRING_DISABLE_SSO) {
+    string_core(const Char* const data, const size_t size, const std::allocator<Char>& = std::allocator<Char>()/*unused*/, bool disableSSO = FBSTRING_DISABLE_SSO) {
         if (!disableSSO && size <= maxSmallSize) {
             initSmall(data, size);
         } else if (size <= maxMediumSize) {
@@ -543,11 +543,11 @@ class string_core
             if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset())) {
                 throw(std::length_error(""));
             }
-            const size_t allocSize = goodMallocSize(capacityBytes);
-            auto result = static_cast<RefCounted*>(checkedMalloc(allocSize));
+//            const size_t allocSize = capacityBytes;
+            auto result = static_cast<RefCounted*>(checkedMalloc(capacityBytes));
             // result->refCount_.store(1, std::memory_order_release);
             result->refCount_ = 1;
-            *size = (allocSize - getDataOffset()) / sizeof(Char) - 1;
+            *size = (capacityBytes - getDataOffset()) / sizeof(Char) - 1;
             return result;
         }
 
@@ -570,16 +570,16 @@ class string_core
             if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset())) {
                 throw(std::length_error(""));
             }
-            const size_t allocNewCapacity = goodMallocSize(capacityBytes);
+//            const size_t allocNewCapacity = goodMallocSize(capacityBytes);
             auto const dis = fromData(data);
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
             assert(dis->refCount_ == 1);
             auto result = static_cast<RefCounted*>(smartRealloc(dis, getDataOffset() + (currentSize + 1) * sizeof(Char),
                                                                 getDataOffset() + (currentCapacity + 1) * sizeof(Char),
-                                                                allocNewCapacity));
+                                                                capacityBytes));
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
             assert(result->refCount_ == 1);
-            *newCapacity = (allocNewCapacity - getDataOffset()) / sizeof(Char) - 1;
+            *newCapacity = (capacityBytes - getDataOffset()) / sizeof(Char) - 1;
             return result;
         }
     };
@@ -695,7 +695,8 @@ template <class Char>
 void string_core<Char>::copyMedium(const string_core& rhs) {
     // Medium strings are copied eagerly. Don't forget to allocate
     // one extra Char for the null terminator.
-    auto const allocSize = goodMallocSize((1 + rhs.ml_.size_) * sizeof(Char));  // NOLINT
+//    auto const allocSize = goodMallocSize((1 + rhs.ml_.size_) * sizeof(Char));  // NOLINT
+    auto const allocSize = (1 + rhs.ml_.size_) * sizeof(Char);  // NOLINT
     ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));                   // NOLINT
     // Also copies terminator.
     string_detail::podCopy(rhs.ml_.data_, rhs.ml_.data_ + rhs.ml_.size_ + 1, ml_.data_);  // NOLINT
@@ -757,7 +758,8 @@ template <class Char>
 void string_core<Char>::initMedium(const Char* const data, const size_t size) {
     // Medium strings are allocated normally. Don't forget to
     // allocate one extra Char for the terminating null.
-    auto const allocSize = goodMallocSize((1 + size) * sizeof(Char));
+//    auto const allocSize = goodMallocSize((1 + size) * sizeof(Char));
+    auto const allocSize = (1 + size) * sizeof(Char);
     ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));  // NOLINT
     if (size > 0) [[likely]] {
         string_detail::podCopy(data, data + size, ml_.data_);  // NOLINT
@@ -835,7 +837,8 @@ void string_core<Char>::reserveMedium(const size_t minCapacity) {
     if (minCapacity <= maxMediumSize) {
         // Keep the string at medium size. Don't forget to allocate
         // one extra Char for the terminating null.
-        size_t capacityBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
+//        size_t capacityBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
+        size_t capacityBytes = (1 + minCapacity) * sizeof(Char);
         // Also copies terminator.
         ml_.data_ = static_cast<Char*>(  // NOLINT
                                          //  NOLINTNEXTLINE
@@ -863,7 +866,8 @@ void string_core<Char>::reserveSmall(size_t minCapacity, const bool disableSSO) 
     } else if (minCapacity <= maxMediumSize) {
         // medium
         // Don't forget to allocate one extra Char for the terminating null
-        auto const allocSizeBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
+//        auto const allocSizeBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
+        auto const allocSizeBytes = (1 + minCapacity) * sizeof(Char);
         auto const pData = static_cast<Char*>(checkedMalloc(allocSizeBytes));
         auto const size = smallSize();
         // Also copies terminator.
@@ -952,7 +956,7 @@ inline void string_core<Char>::shrinkLarge(const size_t delta) {
 template <typename E, class T = std::char_traits<E>, class A = std::allocator<E>, class Storage = string_core<E>>
 class basic_string
 {
-    static_assert(std::is_same<A, std::allocator<E>>::value, "string ignores custom allocators");
+    static_assert(std::is_same<A, std::allocator<E>>::value or std::is_same<A, std::pmr::polymorphic_allocator<E>>::value, "string ignores custom allocators");
 
     template <typename Ex, typename... Args>
     [[gnu::always_inline]] static void enforce(bool condition, Args&&... args) {
@@ -1026,7 +1030,7 @@ class basic_string
 
     basic_string() noexcept : basic_string(A()) {}
 
-    explicit basic_string(const A& /*unused*/) noexcept {}
+    explicit basic_string(const A& allocator) noexcept : store_(allocator) {}
 
     basic_string(const basic_string& str) : store_(str.store_) {}
 
@@ -1037,36 +1041,36 @@ class basic_string
     template <typename A2>  // NOLINTNEXTLINE
     /* implicit */ basic_string(const std::basic_string<E, T, A2>& str) : store_(str.data(), str.size()) {}
 
-    basic_string(const basic_string& str, size_type pos, size_type n = npos, const A& /* a */ = A()) {
+    basic_string(const basic_string& str, size_type pos, size_type n = npos, const A& a = A()): store_(a) {
         assign(str, pos, n);
     }
 
     // NOLINTNEXTLINE
-    /* implicit */ basic_string(const value_type* s, const A& /*a*/ = A()) : store_(s, traitsLength(s)) {}  // NOLINT
+    /* implicit */ basic_string(const value_type* s, const A& a = A()) : store_(s, traitsLength(s), a) {}  // NOLINT
 
-    basic_string(const value_type* s, size_type n, const A& /*a*/ = A()) : store_(s, n) {}  // NOLINT
+    basic_string(const value_type* s, size_type n, const A& a = A()) : store_(s, n, a) {}  // NOLINT
 
-    basic_string(size_type n, value_type c, const A& /*a*/ = A()) {  // NOLINT
+    basic_string(size_type n, value_type c, const A& a = A()): store_(a) {  // NOLINT
         auto const pData = store_.expandNoinit(n);
         string_detail::podFill(pData, pData + n, c);
     }
 
     template <class InIt>
     basic_string(InIt begin, InIt end,
-                 typename std::enable_if<!std::is_same<InIt, value_type*>::value, const A>::type& /*a*/
-                 = A()) {
+                 typename std::enable_if<!std::is_same<InIt, value_type*>::value, const A>::type& a
+                 = A()): store_(a) {
         assign(begin, end);
     }
 
     // Specialization for const char*, const char*
     // NOLINTNEXTLINE
-    basic_string(const value_type* b, const value_type* e, const A& /*a*/ = A()) : store_(b, size_type(e - b)) {}
+    basic_string(const value_type* b, const value_type* e, const A& a = A()) : store_(b, size_type(e - b), a) {}
 
     // NOLINTNEXTLINE
-    basic_string(std::basic_string_view<value_type> view, const A& /*a*/ = A()) : store_(view.data(), view.size()) {}
+    basic_string(std::basic_string_view<value_type> view, const A& a = A()) : store_(view.data(), view.size(), a) {}
 
     // Construction from initialization list
-    basic_string(std::initializer_list<value_type> init_list) { assign(init_list.begin(), init_list.end()); }
+    basic_string(std::initializer_list<value_type> init_list, const A& a = A()): store_(a) { assign(init_list.begin(), init_list.end()); }
 
     ~basic_string() noexcept = default;
 
@@ -1192,10 +1196,13 @@ class basic_string
 
     void shrink_to_fit() {
         // Shrink only if slack memory is sufficiently large
-        if (capacity() < size() * 3 / 2) {
-            return;
+        if constexpr (std::same_as<Storage, string_core<E>>) {
+            if (capacity() < size() * 3 / 2) {
+                return;
+            }
+            basic_string(cbegin(), cend()).swap(*this);
         }
-        basic_string(cbegin(), cend()).swap(*this);
+        // for arena_string, do not shrink at all.
     }
 
     void clear() { resize(0); }
@@ -1491,7 +1498,13 @@ class basic_string
 
     auto data() -> value_type* { return store_.data(); }
 
-    [[nodiscard]] auto get_allocator() const -> allocator_type { return allocator_type(); }
+    [[nodiscard]] auto get_allocator() const -> allocator_type {
+        if constexpr (std::same_as<Storage, string_core<E>>) {
+            return allocator_type();
+        } else {
+            return store_.get_allocator();
+        }
+    }
 
     [[nodiscard]] auto find(const basic_string& str, size_type pos = 0) const -> size_type {
         return find(str.data(), pos, str.length());
@@ -1576,7 +1589,7 @@ class basic_string
 
     [[nodiscard]] auto substr(size_type pos = 0, size_type n = npos) const& -> basic_string {
         enforce<std::out_of_range>(pos <= size(), "");
-        return basic_string(data() + pos, std::min(n, size() - pos));
+        return basic_string(data() + pos, std::min(n, size() - pos), get_allocator());
     }
 
     auto substr(size_type pos = 0, size_type n = npos) && -> basic_string {
@@ -1941,7 +1954,7 @@ inline auto basic_string<E, T, A, S>::insertImpl(const_iterator i, InputIterator
                                                  std::input_iterator_tag /*unused*/) ->
   typename basic_string<E, T, A, S>::iterator {
     const auto pos = size_t(i - cbegin());
-    basic_string temp(cbegin(), i);
+    basic_string temp(cbegin(), i, get_allocator());
     for (; b != e; ++b) {
         temp.push_back(*b);
     }
@@ -2044,7 +2057,7 @@ template <class InputIterator>
 // NOLINTNEXTLINE
 inline void basic_string<E, T, A, S>::replaceImpl(iterator i1, iterator i2, InputIterator b, InputIterator e,
                                                   std::input_iterator_tag /*unused*/) {
-    basic_string temp(begin(), i1);
+    basic_string temp(begin(), i1, get_allocator());
     temp.append(b, e).append(i2, end());
     swap(temp);
 }
@@ -2151,7 +2164,7 @@ inline auto basic_string<E, T, A, S>::find_last_not_of(const value_type* str, si
 template <typename E, class T, class A, class S>
 inline auto operator+(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs)
   -> basic_string<E, T, A, S> {
-    basic_string<E, T, A, S> result;
+    basic_string<E, T, A, S> result(lhs.get_allocator());
     result.reserve(lhs.size() + rhs.size());
     result.append(lhs).append(rhs);
     return result;
@@ -2185,7 +2198,7 @@ inline auto operator+(basic_string<E, T, A, S>&& lhs, basic_string<E, T, A, S>&&
 template <typename E, class T, class A, class S>
 inline auto operator+(const E* lhs, const basic_string<E, T, A, S>& rhs) -> basic_string<E, T, A, S> {
     //
-    basic_string<E, T, A, S> result;
+    basic_string<E, T, A, S> result(rhs.get_allocator());
     const auto len = basic_string<E, T, A, S>::traits_type::length(lhs);
     result.reserve(len + rhs.size());
     result.append(lhs, len).append(rhs);
@@ -2203,7 +2216,7 @@ inline auto operator+(const E* lhs, basic_string<E, T, A, S>&& rhs) -> basic_str
         return std::move(rhs);
     }
     // Meh, no go. Do it by hand since we have len already.
-    basic_string<E, T, A, S> result;
+    basic_string<E, T, A, S> result(rhs.get_allocator());
     result.reserve(len + rhs.size());
     result.append(lhs, len).append(rhs);
     return result;
@@ -2212,7 +2225,7 @@ inline auto operator+(const E* lhs, basic_string<E, T, A, S>&& rhs) -> basic_str
 // C++11 21.4.8.1/7
 template <typename E, class T, class A, class S>
 inline auto operator+(E lhs, const basic_string<E, T, A, S>& rhs) -> basic_string<E, T, A, S> {
-    basic_string<E, T, A, S> result;
+    basic_string<E, T, A, S> result(rhs.get_allocator());
     result.reserve(1 + rhs.size());
     result.push_back(lhs);
     result.append(rhs);
@@ -2239,7 +2252,7 @@ inline auto operator+(const basic_string<E, T, A, S>& lhs, const E* rhs) -> basi
     using size_type = typename basic_string<E, T, A, S>::size_type;
     using traits_type = typename basic_string<E, T, A, S>::traits_type;
 
-    basic_string<E, T, A, S> result;
+    basic_string<E, T, A, S> result(lhs.get_allocator());
     const size_type len = traits_type::length(rhs);
     result.reserve(lhs.size() + len);
     result.append(lhs).append(rhs, len);
@@ -2256,7 +2269,7 @@ inline auto operator+(basic_string<E, T, A, S>&& lhs, const E* rhs) -> basic_str
 // C++11 21.4.8.1/11
 template <typename E, class T, class A, class S>
 inline auto operator+(const basic_string<E, T, A, S>& lhs, E rhs) -> basic_string<E, T, A, S> {
-    basic_string<E, T, A, S> result;
+    basic_string<E, T, A, S> result(lhs.get_allocator());
     result.reserve(lhs.size() + 1);
     result.append(lhs);
     result.push_back(rhs);

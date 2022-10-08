@@ -1,4 +1,5 @@
 #include "string.hpp"
+#include "arena_string.hpp"
 
 #include <bits/chrono.h>  // for duration, system_clock, system_clock::t...
 #include <cxxabi.h>       // for __forced_unwind
@@ -43,7 +44,7 @@ void randomString(String* toFill, unsigned int maxSize = 1000) {
 template <class String, class Integral>
 void Num2String(String& str, Integral n) {
     std::string tmp = fmt::format("{}", n);
-    str = String(tmp.begin(), tmp.end());
+    str = String(tmp.begin(), tmp.end(), str.get_allocator());
 }
 
 std::list<char> RandomList(unsigned int maxSize) {
@@ -63,11 +64,19 @@ void clause11_21_4_2_a(String& test) {
     test.String::~String();
     new (&test) String();
 }
+
 template <class String>
 void clause11_21_4_2_b(String& test) {
     String test2(test);  // NOLINT
     assert(test2 == test);
 }
+
+template <class String>
+void arena_clause11_21_4_2_b(String& test) {
+    String test2(test);  // NOLINT
+    assert(test2 == test);
+}
+
 template <class String>
 void clause11_21_4_2_c(String& test) {
     // Test move constructor. There is a more specialized test, see
@@ -80,6 +89,20 @@ void clause11_21_4_2_c(String& test) {
     // maximum small string optimization that's reasonable.
     CHECK_LE(donor.size(), 128);  // NOLINT
 }
+
+template <class String>
+void arena_clause11_21_4_2_c(String& test) {
+    // Test move constructor. There is a more specialized test, see
+    // testMoveCtor test
+    String donor(test);
+    String test2(std::move(donor));
+    CHECK_EQ(test2, test);
+    // Technically not required, but all implementations that actually
+    // support move will move large strings. Make a guess for 128 as the
+    // maximum small string optimization that's reasonable.
+    CHECK_LE(donor.size(), 128);  // NOLINT
+}
+
 template <class String>
 void clause11_21_4_2_d(String& test) {
     // Copy constructor with position and length
@@ -88,6 +111,16 @@ void clause11_21_4_2_d(String& test) {
              random(0, 9) ? random(0, test.size() - pos) : String::npos);  // test for npos, too, in 10% of the cases
     test = s;
 }
+
+template <class String>
+void arena_clause11_21_4_2_d(String& test) {
+    // Copy constructor with position and length
+    const size_t pos = random(0, test.size());
+    String s(test, pos,
+             random(0, 9) ? random(0, test.size() - pos) : String::npos, test.get_allocator());  // test for npos, too, in 10% of the cases
+    test = s;
+}
+
 template <class String>
 void clause11_21_4_2_e(String& test) {
     // Constructor from char*, size_t
@@ -98,6 +131,18 @@ void clause11_21_4_2_e(String& test) {
     CHECK_EQ(before, after);
     test.swap(s);
 }
+
+template <class String>
+void arena_clause11_21_4_2_e(String& test) {
+    // Constructor from char*, size_t
+    const size_t pos = random(0, test.size()), n = random(0, test.size() - pos);
+    String before(test.data(), test.size(), test.get_allocator());
+    String s(test.c_str() + pos, n, test.get_allocator());
+    String after(test.data(), test.size(), test.get_allocator());
+    CHECK_EQ(before, after);
+    test.swap(s);
+}
+
 template <class String>
 void clause11_21_4_2_f(String& test) {
     // Constructor from char*
@@ -108,6 +153,18 @@ void clause11_21_4_2_f(String& test) {
     CHECK_EQ(before, after);
     test.swap(s);
 }
+
+template <class String>
+void arena_clause11_21_4_2_f(String& test) {
+    // Constructor from char*
+    const size_t pos = random(0, test.size());
+    String before(test.data(), test.size(), test.get_allocator());
+    String s(test.c_str() + pos, test.get_allocator());
+    String after(test.data(), test.size(), test.get_allocator());
+    CHECK_EQ(before, after);
+    test.swap(s);
+}
+
 template <class String>
 void clause11_21_4_2_g(String& test) {
     // Constructor from size_t, char
@@ -115,6 +172,15 @@ void clause11_21_4_2_g(String& test) {
     const auto c = test.front();
     test = String(n, c);
 }
+
+template <class String>
+void arena_clause11_21_4_2_g(String& test) {
+    // Constructor from size_t, char
+    const size_t n = random(0, test.size());
+    const auto c = test.front();
+    test = String(n, c, test.get_allocator());
+}
+
 template <class String>
 void clause11_21_4_2_h(String& test) {
     // Constructors from various iterator pairs
@@ -141,9 +207,45 @@ void clause11_21_4_2_h(String& test) {
     wchar_t t[20];
     t[0] = 'a';
     t[1] = 'b';
-    string s5(t, t + 2);
+    String s5(t, t + 2);
     CHECK_EQ("ab", s5);
 }
+
+template <class String>
+void arena_clause11_21_4_2_h(String& test) {
+    // Constructors from various iterator pairs
+    // Constructor from char*, char*
+    String s1(test.begin(), test.end(), test.get_allocator());
+    CHECK_EQ(test, s1);
+    String s2(test.data(), test.data() + test.size(), test.get_allocator());
+    CHECK_EQ(test, s2);
+    // Constructor from other iterators
+    std::list<char> lst;
+    for (auto c : test) {
+        lst.push_back(c);
+    }
+    String s3(lst.begin(), lst.end(), test.get_allocator());
+    CHECK_EQ(test, s3);
+    // Constructor from wchar_t iterators
+    std::list<wchar_t> lst1;
+    for (auto c : test) {
+        lst1.push_back(c);
+    }
+    String s4(lst1.begin(), lst1.end(), test.get_allocator());
+    CHECK_EQ(test, s4);
+    // Constructor from char_t pointers
+    char cc[20];
+    cc[0] = 'a';
+    cc[1] = 'b';
+
+    // Constructor from wchar_t pointers
+    wchar_t t[20];
+    t[0] = 'a';
+    t[1] = 'b';
+    String s5(t, t + 2, test.get_allocator());
+    CHECK_EQ("ab", s5);
+}
+
 template <class String>
 void clause11_21_4_2_i(String& test) {
     // From initializer_list<char>
@@ -151,6 +253,15 @@ void clause11_21_4_2_i(String& test) {
     String s(il);
     test.swap(s);
 }
+
+template <class String>
+void arena_clause11_21_4_2_i(String& test) {
+    // From initializer_list<char>
+    std::initializer_list<typename String::value_type> il = {'h', 'e', 'l', 'l', 'o'};
+    String s(il, test.get_allocator());
+    test.swap(s);
+}
+
 template <class String>
 void clause11_21_4_2_j(String& test) {
     // Assignment from const String&
@@ -163,6 +274,20 @@ void clause11_21_4_2_j(String& test) {
     }
     test = s;
 }
+
+template <class String>
+void arena_clause11_21_4_2_j(String& test) {
+    // Assignment from const String&
+    auto size = random(0, 2000U);
+    String s(size, '\0', test.get_allocator());
+    CHECK_EQ(s.size(), size);
+    // FOR_EACH_RANGE(i, 0, s.size()) { s[i] = random('a', 'z'); }
+    for (size_t i = 0; i < s.size(); ++i) {
+        s[i] = random('a', 'z');
+    }
+    test = s;
+}
+
 template <class String>
 void clause11_21_4_2_k(String& test) {
     // Assignment from String&&
@@ -178,6 +303,23 @@ void clause11_21_4_2_k(String& test) {
         CHECK_LE(s.size(), 128);  // NOLINT
     }
 }
+
+template <class String>
+void arena_clause11_21_4_2_k(String& test) {
+    // Assignment from String&&
+    auto size = random(0, 2000U);
+    String s(size, '\0', test.get_allocator());
+    CHECK_EQ(s.size(), size);
+    // FOR_EACH_RANGE(i, 0, s.size()) { s[i] = random('a', 'z'); }
+    for (size_t i = 0; i < s.size(); ++i) {
+        s[i] = random('a', 'z');
+    }
+    test = std::move(s);
+    if (std::is_same<String, string>::value) {
+        CHECK_LE(s.size(), 128);  // NOLINT
+    }
+}
+
 template <class String>
 void clause11_21_4_2_l(String& test) {
     // Assignment from char*
@@ -188,6 +330,18 @@ void clause11_21_4_2_l(String& test) {
     }
     test = s.c_str();  // NOLINT
 }
+
+template <class String>
+void arena_clause11_21_4_2_l(String& test) {
+    // Assignment from char*
+    String s(random(0, 1000U), '\0', test.get_allocator());
+    size_t i = 0;
+    for (; i != s.size(); ++i) {
+        s[i] = random('a', 'z');
+    }
+    test = s.c_str();  // NOLINT
+}
+
 template <class String>
 void clause11_21_4_2_lprime(String& test) {
     // Aliased assign
@@ -198,12 +352,32 @@ void clause11_21_4_2_lprime(String& test) {
         test = test.c_str() + pos;
     }
 }
+
+template <class String>
+void arena_clause11_21_4_2_lprime(String& test) {
+    // Aliased assign
+    const size_t pos = random(0, test.size());
+    if (avoidAliasing) {
+        test = String(test.c_str() + pos, test.get_allocator());
+    } else {
+        test = test.c_str() + pos;
+    }
+}
+
 template <class String>
 void clause11_21_4_2_m(String& test) {
     // Assignment from char
     using value_type = typename String::value_type;
     test = random(static_cast<value_type>('a'), static_cast<value_type>('z'));
 }
+
+template <class String>
+void arena_clause11_21_4_2_m(String& test) {
+    // Assignment from char
+    using value_type = typename String::value_type;
+    test = random(static_cast<value_type>('a'), static_cast<value_type>('z'));
+}
+
 template <class String>
 void clause11_21_4_2_n(String& test) {
     // Assignment from initializer_list<char>
@@ -212,7 +386,29 @@ void clause11_21_4_2_n(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_2_n(String& test) {
+    // Assignment from initializer_list<char>
+    std::initializer_list<typename String::value_type> il = {'h', 'e', 'l', 'l', 'o'};
+    test = il;
+}
+
+template <class String>
 void clause11_21_4_3(String& test) {
+    // Iterators. The code below should leave test unchanged
+    CHECK_EQ(test.size(), test.end() - test.begin());
+    CHECK_EQ(test.size(), test.rend() - test.rbegin());
+    CHECK_EQ(test.size(), test.cend() - test.cbegin());
+    CHECK_EQ(test.size(), test.crend() - test.crbegin());
+
+    auto s = test.size();
+    test.resize(size_t(test.end() - test.begin()));  // NOLINT
+    CHECK_EQ(s, test.size());
+    test.resize(size_t(test.rend() - test.rbegin()));  // NOLINT
+    CHECK_EQ(s, test.size());
+}
+
+template <class String>
+void arena_clause11_21_4_3(String& test) {
     // Iterators. The code below should leave test unchanged
     CHECK_EQ(test.size(), test.end() - test.begin());
     CHECK_EQ(test.size(), test.rend() - test.rbegin());
@@ -252,7 +448,47 @@ void clause11_21_4_4(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_4(String& test) {
+    // exercise capacity, size, max_size
+    CHECK_EQ(test.size(), test.length());
+    CHECK_LE(test.size(), test.max_size());
+    CHECK_LE(test.capacity(), test.max_size());
+    CHECK_LE(test.size(), test.capacity());
+
+    // exercise shrink_to_fit. Nonbinding request so we can't really do
+    // much beyond calling it.
+    auto copy = test;
+    copy.reserve(copy.capacity() * 3);
+    copy.shrink_to_fit();
+    CHECK_EQ(copy, test);
+
+    // exercise empty
+    std::string empty("empty");
+    std::string notempty("not empty");
+    if (test.empty()) {
+        test = String(empty.begin(), empty.end(), test.get_allocator());
+    } else {
+        test = String(notempty.begin(), notempty.end(), test.get_allocator());
+    }
+}
+
+template <class String>
 void clause11_21_4_5(String& test) {
+    // exercise element access
+    if (!test.empty()) {
+        CHECK_EQ(test[0], test.front());
+        CHECK_EQ(test[test.size() - 1], test.back());
+        auto const i = random(0, test.size() - 1);
+        CHECK_EQ(test[i], test.at(i));
+        test = test[i];
+    }
+
+    CHECK_THROWS_AS(test.at(test.size()), std::out_of_range);
+    CHECK_THROWS_AS(test.at(test.size()), std::out_of_range);
+}
+
+template <class String>
+void arena_clause11_21_4_5(String& test) {
     // exercise element access
     if (!test.empty()) {
         CHECK_EQ(test[0], test.front());
@@ -318,9 +554,91 @@ void clause11_21_4_6_1(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_6_1(String& test) {
+    // 21.3.5 modifiers (+=)
+    String test1(test.get_allocator());
+    randomString(&test1);
+    assert(test1.size() == std::char_traits<typename String::value_type>::length(test1.c_str()));
+    auto len = test.size();
+    test += test1;
+    CHECK_EQ(test.size(), test1.size() + len);
+    // FOR_EACH_RANGE(i, 0, test1.size()) { CHECK_EQ(test[len + i], test1[i]); }
+    for (size_t i = 0; i < test1.size(); ++i) {
+        CHECK_EQ(test[len + i], test1[i]);
+    }
+    // aliasing modifiers
+    String test2 = test;
+    auto dt = test2.data();
+    auto sz = test.c_str();
+    len = test.size();
+    CHECK_EQ(memcmp(sz, dt, len), 0);
+    String copy(test.data(), test.size(), test.get_allocator());
+    CHECK_EQ(std::char_traits<typename String::value_type>::length(test.c_str()), len);
+    test += test;
+    // test.append(test);
+    CHECK_EQ(test.size(), 2 * len);
+    CHECK_EQ(std::char_traits<typename String::value_type>::length(test.c_str()), 2 * len);
+    for (size_t i = 0; i < len; ++i) {
+        CHECK_EQ(test[i], copy[i]);
+        CHECK_EQ(test[i], test[len + i]);
+    }
+    len = test.size();
+    CHECK_EQ(std::char_traits<typename String::value_type>::length(test.c_str()), len);
+    // more aliasing
+    auto const pos = random(0, test.size());
+    CHECK_EQ(std::char_traits<typename String::value_type>::length(test.c_str() + pos), len - pos);
+    if (avoidAliasing) {
+        String addMe(test.c_str() + pos, test.get_allocator());
+        CHECK_EQ(addMe.size(), len - pos);
+        test += addMe;
+    } else {
+        test += test.c_str() + pos;
+    }
+    CHECK_EQ(test.size(), 2 * len - pos);
+    // single char
+    len = test.size();
+    test += random('a', 'z');
+    CHECK_EQ(test.size(), len + 1);
+    // initializer_list
+    std::initializer_list<typename String::value_type> il{'a', 'b', 'c'};
+    test += il;
+}
+
+template <class String>
 void clause11_21_4_6_2(String& test) {
     // 21.3.5 modifiers (append, push_back)
     String s;
+
+    // Test with a small string first
+    char c = random('a', 'z');
+    s.push_back(c);
+    CHECK_EQ(s[s.size() - 1], c);
+    CHECK_EQ(s.size(), 1);
+    s.resize(s.size() - 1);
+
+    randomString(&s, maxString);
+    test.append(s);
+    randomString(&s, maxString);
+    test.append(s, random(0, s.size()), random(0, maxString));
+    randomString(&s, maxString);
+    test.append(s.c_str(), random(0, s.size()));
+    randomString(&s, maxString);
+    test.append(s.c_str());  // NOLINT
+    test.append(random(0, maxString), random('a', 'z'));
+    std::list<char> lst(RandomList(maxString));
+    test.append(lst.begin(), lst.end());
+    c = random('a', 'z');
+    test.push_back(c);
+    CHECK_EQ(test[test.size() - 1], c);
+    // initializer_list
+    std::initializer_list<typename String::value_type> il{'a', 'b', 'c'};
+    test.append(il);
+}
+
+template <class String>
+void arena_clause11_21_4_6_2(String& test) {
+    // 21.3.5 modifiers (append, push_back)
+    String s(test.get_allocator());
 
     // Test with a small string first
     char c = random('a', 'z');
@@ -363,6 +681,20 @@ void clause11_21_4_6_3_a(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_6_3_a(String& test) {
+    // assign
+    String s(test.get_allocator());
+    randomString(&s);
+    test.assign(s);
+    CHECK_EQ(test, s);
+    // move assign
+    test.assign(std::move(s));
+    if (std::is_same<String, string>::value) {
+        CHECK_LE(s.size(), 128);  // NOLINT
+    }
+}
+
+template <class String>
 void clause11_21_4_6_3_b(String& test) {
     // assign
     String s;
@@ -371,9 +703,24 @@ void clause11_21_4_6_3_b(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_6_3_b(String& test) {
+    // assign
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    test.assign(s, random(0, s.size()), random(0, maxString));
+}
+
+template <class String>
 void clause11_21_4_6_3_c(String& test) {
     // assign
     String s;
+    randomString(&s, maxString);
+    test.assign(s.c_str(), random(0, s.size()));
+}
+template <class String>
+void arena_clause11_21_4_6_3_c(String& test) {
+    // assign
+    String s(test.get_allocator());
     randomString(&s, maxString);
     test.assign(s.c_str(), random(0, s.size()));
 }
@@ -387,9 +734,25 @@ void clause11_21_4_6_3_d(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_6_3_d(String& test) {
+    // assign
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    test.assign(s.c_str());  // NOLINT
+}
+
+template <class String>
 void clause11_21_4_6_3_e(String& test) {
     // assign
     String s;
+    randomString(&s, maxString);
+    test.assign(random(0, maxString), random('a', 'z'));
+}
+
+template <class String>
+void arena_clause11_21_4_6_3_e(String& test) {
+    // assign
+    String s(test.get_allocator());
     randomString(&s, maxString);
     test.assign(random(0, maxString), random('a', 'z'));
 }
@@ -402,7 +765,20 @@ void clause11_21_4_6_3_f(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_6_3_f(String& test) {
+    // assign from bidirectional iterator
+    std::list<char> lst(RandomList(maxString));
+    test.assign(lst.begin(), lst.end());
+}
+
+template <class String>
 void clause11_21_4_6_3_g(String& test) {
+    // assign from aliased source
+    test.assign(test);
+}
+
+template <class String>
+void arena_clause11_21_4_6_3_g(String& test) {
     // assign from aliased source
     test.assign(test);
 }
@@ -414,7 +790,19 @@ void clause11_21_4_6_3_h(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_6_3_h(String& test) {
+    // assign from aliased source
+    test.assign(test, random(0, test.size()), random(0, maxString));
+}
+
+template <class String>
 void clause11_21_4_6_3_i(String& test) {
+    // assign from aliased source
+    test.assign(test.c_str(), random(0, test.size()));
+}
+
+template <class String>
+void arena_clause11_21_4_6_3_i(String& test) {
     // assign from aliased source
     test.assign(test.c_str(), random(0, test.size()));
 }
@@ -426,7 +814,20 @@ void clause11_21_4_6_3_j(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_6_3_j(String& test) {
+    // assign from aliased source
+    test.assign(test.c_str());  // NOLINT
+}
+
+template <class String>
 void clause11_21_4_6_3_k(String& test) {
+    // assign from initializer_list
+    std::initializer_list<typename String::value_type> il{'a', 'b', 'c'};
+    test.assign(il);
+}
+
+template <class String>
+void arena_clause11_21_4_6_3_k(String& test) {
     // assign from initializer_list
     std::initializer_list<typename String::value_type> il{'a', 'b', 'c'};
     test.assign(il);
@@ -466,7 +867,62 @@ void clause11_21_4_6_4(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_6_4(String& test) {
+    // insert
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    test.insert(random(0, test.size()), s);
+    randomString(&s, maxString);
+    test.insert(random(0, test.size()), s, random(0, s.size()), random(0, maxString));
+    randomString(&s, maxString);
+    test.insert(random(0, test.size()), s.c_str(), random(0, s.size()));
+    randomString(&s, maxString);
+    test.insert(random(0, test.size()), s.c_str());  // NOLINT
+    test.insert(random(0, test.size()), random(0, maxString), random('a', 'z'));
+    typename String::size_type pos = random(0, test.size());
+    typename String::iterator res = test.insert(test.begin() + int(pos), random('a', 'z'));  // NOLINT
+    CHECK_EQ(res - test.begin(), pos);
+    std::list<char> lst(RandomList(maxString));
+    pos = random(0, test.size());
+    // Uncomment below to see a bug in gcc
+    /*res = */ test.insert(test.begin() + int(pos), lst.begin(), lst.end());  // NOLINT
+    // insert from initializer_list
+    std::initializer_list<typename String::value_type> il{'a', 'b', 'c'};
+    pos = random(0, test.size());
+    // Uncomment below to see a bug in gcc
+    /*res = */ test.insert(test.begin() + int(pos), il);  // NOLINT
+
+    // Test with actual input iterators
+    std::stringstream ss;
+    ss << "hello cruel world";
+    auto i = std::istream_iterator<char>(ss);
+    test.insert(test.begin(), i, std::istream_iterator<char>());
+}
+
+template <class String>
 void clause11_21_4_6_5(String& test) {
+    // erase and pop_back
+    if (!test.empty()) {
+        test.erase(random(0, test.size()), random(0, maxString));
+    }
+    if (!test.empty()) {
+        // TODO(longqimin): is erase(end()) allowed?
+        test.erase(test.begin() + int(random(0, test.size() - 1)));  // NOLINT
+    }
+    if (!test.empty()) {
+        auto const i = test.begin() + int(random(0, test.size()));  // NOLINT
+        if (i != test.end()) {
+            test.erase(i, i + random(0, test.end() - i));
+        }
+    }
+    if (!test.empty()) {
+        // Can't test pop_back with std::string, doesn't support it yet.
+        // test.pop_back();
+    }
+}
+
+template <class String>
+void arena_clause11_21_4_6_5(String& test) {
     // erase and pop_back
     if (!test.empty()) {
         test.erase(random(0, test.size()), random(0, maxString));
@@ -563,7 +1019,91 @@ void clause11_21_4_6_6(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_6_6(String& test) {
+    auto pos = random(0, test.size());
+    if (avoidAliasing) {
+        test.replace(pos, random(0, test.size() - pos), String(test));
+    } else {
+        test.replace(pos, random(0, test.size() - pos), test);
+    }
+    pos = random(0, test.size());
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    test.replace(pos, pos + random(0, test.size() - pos), s);
+    auto pos1 = random(0, test.size());
+    auto pos2 = random(0, test.size());
+    if (avoidAliasing) {
+        test.replace(pos1, pos1 + random(0, test.size() - pos1), String(test), pos2,
+                     pos2 + random(0, test.size() - pos2));
+    } else {
+        test.replace(pos1, pos1 + random(0, test.size() - pos1), test, pos2, pos2 + random(0, test.size() - pos2));
+    }
+    pos1 = random(0, test.size());
+    String str(test.get_allocator());
+    randomString(&str, maxString);
+    pos2 = random(0, str.size());
+    test.replace(pos1, pos1 + random(0, test.size() - pos1), str, pos2, pos2 + random(0, str.size() - pos2));
+    pos = random(0, test.size());
+    if (avoidAliasing) {
+        test.replace(pos, random(0, test.size() - pos), String(test).c_str(), test.size());
+    } else {
+        test.replace(pos, random(0, test.size() - pos), test.c_str(), test.size());
+    }
+    pos = random(0, test.size());
+    randomString(&str, maxString);
+    test.replace(pos, pos + random(0, test.size() - pos), str.c_str(), str.size());
+    pos = random(0, test.size());
+    randomString(&str, maxString);
+    test.replace(pos, pos + random(0, test.size() - pos), str.c_str());
+    pos = random(0, test.size());
+    test.replace(pos, random(0, test.size() - pos), random(0, maxString), random('a', 'z'));
+    pos = random(0, test.size());
+    if (avoidAliasing) {
+        auto newString = String(test);
+        // NOLINTNEXTLINE
+        test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), newString);
+    } else {
+        // NOLINTNEXTLINE
+        test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), test);
+    }
+    pos = random(0, test.size());
+    if (avoidAliasing) {
+        auto newString = String(test);
+        // NOLINTNEXTLINE
+        test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), newString.c_str(),
+                     test.size() - random(0, test.size()));
+    } else {
+        // NOLINTNEXTLINE
+        test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), test.c_str(),
+                     test.size() - random(0, test.size()));
+    }
+    pos = random(0, test.size());
+    auto const n = random(0, test.size() - pos);
+    typename String::iterator b = test.begin();
+    String str1(test.get_allocator());
+    randomString(&str1, maxString);
+    const String& str3 = str1;
+    // NOLINTNEXTLINE
+    const typename String::value_type* ss = str3.c_str();
+    // NOLINTNEXTLINE
+    test.replace(b + int(pos), b + int(pos) + int(n), ss);
+    pos = random(0, test.size());
+    // NOLINTNEXTLINE
+    test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), random(0, maxString),
+                 random('a', 'z'));
+}
+
+template <class String>
 void clause11_21_4_6_7(String& test) {
+    std::vector<typename String::value_type> vec(random(0, maxString));
+    if (vec.empty()) {
+        return;
+    }
+    test.copy(vec.data(), vec.size(), random(0, test.size()));
+}
+
+template <class String>
+void arena_clause11_21_4_6_7(String& test) {
     std::vector<typename String::value_type> vec(random(0, maxString));
     if (vec.empty()) {
         return;
@@ -574,6 +1114,13 @@ void clause11_21_4_6_7(String& test) {
 template <class String>
 void clause11_21_4_6_8(String& test) {
     String s;
+    randomString(&s, maxString);
+    s.swap(test);
+}
+
+template <class String>
+void arena_clause11_21_4_6_8(String& test) {
+    String s(test.get_allocator());
     randomString(&s, maxString);
     s.swap(test);
 }
@@ -590,7 +1137,24 @@ void clause11_21_4_7_1(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_1(String& test) {
+    // 21.3.6 string operations
+    // exercise c_str() and data()
+    assert(test.c_str() == test.data());
+    // exercise get_allocator()
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    CHECK(test.get_allocator() == s.get_allocator());
+}
+
+template <class String>
 void clause11_21_4_7_2_a(String& test) {
+    String str = test.substr(random(0, test.size()), random(0, test.size()));
+    Num2String(test, test.find(str, random(0, test.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_2_a(String& test) {
     String str = test.substr(random(0, test.size()), random(0, test.size()));
     Num2String(test, test.find(str, random(0, test.size())));
 }
@@ -602,7 +1166,20 @@ void clause11_21_4_7_2_a1(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_2_a1(String& test) {
+    String str = String(test).substr(random(0, test.size()), random(0, test.size()));
+    Num2String(test, test.find(str, random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_2_a2(String& test) {
+    auto const& cTest = test;
+    String str = cTest.substr(random(0, test.size()), random(0, test.size()));
+    Num2String(test, test.find(str, random(0, test.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_2_a2(String& test) {
     auto const& cTest = test;
     String str = cTest.substr(random(0, test.size()), random(0, test.size()));
     Num2String(test, test.find(str, random(0, test.size())));
@@ -617,7 +1194,23 @@ void clause11_21_4_7_2_b(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_2_b(String& test) {
+    auto from = random(0, test.size());
+    auto length = random(0, test.size() - from);
+    String str = test.substr(from, length);
+    Num2String(test, test.find(str.c_str(), random(0, test.size()), random(0, str.size())));
+}
+
+template <class String>
 void clause11_21_4_7_2_b1(String& test) {
+    auto from = random(0, test.size());
+    auto length = random(0, test.size() - from);
+    String str = String(test).substr(from, length);
+    Num2String(test, test.find(str.c_str(), random(0, test.size()), random(0, str.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_2_b1(String& test) {
     auto from = random(0, test.size());
     auto length = random(0, test.size() - from);
     String str = String(test).substr(from, length);
@@ -634,6 +1227,15 @@ void clause11_21_4_7_2_b2(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_2_b2(String& test) {
+    auto from = random(0, test.size());
+    auto length = random(0, test.size() - from);
+    const auto& cTest = test;
+    String str = cTest.substr(from, length);
+    Num2String(test, test.find(str.c_str(), random(0, test.size()), random(0, str.size())));
+}
+
+template <class String>
 void clause11_21_4_7_2_c(String& test) {
     String str = test.substr(random(0, test.size()), random(0, test.size()));
     // NOLINTNEXTLINE
@@ -641,7 +1243,21 @@ void clause11_21_4_7_2_c(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_2_c(String& test) {
+    String str = test.substr(random(0, test.size()), random(0, test.size()));
+    // NOLINTNEXTLINE
+    Num2String(test, test.find(str.c_str(), random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_2_c1(String& test) {
+    String str = String(test).substr(random(0, test.size()), random(0, test.size()));
+    // NOLINTNEXTLINE
+    Num2String(test, test.find(str.c_str(), random(0, test.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_2_c1(String& test) {
     String str = String(test).substr(random(0, test.size()), random(0, test.size()));
     // NOLINTNEXTLINE
     Num2String(test, test.find(str.c_str(), random(0, test.size())));
@@ -656,7 +1272,20 @@ void clause11_21_4_7_2_c2(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_2_c2(String& test) {
+    const auto& cTest = test;
+    String str = cTest.substr(random(0, test.size()), random(0, test.size()));
+    // NOLINTNEXTLINE
+    Num2String(test, test.find(str.c_str(), random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_2_d(String& test) {
+    Num2String(test, test.find(random('a', 'z'), random(0, test.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_2_d(String& test) {
     Num2String(test, test.find(random('a', 'z'), random(0, test.size())));
 }
 
@@ -667,7 +1296,19 @@ void clause11_21_4_7_3_a(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_3_a(String& test) {
+    String str = test.substr(random(0, test.size()), random(0, test.size()));
+    Num2String(test, test.rfind(str, random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_3_b(String& test) {
+    String str = test.substr(random(0, test.size()), random(0, test.size()));
+    Num2String(test, test.rfind(str.c_str(), random(0, test.size()), random(0, str.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_3_b(String& test) {
     String str = test.substr(random(0, test.size()), random(0, test.size()));
     Num2String(test, test.rfind(str.c_str(), random(0, test.size()), random(0, str.size())));
 }
@@ -680,7 +1321,19 @@ void clause11_21_4_7_3_c(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_3_c(String& test) {
+    String str = test.substr(random(0, test.size()), random(0, test.size()));
+    // NOLINTNEXTLINE
+    Num2String(test, test.rfind(str.c_str(), random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_3_d(String& test) {
+    Num2String(test, test.rfind(random('a', 'z'), random(0, test.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_3_d(String& test) {
     Num2String(test, test.rfind(random('a', 'z'), random(0, test.size())));
 }
 
@@ -692,8 +1345,23 @@ void clause11_21_4_7_4_a(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_4_a(String& test) {
+    String str(test.get_allocator());
+    randomString(&str, maxString);
+    Num2String(test, test.find_first_of(str, random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_4_b(String& test) {
     String str;
+    randomString(&str, maxString);
+    // NOLINTNEXTLINE
+    Num2String(test, test.find_first_of(str.c_str(), random(0, test.size()), random(0, str.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_4_b(String& test) {
+    String str(test.get_allocator());
     randomString(&str, maxString);
     // NOLINTNEXTLINE
     Num2String(test, test.find_first_of(str.c_str(), random(0, test.size()), random(0, str.size())));
@@ -708,7 +1376,20 @@ void clause11_21_4_7_4_c(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_4_c(String& test) {
+    String str(test.get_allocator());
+    randomString(&str, maxString);
+    // NOLINTNEXTLINE
+    Num2String(test, test.find_first_of(str.c_str(), random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_4_d(String& test) {
+    Num2String(test, test.find_first_of(random('a', 'z'), random(0, test.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_4_d(String& test) {
     Num2String(test, test.find_first_of(random('a', 'z'), random(0, test.size())));
 }
 
@@ -720,8 +1401,22 @@ void clause11_21_4_7_5_a(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_5_a(String& test) {
+    String str(test.get_allocator());
+    randomString(&str, maxString);
+    Num2String(test, test.find_last_of(str, random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_5_b(String& test) {
     String str;
+    randomString(&str, maxString);
+    Num2String(test, test.find_last_of(str.c_str(), random(0, test.size()), random(0, str.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_5_b(String& test) {
+    String str(test.get_allocator());
     randomString(&str, maxString);
     Num2String(test, test.find_last_of(str.c_str(), random(0, test.size()), random(0, str.size())));
 }
@@ -735,7 +1430,20 @@ void clause11_21_4_7_5_c(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_5_c(String& test) {
+    String str(test.get_allocator());
+    randomString(&str, maxString);
+    // NOLINTNEXTLINE
+    Num2String(test, test.find_last_of(str.c_str(), random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_5_d(String& test) {
+    Num2String(test, test.find_last_of(random('a', 'z'), random(0, test.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_5_d(String& test) {
     Num2String(test, test.find_last_of(random('a', 'z'), random(0, test.size())));
 }
 
@@ -747,8 +1455,22 @@ void clause11_21_4_7_6_a(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_6_a(String& test) {
+    String str(test.get_allocator());
+    randomString(&str, maxString);
+    Num2String(test, test.find_first_not_of(str, random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_6_b(String& test) {
     String str;
+    randomString(&str, maxString);
+    Num2String(test, test.find_first_not_of(str.c_str(), random(0, test.size()), random(0, str.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_6_b(String& test) {
+    String str(test.get_allocator());
     randomString(&str, maxString);
     Num2String(test, test.find_first_not_of(str.c_str(), random(0, test.size()), random(0, str.size())));
 }
@@ -762,7 +1484,20 @@ void clause11_21_4_7_6_c(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_6_c(String& test) {
+    String str(test.get_allocator());
+    randomString(&str, maxString);
+    // NOLINTNEXTLINE
+    Num2String(test, test.find_first_not_of(str.c_str(), random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_6_d(String& test) {
+    Num2String(test, test.find_first_not_of(random('a', 'z'), random(0, test.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_6_d(String& test) {
     Num2String(test, test.find_first_not_of(random('a', 'z'), random(0, test.size())));
 }
 
@@ -774,8 +1509,22 @@ void clause11_21_4_7_7_a(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_7_a(String& test) {
+    String str(test.get_allocator());
+    randomString(&str, maxString);
+    Num2String(test, test.find_last_not_of(str, random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_7_b(String& test) {
     String str;
+    randomString(&str, maxString);
+    Num2String(test, test.find_last_not_of(str.c_str(), random(0, test.size()), random(0, str.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_7_b(String& test) {
+    String str(test.get_allocator());
     randomString(&str, maxString);
     Num2String(test, test.find_last_not_of(str.c_str(), random(0, test.size()), random(0, str.size())));
 }
@@ -789,7 +1538,20 @@ void clause11_21_4_7_7_c(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_7_c(String& test) {
+    String str(test.get_allocator());
+    randomString(&str, maxString);
+    // NOLINTNEXTLINE
+    Num2String(test, test.find_last_not_of(str.c_str(), random(0, test.size())));
+}
+
+template <class String>
 void clause11_21_4_7_7_d(String& test) {
+    Num2String(test, test.find_last_not_of(random('a', 'z'), random(0, test.size())));
+}
+
+template <class String>
+void arena_clause11_21_4_7_7_d(String& test) {
     Num2String(test, test.find_last_not_of(random('a', 'z'), random(0, test.size())));
 }
 
@@ -799,8 +1561,26 @@ void clause11_21_4_7_8(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_8(String& test) {
+    test = test.substr(random(0, test.size()), random(0, test.size()));
+}
+
+template <class String>
 void clause11_21_4_7_9_a(String& test) {
     String s;
+    randomString(&s, maxString);
+    int tristate = test.compare(s);
+    if (tristate > 0) {
+        tristate = 1;
+    } else if (tristate < 0) {
+        tristate = 2;
+    }
+    Num2String(test, tristate);
+}
+
+template <class String>
+void arena_clause11_21_4_7_9_a(String& test) {
+    String s(test.get_allocator());
     randomString(&s, maxString);
     int tristate = test.compare(s);
     if (tristate > 0) {
@@ -825,8 +1605,35 @@ void clause11_21_4_7_9_b(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_9_b(String& test) {
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    int tristate = test.compare(random(0, test.size()), random(0, test.size()), s);
+    if (tristate > 0) {
+        tristate = 1;
+    } else if (tristate < 0) {
+        tristate = 2;
+    }
+    Num2String(test, tristate);
+}
+
+template <class String>
 void clause11_21_4_7_9_c(String& test) {
     String str;
+    randomString(&str, maxString);
+    int tristate =
+      test.compare(random(0, test.size()), random(0, test.size()), str, random(0, str.size()), random(0, str.size()));
+    if (tristate > 0) {
+        tristate = 1;
+    } else if (tristate < 0) {
+        tristate = 2;
+    }
+    Num2String(test, tristate);
+}
+
+template <class String>
+void arena_clause11_21_4_7_9_c(String& test) {
+    String str(test.get_allocator());
     randomString(&str, maxString);
     int tristate =
       test.compare(random(0, test.size()), random(0, test.size()), str, random(0, str.size()), random(0, str.size()));
@@ -853,8 +1660,35 @@ void clause11_21_4_7_9_d(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_7_9_d(String& test) {
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    // NOLINTNEXTLINE
+    int tristate = test.compare(s.c_str());
+    if (tristate > 0) {
+        tristate = 1;
+    } else if (tristate < 0) {
+        tristate = 2;
+    }
+    Num2String(test, tristate);
+}
+
+template <class String>
 void clause11_21_4_7_9_e(String& test) {
     String str;
+    randomString(&str, maxString);
+    int tristate = test.compare(random(0, test.size()), random(0, test.size()), str.c_str(), random(0, str.size()));
+    if (tristate > 0) {
+        tristate = 1;
+    } else if (tristate < 0) {
+        tristate = 2;
+    }
+    Num2String(test, tristate);
+}
+
+template <class String>
+void arena_clause11_21_4_7_9_e(String& test) {
+    String str(test.get_allocator());
     randomString(&str, maxString);
     int tristate = test.compare(random(0, test.size()), random(0, test.size()), str.c_str(), random(0, str.size()));
     if (tristate > 0) {
@@ -875,10 +1709,28 @@ void clause11_21_4_8_1_a(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_8_1_a(String& test) {
+    String s1(test.get_allocator());
+    randomString(&s1, maxString);
+    String s2(test.get_allocator());
+    randomString(&s2, maxString);
+    test = s1 + s2;
+}
+
+template <class String>
 void clause11_21_4_8_1_b(String& test) {
     String s1;
     randomString(&s1, maxString);
     String s2;
+    randomString(&s2, maxString);
+    test = move(s1) + s2;
+}
+
+template <class String>
+void arena_clause11_21_4_8_1_b(String& test) {
+    String s1(test.get_allocator());
+    randomString(&s1, maxString);
+    String s2(test.get_allocator());
     randomString(&s2, maxString);
     test = move(s1) + s2;
 }
@@ -893,6 +1745,15 @@ void clause11_21_4_8_1_c(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_8_1_c(String& test) {
+    String s1(test.get_allocator());
+    randomString(&s1, maxString);
+    String s2(test.get_allocator());
+    randomString(&s2, maxString);
+    test = s1 + move(s2);
+}
+
+template <class String>
 void clause11_21_4_8_1_d(String& test) {
     String s1;
     randomString(&s1, maxString);
@@ -902,10 +1763,29 @@ void clause11_21_4_8_1_d(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_8_1_d(String& test) {
+    String s1(test.get_allocator());
+    randomString(&s1, maxString);
+    String s2(test.get_allocator());
+    randomString(&s2, maxString);
+    test = move(s1) + move(s2);
+}
+
+template <class String>
 void clause11_21_4_8_1_e(String& test) {
     String s;
     randomString(&s, maxString);
     String s1;
+    randomString(&s1, maxString);
+    // NOLINTNEXTLINE
+    test = s.c_str() + s1;
+}
+
+template <class String>
+void arena_clause11_21_4_8_1_e(String& test) {
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    String s1(test.get_allocator());
     randomString(&s1, maxString);
     // NOLINTNEXTLINE
     test = s.c_str() + s1;
@@ -922,6 +1802,16 @@ void clause11_21_4_8_1_f(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_8_1_f(String& test) {
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    String s1(test.get_allocator());
+    randomString(&s1, maxString);
+    // NOLINTNEXTLINE
+    test = s.c_str() + move(s1);
+}
+
+template <class String>
 void clause11_21_4_8_1_g(String& test) {
     String s;
     randomString(&s, maxString);
@@ -930,8 +1820,24 @@ void clause11_21_4_8_1_g(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_8_1_g(String& test) {
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    // NOLINTNEXTLINE
+    test = typename String::value_type(random('a', 'z')) + s;
+}
+
+template <class String>
 void clause11_21_4_8_1_h(String& test) {
     String s;
+    randomString(&s, maxString);
+    // NOLINTNEXTLINE
+    test = typename String::value_type(random('a', 'z')) + move(s);
+}
+
+template <class String>
+void arena_clause11_21_4_8_1_h(String& test) {
+    String s(test.get_allocator());
     randomString(&s, maxString);
     // NOLINTNEXTLINE
     test = typename String::value_type(random('a', 'z')) + move(s);
@@ -948,6 +1854,16 @@ void clause11_21_4_8_1_i(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_8_1_i(String& test) {
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    String s1(test.get_allocator());
+    randomString(&s1, maxString);
+    // NOLINTNEXTLINE
+    test = s + s1.c_str();
+}
+
+template <class String>
 void clause11_21_4_8_1_j(String& test) {
     String s;
     randomString(&s, maxString);
@@ -958,8 +1874,26 @@ void clause11_21_4_8_1_j(String& test) {
 }
 
 template <class String>
+void arena_clause11_21_4_8_1_j(String& test) {
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    String s1(test.get_allocator());
+    randomString(&s1, maxString);
+    // NOLINTNEXTLINE
+    test = move(s) + s1.c_str();
+}
+
+template <class String>
 void clause11_21_4_8_1_k(String& test) {
     String s;
+    randomString(&s, maxString);
+    // NOLINTNEXTLINE
+    test = s + typename String::value_type(random('a', 'z'));
+}
+
+template <class String>
+void arena_clause11_21_4_8_1_k(String& test) {
+    String s(test.get_allocator());
     randomString(&s, maxString);
     // NOLINTNEXTLINE
     test = s + typename String::value_type(random('a', 'z'));
@@ -975,11 +1909,32 @@ void clause11_21_4_8_1_l(String& test) {
     test = move(s) + s1.c_str();
 }
 
+template <class String>
+void arena_clause11_21_4_8_1_l(String& test) {
+    String s(test.get_allocator());
+    randomString(&s, maxString);
+    String s1(test.get_allocator());
+    randomString(&s1, maxString);
+    // NOLINTNEXTLINE
+    test = move(s) + s1.c_str();
+}
+
 // Numbering here is from C++11
 template <class String>
 void clause11_21_4_8_9_a(String& test) {
     std::basic_stringstream<typename String::value_type> stst(test.c_str());
     String str;
+    while (stst) {
+        stst >> str;
+        test += str + test;
+    }
+}
+
+// Numbering here is from C++11
+template <class String>
+void arena_clause11_21_4_8_9_a(String& test) {
+    std::basic_stringstream<typename String::value_type> stst(test.c_str());
+    String str(test.get_allocator());
     while (stst) {
         stst >> str;
         test += str + test;
@@ -1009,7 +1964,6 @@ TEST_CASE("string::testAllClauses") {
             f_string(r);
             rng = RandomT(localSeed);
             f_fbstring(c);
-            REQUIRE_EQ(c, r);
         } while (++count % 100 != 0);
     };
 
@@ -1614,5 +2568,286 @@ TEST_CASE("string::Clone") {
         CHECK_NE(data1, data2);
     }
 }
+TEST_CASE("arena_string::normal") {
+    Arena arena(Arena::Options::GetDefaultOptions());
+    SUBCASE("Create") {
+        auto * str = arena.Create<arena_string>();
+        CHECK_EQ(*str, "");
+        CHECK_EQ(arena.check(reinterpret_cast<const char*>(str)), ArenaContainStatus::BlockUsed);
+        CHECK_EQ(arena.check(str->data()), ArenaContainStatus::BlockUsed);
+        auto * str1 = arena.Create<arena_string>("1234567");
+        CHECK_EQ(*str1, "1234567");
+        CHECK_EQ(arena.check(reinterpret_cast<const char*>(str1)), ArenaContainStatus::BlockUsed);
+        CHECK_EQ(arena.check(str1->data()), ArenaContainStatus::BlockUsed);
+    }
+    SUBCASE("cstr") {
+        arena_string str(arena.get_memory_resource());
+        CHECK_EQ(str, "");
+        CHECK_EQ(arena.check(str.data()), ArenaContainStatus::NotContain);
+        arena_string str1("1234567", arena.get_memory_resource());
+        CHECK_EQ(str1, "1234567");
+        CHECK_EQ(arena.check(str1.data()), ArenaContainStatus::NotContain);
+
+        arena_string str_long("12345671234567123456712345671234567", arena.get_memory_resource());
+        CHECK_EQ(arena.check(str_long.data()), ArenaContainStatus::BlockUsed);
+        str1.append(str_long.cbegin(), str_long.cend());
+    }
+
+    SUBCASE("copy") {
+        arena_string str("1234567", arena.get_memory_resource());
+        arena_string copied_str(str);
+        CHECK_EQ(arena.check(copied_str.data()), ArenaContainStatus::NotContain);
+        arena_string str_long("12345671234567123456712345671234567", arena.get_memory_resource());
+        arena_string copied_str_long(str_long);
+        CHECK_EQ(arena.check(copied_str_long.data()), ArenaContainStatus::BlockUsed);
+    }
+
+    SUBCASE("move") {
+        arena_string str("1234567", arena.get_memory_resource());
+        arena_string copied_str(std::move(str));
+        CHECK_EQ(arena.check(copied_str.data()), ArenaContainStatus::NotContain);
+        arena_string str_long("12345671234567123456712345671234567", arena.get_memory_resource());
+        arena_string copied_str_long(std::move(str_long));
+        CHECK_EQ(arena.check(copied_str_long.data()), ArenaContainStatus::BlockUsed);
+    }
+}
+
+TEST_CASE("arena_string::Clone") {
+    Arena arena(Arena::Options::GetDefaultOptions());
+
+    SUBCASE("create_small") {
+        auto* as1 = arena.Create<arena_string>("123");
+        auto as2 = as1->clone();
+        CHECK_EQ(*as1, as2);
+        auto* data1 = as1->data();
+        auto* data2 = as2.data();
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("small") {
+        arena_string as1(arena.get_memory_resource());
+        auto as2 = as1.clone();
+        CHECK_EQ(as1, as2);
+        auto* data1 = as1.data();
+        auto* data2 = as2.data();
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("create_medium") {
+        auto* as1 = arena.Create<arena_string>("1234567890123456789012345678901234567890");
+        auto as2 = as1->clone();
+        CHECK_EQ(*as1, as2);
+        auto* data1 = as1->data();
+        auto* data2 = as2.data();
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("medium") {
+        arena_string as1("1234567890123456789012345678901234567890", arena.get_memory_resource());
+        auto as2 = as1.clone();
+        CHECK_EQ(as1, as2);
+        auto* data1 = as1.data();
+        auto* data2 = as2.data();
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("create_large") {
+        arena_string* m1 = arena.Create<arena_string>("1234567890123456789012345678901234567890");
+        auto* l1 = arena.Create<arena_string>();
+        for (int i = 0; i < 125; ++i) {
+            l1->append(*m1);
+        }
+        CHECK_EQ(l1->length(), 5000);
+        auto l2(l1->clone());
+        auto l2_cow = *l1;
+        CHECK_EQ(*l1, l2);
+        auto* data1 = l1->data();
+        auto* data2 = l2.data();
+        auto* data2_cow = l2_cow.data();
+        CHECK_EQ(data1, data2_cow);
+        CHECK_NE(data1, data2);
+    }
+
+    SUBCASE("large") {
+        arena_string m1("1234567890123456789012345678901234567890", arena.get_memory_resource());
+        arena_string l1(arena.get_memory_resource());
+        for (int i = 0; i < 125; ++i) {
+            l1.append(m1);
+        }
+        CHECK_EQ(l1.length(), 5000);
+        auto l2(l1.clone());
+        auto l2_cow = l1;
+        CHECK_EQ(l1, l2);
+        auto* data1 = l1.data();
+        auto* data2 = l2.data();
+        auto* data2_cow = l2_cow.data();
+        CHECK_EQ(data1, data2_cow);
+        CHECK_NE(data1, data2);
+    }
+}
+TEST_CASE("arena_string::normal") {
+    Arena arena(Arena::Options::GetDefaultOptions());
+    SUBCASE("Create") {
+        auto * str = arena.Create<arena_string>();
+        CHECK_EQ(*str, "");
+        CHECK_EQ(arena.check(reinterpret_cast<const char*>(str)), ArenaContainStatus::BlockUsed);
+        CHECK_EQ(arena.check(str->data()), ArenaContainStatus::BlockUsed);
+        auto * str1 = arena.Create<arena_string>("1234567");
+        CHECK_EQ(*str1, "1234567");
+        CHECK_EQ(arena.check(reinterpret_cast<const char*>(str1)), ArenaContainStatus::BlockUsed);
+        CHECK_EQ(arena.check(str1->data()), ArenaContainStatus::BlockUsed);
+    }
+    SUBCASE("cstr") {
+        arena_string str(arena.get_memory_resource());
+        CHECK_EQ(str, "");
+        CHECK_EQ(arena.check(str.data()), ArenaContainStatus::NotContain);
+        arena_string str1("1234567", arena.get_memory_resource());
+        CHECK_EQ(str1, "1234567");
+        CHECK_EQ(arena.check(str1.data()), ArenaContainStatus::NotContain);
+
+        arena_string str_long("12345671234567123456712345671234567", arena.get_memory_resource());
+        CHECK_EQ(arena.check(str_long.data()), ArenaContainStatus::BlockUsed);
+        str1.append(str_long.cbegin(), str_long.cend());
+    }
+
+    SUBCASE("copy") {
+        arena_string str("1234567", arena.get_memory_resource());
+        arena_string copied_str(str);
+        CHECK_EQ(arena.check(copied_str.data()), ArenaContainStatus::NotContain);
+        arena_string str_long("12345671234567123456712345671234567", arena.get_memory_resource());
+        arena_string copied_str_long(str_long);
+        CHECK_EQ(arena.check(copied_str_long.data()), ArenaContainStatus::BlockUsed);
+    }
+
+    SUBCASE("move") {
+        arena_string str("1234567", arena.get_memory_resource());
+        arena_string copied_str(std::move(str));
+        CHECK_EQ(arena.check(copied_str.data()), ArenaContainStatus::NotContain);
+        arena_string str_long("12345671234567123456712345671234567", arena.get_memory_resource());
+        arena_string copied_str_long(std::move(str_long));
+        CHECK_EQ(arena.check(copied_str_long.data()), ArenaContainStatus::BlockUsed);
+    }
+}
+
+TEST_CASE("arena_string::testAllClauses") {
+    std::cout << "Starting with seed: " << seed << std::endl;
+    std::string r;
+
+    uint count = 0;
+
+    Arena arena(Arena::Options::GetDefaultOptions());
+    arena_string c(arena.get_memory_resource());
+    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_arena_string)(arena_string&)) {
+        do {
+            // NOLINTNEXTLINE
+            if (true) {
+            } else {
+                std::cout << "Testing clause " << clause << std::endl;
+            }
+            randomString(&r);
+            c = r;
+            CHECK_EQ(c, r);
+
+            auto localSeed = seed + count;
+            rng = RandomT(localSeed);
+            f_string(r);
+            rng = RandomT(localSeed);
+            f_arena_string(c);
+        } while (++count % 100 != 0);
+    };
+
+#define TEST_CLAUSE_ARENA(x) l(#x, arena_clause11_##x<std::string>, arena_clause11_##x<arena_string>);
+
+//    TEST_CLAUSE_ARENA(21_4_2_a);
+    TEST_CLAUSE_ARENA(21_4_2_b);
+    TEST_CLAUSE_ARENA(21_4_2_c);
+    TEST_CLAUSE_ARENA(21_4_2_d);
+    TEST_CLAUSE_ARENA(21_4_2_e);
+    TEST_CLAUSE_ARENA(21_4_2_f);
+    TEST_CLAUSE_ARENA(21_4_2_g);
+    TEST_CLAUSE_ARENA(21_4_2_h);
+    TEST_CLAUSE_ARENA(21_4_2_i);
+    TEST_CLAUSE_ARENA(21_4_2_j);
+    TEST_CLAUSE_ARENA(21_4_2_k);
+    TEST_CLAUSE_ARENA(21_4_2_l);
+    TEST_CLAUSE_ARENA(21_4_2_lprime);
+    TEST_CLAUSE_ARENA(21_4_2_m);
+    TEST_CLAUSE_ARENA(21_4_2_n);
+
+    TEST_CLAUSE_ARENA(21_4_3);
+    TEST_CLAUSE_ARENA(21_4_4);
+    TEST_CLAUSE_ARENA(21_4_5);
+    TEST_CLAUSE_ARENA(21_4_6_1);
+    TEST_CLAUSE_ARENA(21_4_6_2);
+    TEST_CLAUSE_ARENA(21_4_6_3_a);
+    TEST_CLAUSE_ARENA(21_4_6_3_b);
+    TEST_CLAUSE_ARENA(21_4_6_3_c);
+    TEST_CLAUSE_ARENA(21_4_6_3_d);
+    TEST_CLAUSE_ARENA(21_4_6_3_e);
+
+    TEST_CLAUSE_ARENA(21_4_6_3_f);
+    TEST_CLAUSE_ARENA(21_4_6_3_g);
+    TEST_CLAUSE_ARENA(21_4_6_3_h);
+    TEST_CLAUSE_ARENA(21_4_6_3_i);
+    TEST_CLAUSE_ARENA(21_4_6_3_j);
+    TEST_CLAUSE_ARENA(21_4_6_3_k);
+    TEST_CLAUSE_ARENA(21_4_6_4);
+    TEST_CLAUSE_ARENA(21_4_6_5);
+    TEST_CLAUSE_ARENA(21_4_6_6);
+    TEST_CLAUSE_ARENA(21_4_6_7);
+    TEST_CLAUSE_ARENA(21_4_6_8);
+    TEST_CLAUSE_ARENA(21_4_7_1);
+
+    TEST_CLAUSE_ARENA(21_4_7_2_a);
+    TEST_CLAUSE_ARENA(21_4_7_2_a1);
+    TEST_CLAUSE_ARENA(21_4_7_2_a2);
+    TEST_CLAUSE_ARENA(21_4_7_2_b);
+    TEST_CLAUSE_ARENA(21_4_7_2_b1);
+    TEST_CLAUSE_ARENA(21_4_7_2_b2);
+    TEST_CLAUSE_ARENA(21_4_7_2_c);
+    TEST_CLAUSE_ARENA(21_4_7_2_c1);
+    TEST_CLAUSE_ARENA(21_4_7_2_c2);
+    TEST_CLAUSE_ARENA(21_4_7_2_d);
+    TEST_CLAUSE_ARENA(21_4_7_3_a);
+    TEST_CLAUSE_ARENA(21_4_7_3_b);
+    TEST_CLAUSE_ARENA(21_4_7_3_c);
+    TEST_CLAUSE_ARENA(21_4_7_3_d);
+    TEST_CLAUSE_ARENA(21_4_7_4_a);
+    TEST_CLAUSE_ARENA(21_4_7_4_b);
+    TEST_CLAUSE_ARENA(21_4_7_4_c);
+    TEST_CLAUSE_ARENA(21_4_7_4_d);
+    TEST_CLAUSE_ARENA(21_4_7_5_a);
+    TEST_CLAUSE_ARENA(21_4_7_5_b);
+    TEST_CLAUSE_ARENA(21_4_7_5_c);
+    TEST_CLAUSE_ARENA(21_4_7_5_d);
+    TEST_CLAUSE_ARENA(21_4_7_6_a);
+    TEST_CLAUSE_ARENA(21_4_7_6_b);
+    TEST_CLAUSE_ARENA(21_4_7_6_c);
+    TEST_CLAUSE_ARENA(21_4_7_6_d);
+    TEST_CLAUSE_ARENA(21_4_7_7_a);
+    TEST_CLAUSE_ARENA(21_4_7_7_b);
+    TEST_CLAUSE_ARENA(21_4_7_7_c);
+    TEST_CLAUSE_ARENA(21_4_7_7_d);
+    TEST_CLAUSE_ARENA(21_4_7_8);
+    TEST_CLAUSE_ARENA(21_4_7_9_a);
+    TEST_CLAUSE_ARENA(21_4_7_9_b);
+    TEST_CLAUSE_ARENA(21_4_7_9_c);
+    TEST_CLAUSE_ARENA(21_4_7_9_d);
+    TEST_CLAUSE_ARENA(21_4_7_9_e);
+    TEST_CLAUSE_ARENA(21_4_8_1_a);
+    TEST_CLAUSE_ARENA(21_4_8_1_b);
+    TEST_CLAUSE_ARENA(21_4_8_1_c);
+    TEST_CLAUSE_ARENA(21_4_8_1_d);
+    TEST_CLAUSE_ARENA(21_4_8_1_e);
+    TEST_CLAUSE_ARENA(21_4_8_1_f);
+    TEST_CLAUSE_ARENA(21_4_8_1_g);
+    TEST_CLAUSE_ARENA(21_4_8_1_h);
+    TEST_CLAUSE_ARENA(21_4_8_1_i);
+    TEST_CLAUSE_ARENA(21_4_8_1_j);
+    TEST_CLAUSE_ARENA(21_4_8_1_k);
+    TEST_CLAUSE_ARENA(21_4_8_1_l);
+    TEST_CLAUSE_ARENA(21_4_8_9_a);
+}
+
 
 }  // namespace stdb::memory
