@@ -838,7 +838,7 @@ class mock_hook
 
 thread_local mock_hook* hook_instance;
 
-auto init_hook(Arena* a, [[maybe_unused]] const boost::source_location& loc = BOOST_CURRENT_LOCATION) -> void* {
+auto init_hook(Arena* a, [[maybe_unused]] const boost::source_location& loc) -> void* {
     return hook_instance->arena_init_hook(a);
 }
 

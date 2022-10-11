@@ -88,7 +88,7 @@ inline constexpr uint64_t kMegaByte = 1024 * 1024;
  * otherwise it is a pmr container.
  */
 template <typename T>
-concept Creatable = Constructable<T> || (std::is_standard_layout<T>::value && std::is_trivial<T>::value) ||
+concept Creatable = Constructable<T> ||(std::is_standard_layout<T>::value&& std::is_trivial<T>::value) ||
                     std::is_constructible_v<T, pmr::polymorphic_allocator<T>>;
 
 /*
@@ -309,7 +309,7 @@ class Arena
      * Arena constructor copy version, copy the Options content to Arena
      */
     explicit Arena(const Options& ops) : _options(ops), _last_block(nullptr), _cookie(nullptr), _space_allocated(0ULL) {
-        init();
+        init(BOOST_CURRENT_LOCATION);
     }
 
     /*
@@ -317,7 +317,7 @@ class Arena
      */
     explicit Arena(Options&& ops) noexcept
         : _options(ops), _last_block(nullptr), _cookie(nullptr), _space_allocated(0ULL) {
-        init();
+        init(BOOST_CURRENT_LOCATION);
     }
 
     /*
@@ -407,9 +407,7 @@ class Arena
      * because CreateArray do not RegisterDestructor.
      */
     template <Creatable T>
-    [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T*
-        requires TriviallyDestructible<T>
-    {
+    [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T* requires TriviallyDestructible<T> {
         if (num > std::numeric_limits<uint64_t>::max() / sizeof(T)) {
             auto output_message = fmt::format(
               "CreateArray need too many memory, that more than max of uint64_t, the num of array is {}, and the Type "
@@ -492,7 +490,7 @@ class Arena
      * init the arena
      * call the callback to monitor and metrics: this arena was inited.
      */
-    [[gnu::always_inline]] inline void init(const boost::source_location& loc = BOOST_CURRENT_LOCATION) noexcept {
+    [[gnu::always_inline]] inline void init(const boost::source_location& loc) noexcept {
         try {
             _resource = new memory_resource{this};
         } catch (std::bad_alloc& ex) {
