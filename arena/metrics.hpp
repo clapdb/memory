@@ -22,8 +22,9 @@
 
 #include <fmt/core.h>  // for format
 
-#include <array>          // for array, array<>::value_type
-#include <atomic>         // for atomic, memory_order, memory...
+#include <array>   // for array, array<>::value_type
+#include <atomic>  // for atomic, memory_order, memory...
+#include <boost/assert/source_location.hpp>
 #include <chrono>         // for operator""ms, duration, stea...
 #include <compare>        // for operator<=, strong_ordering
 #include <cstdint>        // for uint64_t, uint32_t
@@ -35,21 +36,7 @@
 
 #include "arena.hpp"  // for Arena
 
-#if defined(__GNUC__) && (__GNUC__ >= 11)
-#include <source_location>
-#elif defined(__clang__)
-#include <experimental/source_location>  // for source_location
-#endif
-
 namespace stdb::memory {
-
-#if defined(__GNUC__) && (__GNUC__ >= 11)
-using source_location = std::source_location;
-#elif defined(__clang__)
-using source_location = std::experimental::source_location;
-#else
-#error "no support for other compiler"
-#endif
 
 using std::atomic;
 using std::chrono::milliseconds;
@@ -212,7 +199,7 @@ struct LocalArenaMetrics
         }
     }
 
-    [[gnu::always_inline]] inline void increase_arena_alloc_counter(const source_location& loc, uint64_t size) {
+    [[gnu::always_inline]] inline void increase_arena_alloc_counter(const boost::source_location& loc, uint64_t size) {
         const std::string key = std::string(loc.file_name()) + ":" + std::to_string(loc.line());
         arena_alloc_counter[key] += size;
     }
@@ -249,13 +236,13 @@ extern thread_local LocalArenaMetrics local_arena_metrics;
 struct ArenaMetricsCookie
 {
     steady_clock::time_point init_time_point;
-    source_location init_location;  // arena.init() source_location
-    ArenaMetricsCookie(steady_clock::time_point init_tp, const source_location& init_loc)
+    boost::source_location init_location;  // arena.init() source_location
+    ArenaMetricsCookie(steady_clock::time_point init_tp, const boost::source_location& init_loc)
         : init_time_point(init_tp), init_location(init_loc) {}
 };
 
 [[gnu::always_inline]] inline auto metrics_probe_on_arena_init([[maybe_unused]] Arena* arena,
-                                                               const source_location& loc) -> void* {
+                                                               const boost::source_location& loc) -> void* {
     ++local_arena_metrics.init_count;
     auto* cookie = new ArenaMetricsCookie(steady_clock::now(), loc);
     return cookie;

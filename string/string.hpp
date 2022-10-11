@@ -958,8 +958,7 @@ inline void string_core<Char>::shrinkLarge(const size_t delta) {
 template <typename E, class T = std::char_traits<E>, class A = std::allocator<E>, class Storage = string_core<E>>
 class basic_string
 {
-    static_assert(std::is_same<A, std::allocator<E>>::value or
-                    std::is_same<A, std::pmr::polymorphic_allocator<E>>::value,
+    static_assert(std::is_same<A, std::allocator<E>>::value or std::is_same<A, pmr::polymorphic_allocator<E>>::value,
                   "string ignores custom allocators");
 
     template <typename Ex, typename... Args>
@@ -2602,10 +2601,10 @@ struct hash<::stdb::memory::basic_string<wchar_t>>
 
 }  // namespace std
 
-//#undef FBSTRING_HASH
-//#undef FBSTRING_HASH1
+// #undef FBSTRING_HASH
+// #undef FBSTRING_HASH1
 
-//#undef FBSTRING_DISABLE_SSO
+// #undef FBSTRING_DISABLE_SSO
 
 template <>
 struct fmt::formatter<stdb::memory::string> : private formatter<fmt::string_view>

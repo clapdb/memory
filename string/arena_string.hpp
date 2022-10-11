@@ -25,7 +25,7 @@
 namespace stdb::memory {
 
 template <class Char>
-inline auto arena_smartRealloc(std::pmr::polymorphic_allocator<Char>& allocator, void* ptr, const size_t currentSize,
+inline auto arena_smartRealloc(pmr::polymorphic_allocator<Char>& allocator, void* ptr, const size_t currentSize,
                                const size_t currentCapacity, const size_t newCapacity) -> void* {
     assert(ptr);
     assert(currentSize <= currentCapacity && currentCapacity < newCapacity);
@@ -47,9 +47,7 @@ class arena_string_core
     friend class basic_string;
 
    public:
-    arena_string_core(const std::pmr::polymorphic_allocator<Char>& allocator) noexcept : allocator_(allocator) {
-        reset();
-    }
+    arena_string_core(const pmr::polymorphic_allocator<Char>& allocator) noexcept : allocator_(allocator) { reset(); }
 
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
         assert(&rhs != this);
@@ -79,7 +77,7 @@ class arena_string_core
         goner.reset();
     }
 
-    arena_string_core(const Char* const data, const size_t size, const std::pmr::polymorphic_allocator<Char>& allocator)
+    arena_string_core(const Char* const data, const size_t size, const pmr::polymorphic_allocator<Char>& allocator)
         : allocator_(allocator) {
         if (size <= maxSmallSize) {
             initSmall(data, size);
@@ -262,7 +260,7 @@ class arena_string_core
              */
         }
 
-        static auto create(std::pmr::polymorphic_allocator<Char>& allocator, size_t* size) -> RefCounted* {
+        static auto create(pmr::polymorphic_allocator<Char>& allocator, size_t* size) -> RefCounted* {
             size_t capacityBytes = 0;
             if (!checked_add(&capacityBytes, *size, static_cast<size_t>(1))) {
                 throw(std::length_error(""));
@@ -282,8 +280,7 @@ class arena_string_core
             __builtin_unreachable();
         }
 
-        static auto create(std::pmr::polymorphic_allocator<Char>& allocator, const Char* data, size_t* size)
-          -> RefCounted* {
+        static auto create(pmr::polymorphic_allocator<Char>& allocator, const Char* data, size_t* size) -> RefCounted* {
             const size_t effectiveSize = *size;
             auto result = create(allocator, size);
             if (effectiveSize > 0) [[likely]] {
@@ -292,9 +289,8 @@ class arena_string_core
             return result;
         }
 
-        static auto reallocate(std::pmr::polymorphic_allocator<Char>& allocator, Char* const data,
-                               const size_t currentSize, const size_t currentCapacity, size_t* newCapacity)
-          -> RefCounted* {
+        static auto reallocate(pmr::polymorphic_allocator<Char>& allocator, Char* const data, const size_t currentSize,
+                               const size_t currentCapacity, size_t* newCapacity) -> RefCounted* {
             assert(*newCapacity > 0 && *newCapacity > currentSize);
             size_t capacityBytes = 0;
             if (!checked_add(&capacityBytes, *newCapacity, static_cast<size_t>(1))) {
@@ -349,7 +345,7 @@ class arena_string_core
         }
     };
 
-    std::pmr::polymorphic_allocator<Char> allocator_;
+    pmr::polymorphic_allocator<Char> allocator_;
     union
     {
         // NOLINTNEXTLINE(modernize-avoid-c-arrays)
@@ -462,7 +458,7 @@ void arena_string_core<Char>::copyLarge(const arena_string_core& rhs) {
 template <class Char>
 inline void arena_string_core<Char>::initSmall(const Char* const data, const size_t size) {
     // Layout is: Char* data_, size_t size_, size_t capacity_
-    static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(std::pmr::polymorphic_allocator<Char>),
+    static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>),
                   "string has unexpected size");
     static_assert(sizeof(Char*) == sizeof(size_t), "string size assumption violation");
     // sizeof(size_t) must be a power of 2
@@ -701,10 +697,10 @@ static_assert(sizeof(arena_string_core<char>) == 32);
 
 template <class Char>
 using arena_basic_string =
-  basic_string<Char, std::char_traits<Char>, std::pmr::polymorphic_allocator<Char>, arena_string_core<Char>>;
+  basic_string<Char, std::char_traits<Char>, pmr::polymorphic_allocator<Char>, arena_string_core<Char>>;
 
 using arena_string =
-  basic_string<char, std::char_traits<char>, std::pmr::polymorphic_allocator<char>, arena_string_core<char>>;
+  basic_string<char, std::char_traits<char>, pmr::polymorphic_allocator<char>, arena_string_core<char>>;
 
 }  // namespace stdb::memory
 
