@@ -37,7 +37,7 @@
 #include <unordered_map>    // for polymorphic_allocator
 #include <utility>          // for exchange, forward
 
-#include "align.hpp"        // for AlignUpTo
+#include "align/align.hpp"  // for AlignUpTo
 #include "arenahelper.hpp"  // for ArenaHelper
 #include "fmt/core.h"       // for format
 

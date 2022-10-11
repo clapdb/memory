@@ -1,9 +1,8 @@
 #include "string.hpp"
-#include "arena_string.hpp"
 
-#include <cxxabi.h>       // for __forced_unwind
-#include <fmt/core.h>     // for format
-#include <sys/types.h>    // for uint
+#include <cxxabi.h>     // for __forced_unwind
+#include <fmt/core.h>   // for format
+#include <sys/types.h>  // for uint
 
 #include <algorithm>    // for for_each
 #include <atomic>       // for atomic, __atomic_base
@@ -17,7 +16,8 @@
 #include <type_traits>  // for is_same
 #include <vector>       // for vector
 
-#include "arena/arena.hpp"    // for size_t, Arena, Arena::Options
+#include "arena/arena.hpp"  // for size_t, Arena, Arena::Options
+#include "arena_string.hpp"
 #include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK
 
 namespace stdb::memory {
@@ -116,8 +116,8 @@ template <class String>
 void arena_clause11_21_4_2_d(String& test) {
     // Copy constructor with position and length
     const size_t pos = random(0, test.size());
-    String s(test, pos,
-             random(0, 9) ? random(0, test.size() - pos) : String::npos, test.get_allocator());  // test for npos, too, in 10% of the cases
+    String s(test, pos, random(0, 9) ? random(0, test.size() - pos) : String::npos,
+             test.get_allocator());  // test for npos, too, in 10% of the cases
     test = s;
 }
 
@@ -2571,11 +2571,11 @@ TEST_CASE("string::Clone") {
 TEST_CASE("arena_string::normal") {
     Arena arena(Arena::Options::GetDefaultOptions());
     SUBCASE("Create") {
-        auto * str = arena.Create<arena_string>();
+        auto* str = arena.Create<arena_string>();
         CHECK_EQ(*str, "");
         CHECK_EQ(arena.check(reinterpret_cast<const char*>(str)), ArenaContainStatus::BlockUsed);
         CHECK_EQ(arena.check(str->data()), ArenaContainStatus::BlockUsed);
-        auto * str1 = arena.Create<arena_string>("1234567");
+        auto* str1 = arena.Create<arena_string>("1234567");
         CHECK_EQ(*str1, "1234567");
         CHECK_EQ(arena.check(reinterpret_cast<const char*>(str1)), ArenaContainStatus::BlockUsed);
         CHECK_EQ(arena.check(str1->data()), ArenaContainStatus::BlockUsed);
@@ -2688,11 +2688,11 @@ TEST_CASE("arena_string::Clone") {
 TEST_CASE("arena_string::normal") {
     Arena arena(Arena::Options::GetDefaultOptions());
     SUBCASE("Create") {
-        auto * str = arena.Create<arena_string>();
+        auto* str = arena.Create<arena_string>();
         CHECK_EQ(*str, "");
         CHECK_EQ(arena.check(reinterpret_cast<const char*>(str)), ArenaContainStatus::BlockUsed);
         CHECK_EQ(arena.check(str->data()), ArenaContainStatus::BlockUsed);
-        auto * str1 = arena.Create<arena_string>("1234567");
+        auto* str1 = arena.Create<arena_string>("1234567");
         CHECK_EQ(*str1, "1234567");
         CHECK_EQ(arena.check(reinterpret_cast<const char*>(str1)), ArenaContainStatus::BlockUsed);
         CHECK_EQ(arena.check(str1->data()), ArenaContainStatus::BlockUsed);
@@ -2758,7 +2758,7 @@ TEST_CASE("arena_string::testAllClauses") {
 
 #define TEST_CLAUSE_ARENA(x) l(#x, arena_clause11_##x<std::string>, arena_clause11_##x<arena_string>);
 
-//    TEST_CLAUSE_ARENA(21_4_2_a);
+    //    TEST_CLAUSE_ARENA(21_4_2_a);
     TEST_CLAUSE_ARENA(21_4_2_b);
     TEST_CLAUSE_ARENA(21_4_2_c);
     TEST_CLAUSE_ARENA(21_4_2_d);
@@ -2848,6 +2848,5 @@ TEST_CASE("arena_string::testAllClauses") {
     TEST_CLAUSE_ARENA(21_4_8_1_l);
     TEST_CLAUSE_ARENA(21_4_8_9_a);
 }
-
 
 }  // namespace stdb::memory

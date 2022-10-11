@@ -51,9 +51,9 @@ set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_MODULE_LINKER_FLAGS_DEBUG} ${SANITI
 # fmt
 find_package(fmt REQUIRED)
 
-set(ARENA_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
-include_directories(SYSTEM ${ARENA_SOURCE_DIR}/doctest/)
-include_directories(${ARENA_SOURCE_DIR}/)
+set(MEMORY_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
+include_directories(SYSTEM ${MEMORY_SOURCE_DIR}/doctest/)
+include_directories(${MEMORY_SOURCE_DIR}/)
 
 ### build arena
 add_subdirectory(arena)
