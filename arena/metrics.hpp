@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <fmt/core.h>     // for format
+#include <fmt/core.h>  // for format
 
 #include <array>          // for array, array<>::value_type
 #include <atomic>         // for atomic, memory_order, memory...

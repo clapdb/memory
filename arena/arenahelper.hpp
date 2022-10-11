@@ -25,7 +25,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "align.hpp"
+#include "align/align.hpp"
 
 #define ArenaFullManagedTag using ArenaManaged_ = void;                    // NOLINT
 #define ArenaManagedCreateOnlyTag using ArenaManagedSkipDestruct_ = void;  // NOLINT

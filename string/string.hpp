@@ -337,7 +337,9 @@ class string_core
         goner.reset();
     }
 
-    string_core(const Char* const data, const size_t size, const std::allocator<Char>& = std::allocator<Char>()/*unused*/, bool disableSSO = FBSTRING_DISABLE_SSO) {
+    string_core(const Char* const data, const size_t size,
+                const std::allocator<Char>& = std::allocator<Char>() /*unused*/,
+                bool disableSSO = FBSTRING_DISABLE_SSO) {
         if (!disableSSO && size <= maxSmallSize) {
             initSmall(data, size);
         } else if (size <= maxMediumSize) {
@@ -543,7 +545,7 @@ class string_core
             if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset())) {
                 throw(std::length_error(""));
             }
-//            const size_t allocSize = capacityBytes;
+            //            const size_t allocSize = capacityBytes;
             auto result = static_cast<RefCounted*>(checkedMalloc(capacityBytes));
             // result->refCount_.store(1, std::memory_order_release);
             result->refCount_ = 1;
@@ -570,7 +572,7 @@ class string_core
             if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset())) {
                 throw(std::length_error(""));
             }
-//            const size_t allocNewCapacity = goodMallocSize(capacityBytes);
+            //            const size_t allocNewCapacity = goodMallocSize(capacityBytes);
             auto const dis = fromData(data);
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
             assert(dis->refCount_ == 1);
@@ -695,9 +697,9 @@ template <class Char>
 void string_core<Char>::copyMedium(const string_core& rhs) {
     // Medium strings are copied eagerly. Don't forget to allocate
     // one extra Char for the null terminator.
-//    auto const allocSize = goodMallocSize((1 + rhs.ml_.size_) * sizeof(Char));  // NOLINT
+    //    auto const allocSize = goodMallocSize((1 + rhs.ml_.size_) * sizeof(Char));  // NOLINT
     auto const allocSize = (1 + rhs.ml_.size_) * sizeof(Char);  // NOLINT
-    ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));                   // NOLINT
+    ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));   // NOLINT
     // Also copies terminator.
     string_detail::podCopy(rhs.ml_.data_, rhs.ml_.data_ + rhs.ml_.size_ + 1, ml_.data_);  // NOLINT
     ml_.size_ = rhs.ml_.size_;                                                            // NOLINT
@@ -758,7 +760,7 @@ template <class Char>
 void string_core<Char>::initMedium(const Char* const data, const size_t size) {
     // Medium strings are allocated normally. Don't forget to
     // allocate one extra Char for the terminating null.
-//    auto const allocSize = goodMallocSize((1 + size) * sizeof(Char));
+    //    auto const allocSize = goodMallocSize((1 + size) * sizeof(Char));
     auto const allocSize = (1 + size) * sizeof(Char);
     ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));  // NOLINT
     if (size > 0) [[likely]] {
@@ -837,7 +839,7 @@ void string_core<Char>::reserveMedium(const size_t minCapacity) {
     if (minCapacity <= maxMediumSize) {
         // Keep the string at medium size. Don't forget to allocate
         // one extra Char for the terminating null.
-//        size_t capacityBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
+        //        size_t capacityBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
         size_t capacityBytes = (1 + minCapacity) * sizeof(Char);
         // Also copies terminator.
         ml_.data_ = static_cast<Char*>(  // NOLINT
@@ -866,7 +868,7 @@ void string_core<Char>::reserveSmall(size_t minCapacity, const bool disableSSO) 
     } else if (minCapacity <= maxMediumSize) {
         // medium
         // Don't forget to allocate one extra Char for the terminating null
-//        auto const allocSizeBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
+        //        auto const allocSizeBytes = goodMallocSize((1 + minCapacity) * sizeof(Char));
         auto const allocSizeBytes = (1 + minCapacity) * sizeof(Char);
         auto const pData = static_cast<Char*>(checkedMalloc(allocSizeBytes));
         auto const size = smallSize();
@@ -956,7 +958,9 @@ inline void string_core<Char>::shrinkLarge(const size_t delta) {
 template <typename E, class T = std::char_traits<E>, class A = std::allocator<E>, class Storage = string_core<E>>
 class basic_string
 {
-    static_assert(std::is_same<A, std::allocator<E>>::value or std::is_same<A, std::pmr::polymorphic_allocator<E>>::value, "string ignores custom allocators");
+    static_assert(std::is_same<A, std::allocator<E>>::value or
+                    std::is_same<A, std::pmr::polymorphic_allocator<E>>::value,
+                  "string ignores custom allocators");
 
     template <typename Ex, typename... Args>
     [[gnu::always_inline]] static void enforce(bool condition, Args&&... args) {
@@ -1041,7 +1045,7 @@ class basic_string
     template <typename A2>  // NOLINTNEXTLINE
     /* implicit */ basic_string(const std::basic_string<E, T, A2>& str) : store_(str.data(), str.size()) {}
 
-    basic_string(const basic_string& str, size_type pos, size_type n = npos, const A& a = A()): store_(a) {
+    basic_string(const basic_string& str, size_type pos, size_type n = npos, const A& a = A()) : store_(a) {
         assign(str, pos, n);
     }
 
@@ -1050,15 +1054,15 @@ class basic_string
 
     basic_string(const value_type* s, size_type n, const A& a = A()) : store_(s, n, a) {}  // NOLINT
 
-    basic_string(size_type n, value_type c, const A& a = A()): store_(a) {  // NOLINT
+    basic_string(size_type n, value_type c, const A& a = A()) : store_(a) {  // NOLINT
         auto const pData = store_.expandNoinit(n);
         string_detail::podFill(pData, pData + n, c);
     }
 
     template <class InIt>
     basic_string(InIt begin, InIt end,
-                 typename std::enable_if<!std::is_same<InIt, value_type*>::value, const A>::type& a
-                 = A()): store_(a) {
+                 typename std::enable_if<!std::is_same<InIt, value_type*>::value, const A>::type& a = A())
+        : store_(a) {
         assign(begin, end);
     }
 
@@ -1070,7 +1074,9 @@ class basic_string
     basic_string(std::basic_string_view<value_type> view, const A& a = A()) : store_(view.data(), view.size(), a) {}
 
     // Construction from initialization list
-    basic_string(std::initializer_list<value_type> init_list, const A& a = A()): store_(a) { assign(init_list.begin(), init_list.end()); }
+    basic_string(std::initializer_list<value_type> init_list, const A& a = A()) : store_(a) {
+        assign(init_list.begin(), init_list.end());
+    }
 
     ~basic_string() noexcept = default;
 

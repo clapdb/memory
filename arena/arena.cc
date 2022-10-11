@@ -18,7 +18,7 @@
  +------------------------------------------------------------------------------+
 */
 
-#include "arena.hpp"
+#include "arena/arena.hpp"
 
 #include <algorithm>
 #include <limits>
