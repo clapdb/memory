@@ -32,7 +32,7 @@
 #endif
 #include "arena/arenahelper.hpp"  // for ArenaFullManagedTag, ArenaManagedCr...
 #include "doctest/doctest.h"      // for binary_assert, CHECK_EQ, TestCase
-#include "string.hpp"
+#include "string/string.hpp"
 
 using stdb::memory::align::AlignUp;
 using stdb::memory::align::AlignUpTo;
@@ -250,7 +250,7 @@ class ArenaTest
 
     thread_local static alloc_class* mock;
 
-    static auto mock_alloc(uint64_t size) -> void* { return mock->alloc(size); }
+    static auto mock_alloc(std::size_t size) -> void* { return mock->alloc(size); }
 
     static void mock_dealloc(void* ptr) { return mock->dealloc(ptr); }
 
@@ -516,7 +516,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.DoCleanupTest") {
     delete mock;
 }
 
-TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.to_string<std::pmr::string>") {
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.to_string<pmr::string>") {
     auto* a = new Arena(ops_simple);
     ArenaTestHelper ah(*a);
     mock = new alloc_class;
@@ -524,7 +524,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.to_string<std::pmr::string>") {
     std::string s;
 
     {
-        std::pmr::string pmr_str(str, a->get_memory_resource());
+        ::pmr::string pmr_str(str, a->get_memory_resource());
         CHECK_EQ(ah.space_allocated(), 1024ULL);
         CHECK_EQ(strcmp(pmr_str.c_str(), str.c_str()), 0);
     }
@@ -838,7 +838,7 @@ class mock_hook
 
 thread_local mock_hook* hook_instance;
 
-auto init_hook(Arena* a, [[maybe_unused]] const source_location& loc = source_location::current()) -> void* {
+auto init_hook(Arena* a, [[maybe_unused]] const boost::source_location& loc = BOOST_CURRENT_LOCATION) -> void* {
     return hook_instance->arena_init_hook(a);
 }
 
@@ -1001,8 +1001,10 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.MemoryResourceTest") {
         auto res2 = *arena2.get_memory_resource();
         CHECK_NE(res, res2);  // NOLINT
 
-        auto res3 = std::pmr::monotonic_buffer_resource{};
+#ifndef __APPLE__
+        auto res3 = pmr::monotonic_buffer_resource{};
         CHECK_NE(res2, res3);  // NOLINT
+#endif
     }
 
     delete arena;
@@ -1013,7 +1015,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.MemoryResourceTest") {
 
 class Foo
 {
-    using allocator_type = std::pmr::polymorphic_allocator<>;
+    using allocator_type = pmr::polymorphic_allocator<Foo>;
 
    public:
     explicit Foo(allocator_type alloc) : allocator_(alloc), vec_{alloc} {};
@@ -1023,7 +1025,7 @@ class Foo
     Foo(Foo&& foo, allocator_type alloc) : allocator_(alloc), vec_(alloc) { vec_ = std::move(foo.vec_); }
 
     allocator_type allocator_;
-    std::pmr::vector<int> vec_;
+    pmr::vector<int> vec_;
 };
 
 TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
@@ -1151,13 +1153,13 @@ TEST_CASE("ArenaTest.pmr-support") {
     auto options = Arena::Options::GetDefaultOptions();
     Arena arena(options);
     SUBCASE("String") {
-        std::pmr::string str("stringstringstring..............213423423443242344", arena.get_memory_resource());
+        pmr::string str("stringstringstring..............213423423443242344", arena.get_memory_resource());
         CHECK_EQ(arena.check(str.c_str()), ArenaContainStatus::BlockUsed);
     }
     SUBCASE("vector") {
-        std::pmr::vector<std::pmr::string> strings(arena.get_memory_resource());
-        strings.emplace_back(std::pmr::string("123123123_+23423432423agsagasb+234324b1321312bsafs........a2423",
-                                              arena.get_memory_resource()));
+        pmr::vector<pmr::string> strings(arena.get_memory_resource());
+        strings.emplace_back(
+          pmr::string("123123123_+23423432423agsagasb+234324b1321312bsafs........a2423", arena.get_memory_resource()));
         CHECK_EQ(strings.size(), 1);
         CHECK_EQ(arena.check(strings.front().c_str()), ArenaContainStatus::BlockUsed);
     }
@@ -1167,20 +1169,20 @@ TEST_CASE("ArenaTest.Create-support-pmr") {
     auto options = Arena::Options::GetDefaultOptions();
     Arena arena(options);
     SUBCASE("String") {
-        auto* pmr_str = arena.Create<std::pmr::string>("safsdaf_sadgsadf21321300000");
+        auto* pmr_str = arena.Create<pmr::string>("safsdaf_sadgsadf21321300000");
         CHECK_EQ(arena.check(pmr_str->c_str()), ArenaContainStatus::BlockUsed);
     }
 
     SUBCASE("vector-emplace") {
-        auto* strings = arena.Create<std::pmr::vector<std::pmr::string>>();
+        auto* strings = arena.Create<pmr::vector<pmr::string>>();
         strings->emplace_back("123123123_+23423432423agsagasb+234324b1321312bsafs........a2423");
         CHECK_EQ(strings->size(), 1);
         CHECK_EQ(arena.check(strings->front().c_str()), ArenaContainStatus::BlockUsed);
     }
 
     SUBCASE("vector-push") {
-        auto* strings = arena.Create<std::pmr::vector<std::pmr::string>>();
-        auto* pmr_str = arena.Create<std::pmr::string>("safsdaf_sadgsadf21321300000");
+        auto* strings = arena.Create<pmr::vector<pmr::string>>();
+        auto* pmr_str = arena.Create<pmr::string>("safsdaf_sadgsadf21321300000");
         strings->push_back(*pmr_str);
         CHECK_EQ(strings->size(), 1);
         CHECK_EQ(arena.check(strings->front().c_str()), ArenaContainStatus::BlockUsed);
@@ -1189,8 +1191,8 @@ TEST_CASE("ArenaTest.Create-support-pmr") {
 }
 struct class_with_allocator
 {
-    using allocator_type = std::pmr::polymorphic_allocator<char>;
-    std::pmr::string name;
+    using allocator_type = pmr::polymorphic_allocator<char>;
+    pmr::string name;
     explicit class_with_allocator(allocator_type alloc = {}) : name(alloc) {}
 };
 

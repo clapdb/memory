@@ -32,7 +32,7 @@ class ThreadLocalArenaMetricsTest
    protected:
     Arena::Options ops;
     // NOLINTNEXTLINE
-    static auto alloc(uint64_t size) -> void* { return std::malloc(size); }
+    static auto alloc(std::size_t size) -> void* { return std::malloc(size); }
     // NOLINTNEXTLINE
     static void dealloc(void* ptr) { std::free(ptr); }
 

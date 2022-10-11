@@ -22,46 +22,31 @@
 
 #include <stdint.h>  // for uint64_t, uint8_t
 
+#include <boost/assert/source_location.hpp>
 #include <boost/core/demangle.hpp>  // for demangle
 #include <cassert>                  // for assert
 #include <concepts>
-#include <cstdlib>          // for free, malloc, size_t
-#include <exception>        // for type_info
-#include <iostream>         // for endl, basic_ostream, cerr
-#include <limits>           // for numeric_limits
-#include <memory_resource>  // for memory_resource
-#include <new>              // for operator new, bad_alloc
-#include <string>           // for allocator, operator<<, string
-#include <type_traits>      // for false_type, is_standard_layout
-#include <typeinfo>         // for bad_cast, type_info
-#include <unordered_map>    // for polymorphic_allocator
-#include <utility>          // for exchange, forward
+#include <cstdlib>        // for free, malloc, size_t
+#include <exception>      // for type_info
+#include <iostream>       // for endl, basic_ostream, cerr
+#include <limits>         // for numeric_limits
+#include <new>            // for operator new, bad_alloc
+#include <string>         // for allocator, operator<<, string
+#include <type_traits>    // for false_type, is_standard_layout
+#include <typeinfo>       // for bad_cast, type_info
+#include <unordered_map>  // for polymorphic_allocator
+#include <utility>        // for exchange, forward
 
-#include "align/align.hpp"  // for AlignUpTo
-#include "arenahelper.hpp"  // for ArenaHelper
-#include "fmt/core.h"       // for format
-
-#if defined(__GNUC__) && (__GNUC__ >= 11)
-#include <source_location>
-#elif defined(__clang__)
-#include <experimental/source_location>  // for source_location
-#endif
+#include "align/align.hpp"                                           // for AlignUpTo
+#include "arenahelper.hpp"                                           // for ArenaHelper
+#include "fmt/core.h"                                                // for format
+#define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
 
 namespace stdb::memory {
 
-using ::stdb::memory::align::AlignUpTo;
-
-#if defined(__GNUC__) && (__GNUC__ >= 11)
-using source_location = std::source_location;
-#elif defined(__clang__)
-using source_location = std::experimental::source_location;
-#else
-#error "no support for other compiler"
-#endif
-#define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
-
 using ::std::size_t;
 using ::std::type_info;
+using ::stdb::memory::align::AlignUpTo;
 
 static void default_logger_func(const std::string& output) { std::cerr << output << std::endl; }
 
@@ -103,8 +88,8 @@ inline constexpr uint64_t kMegaByte = 1024 * 1024;
  * otherwise it is a pmr container.
  */
 template <typename T>
-concept Creatable = Constructable<T> ||(std::is_standard_layout<T>::value&& std::is_trivial<T>::value) ||
-                    std::is_constructible_v<T, std::pmr::polymorphic_allocator<T>>;
+concept Creatable = Constructable<T> || (std::is_standard_layout<T>::value && std::is_trivial<T>::value) ||
+                    std::is_constructible_v<T, pmr::polymorphic_allocator<T>>;
 
 /*
  * TriviallyDestructible concept requires T just has default destructor.
@@ -179,7 +164,7 @@ class Arena
         uint64_t suggested_init_block_size;
 
         // A Function pointer to an alloc method for the new block in the Arena.
-        void* (*block_alloc)(uint64_t){nullptr};
+        void* (*block_alloc)(std::size_t){nullptr};
 
         // A Function pointer to a dealloc method for the blocks in the Arena.
         void (*block_dealloc)(void*){nullptr};
@@ -195,7 +180,7 @@ class Arena
         // NULL and not use the cookie feature).
         // on_arena_reset and on_arena_destruction also receive the space used in
         // the arena just before the reset.
-        void* (*on_arena_init)(Arena* arena, const source_location& loc){nullptr};
+        void* (*on_arena_init)(Arena* arena, const boost::source_location& loc){nullptr};
         void (*on_arena_reset)(Arena* arena, void* cookie, uint64_t space_used, uint64_t space_wasted){nullptr};
         void (*on_arena_allocation)(const type_info* alloc_type, uint64_t alloc_size, void* cookie){nullptr};
         void (*on_arena_newblock)(uint64_t blk_num, uint64_t blk_size, void* cookie){nullptr};
@@ -293,7 +278,7 @@ class Arena
         uint64_t _limit;  // the limit can be use for Create
     };
 
-    class memory_resource : public ::std::pmr::memory_resource
+    class memory_resource : public ::pmr::memory_resource
     {
        public:
         explicit memory_resource(Arena* arena) : _arena(arena) { assert(arena != nullptr); };  // NOLINT
@@ -307,7 +292,7 @@ class Arena
         void do_deallocate([[maybe_unused]] void* /*unused*/, [[maybe_unused]] size_t /*unused*/,
                            [[maybe_unused]] size_t /*unused*/) noexcept override{};
 
-        [[nodiscard]] auto do_is_equal(const ::std::pmr::memory_resource& _other) const noexcept -> bool override {
+        [[nodiscard]] auto do_is_equal(const ::pmr::memory_resource& _other) const noexcept -> bool override {
             try {
                 auto other = dynamic_cast<const memory_resource&>(_other);
                 return _arena == other._arena;
@@ -422,7 +407,9 @@ class Arena
      * because CreateArray do not RegisterDestructor.
      */
     template <Creatable T>
-    [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T* requires TriviallyDestructible<T> {
+    [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T*
+        requires TriviallyDestructible<T>
+    {
         if (num > std::numeric_limits<uint64_t>::max() / sizeof(T)) {
             auto output_message = fmt::format(
               "CreateArray need too many memory, that more than max of uint64_t, the num of array is {}, and the Type "
@@ -505,7 +492,7 @@ class Arena
      * init the arena
      * call the callback to monitor and metrics: this arena was inited.
      */
-    [[gnu::always_inline]] inline void init(const source_location& loc = source_location::current()) noexcept {
+    [[gnu::always_inline]] inline void init(const boost::source_location& loc = BOOST_CURRENT_LOCATION) noexcept {
         try {
             _resource = new memory_resource{this};
         } catch (std::bad_alloc& ex) {
@@ -644,7 +631,7 @@ class Arena
     template <typename T, typename... Args>
     [[gnu::always_inline]] inline static auto Construct(void* ptr, Arena& arena, Args&&... args) noexcept -> T* {
         // placement new make the new Object T is in the ptr-> memory.
-        if constexpr (std::is_constructible_v<T, Args..., std::pmr::polymorphic_allocator<T>>) {
+        if constexpr (std::is_constructible_v<T, Args..., ::pmr::polymorphic_allocator<T>>) {
             return new (ptr) T(std::forward<Args>(args)..., arena.get_memory_resource());
         } else if constexpr (std::is_constructible_v<T, Arena&, Args...>) {
             return new (ptr) T(arena, std::forward<Args>(args)...);

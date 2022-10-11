@@ -1,4 +1,4 @@
-#include "string.hpp"
+#include "string/string.hpp"
 
 #include <cxxabi.h>     // for __forced_unwind
 #include <fmt/core.h>   // for format
@@ -16,9 +16,9 @@
 #include <type_traits>  // for is_same
 #include <vector>       // for vector
 
-#include "arena/arena.hpp"  // for size_t, Arena, Arena::Options
-#include "arena_string.hpp"
+#include "arena/arena.hpp"    // for size_t, Arena, Arena::Options
 #include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK
+#include "string/arena_string.hpp"
 
 namespace stdb::memory {
 
@@ -32,6 +32,13 @@ template <class Integral1, class Integral2>
 auto random(Integral1 low, Integral2 up) -> Integral2 {
     std::uniform_int_distribution<Integral2> range(static_cast<Integral2>(low), up);
     return range(rng);
+}
+
+template <>
+auto random<char, char>(char low, char high) -> char {
+    int32_t int_low = static_cast<int32_t>(low);
+    int32_t int_high = static_cast<int32_t>(high);
+    return random(int_low, int_high);
 }
 
 template <class String>
@@ -1723,7 +1730,7 @@ void clause11_21_4_8_1_b(String& test) {
     randomString(&s1, maxString);
     String s2;
     randomString(&s2, maxString);
-    test = move(s1) + s2;
+    test = std::move(s1) + s2;
 }
 
 template <class String>
@@ -1732,7 +1739,7 @@ void arena_clause11_21_4_8_1_b(String& test) {
     randomString(&s1, maxString);
     String s2(test.get_allocator());
     randomString(&s2, maxString);
-    test = move(s1) + s2;
+    test = std::move(s1) + s2;
 }
 
 template <class String>
@@ -1741,7 +1748,7 @@ void clause11_21_4_8_1_c(String& test) {
     randomString(&s1, maxString);
     String s2;
     randomString(&s2, maxString);
-    test = s1 + move(s2);
+    test = s1 + std::move(s2);
 }
 
 template <class String>
@@ -1750,7 +1757,7 @@ void arena_clause11_21_4_8_1_c(String& test) {
     randomString(&s1, maxString);
     String s2(test.get_allocator());
     randomString(&s2, maxString);
-    test = s1 + move(s2);
+    test = s1 + std::move(s2);
 }
 
 template <class String>
@@ -1759,7 +1766,7 @@ void clause11_21_4_8_1_d(String& test) {
     randomString(&s1, maxString);
     String s2;
     randomString(&s2, maxString);
-    test = move(s1) + move(s2);
+    test = std::move(s1) + std::move(s2);
 }
 
 template <class String>
@@ -1768,7 +1775,7 @@ void arena_clause11_21_4_8_1_d(String& test) {
     randomString(&s1, maxString);
     String s2(test.get_allocator());
     randomString(&s2, maxString);
-    test = move(s1) + move(s2);
+    test = std::move(s1) + std::move(s2);
 }
 
 template <class String>
@@ -1798,7 +1805,7 @@ void clause11_21_4_8_1_f(String& test) {
     String s1;
     randomString(&s1, maxString);
     // NOLINTNEXTLINE
-    test = s.c_str() + move(s1);
+    test = s.c_str() + std::move(s1);
 }
 
 template <class String>
@@ -1808,7 +1815,7 @@ void arena_clause11_21_4_8_1_f(String& test) {
     String s1(test.get_allocator());
     randomString(&s1, maxString);
     // NOLINTNEXTLINE
-    test = s.c_str() + move(s1);
+    test = s.c_str() + std::move(s1);
 }
 
 template <class String>
@@ -1832,7 +1839,7 @@ void clause11_21_4_8_1_h(String& test) {
     String s;
     randomString(&s, maxString);
     // NOLINTNEXTLINE
-    test = typename String::value_type(random('a', 'z')) + move(s);
+    test = typename String::value_type(random('a', 'z')) + std::move(s);
 }
 
 template <class String>
@@ -1840,7 +1847,7 @@ void arena_clause11_21_4_8_1_h(String& test) {
     String s(test.get_allocator());
     randomString(&s, maxString);
     // NOLINTNEXTLINE
-    test = typename String::value_type(random('a', 'z')) + move(s);
+    test = typename String::value_type(random('a', 'z')) + std::move(s);
 }
 
 template <class String>
@@ -1870,7 +1877,7 @@ void clause11_21_4_8_1_j(String& test) {
     String s1;
     randomString(&s1, maxString);
     // NOLINTNEXTLINE
-    test = move(s) + s1.c_str();
+    test = std::move(s) + s1.c_str();
 }
 
 template <class String>
@@ -1880,7 +1887,7 @@ void arena_clause11_21_4_8_1_j(String& test) {
     String s1(test.get_allocator());
     randomString(&s1, maxString);
     // NOLINTNEXTLINE
-    test = move(s) + s1.c_str();
+    test = std::move(s) + s1.c_str();
 }
 
 template <class String>
@@ -1906,7 +1913,7 @@ void clause11_21_4_8_1_l(String& test) {
     String s1;
     randomString(&s1, maxString);
     // NOLINTNEXTLINE
-    test = move(s) + s1.c_str();
+    test = std::move(s) + s1.c_str();
 }
 
 template <class String>
@@ -1916,7 +1923,7 @@ void arena_clause11_21_4_8_1_l(String& test) {
     String s1(test.get_allocator());
     randomString(&s1, maxString);
     // NOLINTNEXTLINE
-    test = move(s) + s1.c_str();
+    test = std::move(s) + s1.c_str();
 }
 
 // Numbering here is from C++11

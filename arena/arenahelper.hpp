@@ -27,6 +27,18 @@
 
 #include "align/align.hpp"
 
+#if defined(__GNUC__) && (__GNUC__ >= 11)
+#include <memory_resource>  // for memory_resource
+namespace pmr = ::std::pmr;
+#elif defined(__clang__)
+#include <experimental/memory_resource>  // for memory_resource
+#include <experimental/string>           // for memory_resource
+#include <experimental/vector>           // for memory_resource
+namespace pmr = ::std::experimental::pmr;
+#else
+#error "no support for other compiler"
+#endif
+
 #define ArenaFullManagedTag using ArenaManaged_ = void;                    // NOLINT
 #define ArenaManagedCreateOnlyTag using ArenaManagedSkipDestruct_ = void;  // NOLINT
 
@@ -84,7 +96,8 @@ template <typename T>
 concept Constructable = is_arena_full_managable<T>::value || is_destructor_skippable<T>::value;
 
 template <typename T>
-concept NonConstructable = !is_arena_full_managable<T>::value;
+concept NonConstructable = !
+is_arena_full_managable<T>::value;
 
 template <typename T>
 concept DestructorSkippable = is_destructor_skippable<T>::value;
