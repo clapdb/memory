@@ -1,13 +1,13 @@
 #include "string.hpp"
 #include "arena_string.hpp"
 
-#include <bits/chrono.h>  // for duration, system_clock, system_clock::t...
 #include <cxxabi.h>       // for __forced_unwind
 #include <fmt/core.h>     // for format
 #include <sys/types.h>    // for uint
 
 #include <algorithm>    // for for_each
 #include <atomic>       // for atomic, __atomic_base
+#include <chrono>       // for duration, system_clock, system_clock::t...
 #include <cstddef>      // for size_t
 #include <iostream>     // for cout
 #include <iterator>     // for move_iterator, make_move_iterator, oper...
