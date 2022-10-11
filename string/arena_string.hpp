@@ -710,7 +710,7 @@ using arena_string =
 
 namespace fmt {
 template <>
-struct ::fmt::formatter<stdb::memory::arena_string> : private formatter<fmt::string_view>
+struct formatter<stdb::memory::arena_string> : private formatter<fmt::string_view>
 {
     using formatter<fmt::string_view>::parse;
 
