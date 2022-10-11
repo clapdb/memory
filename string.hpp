@@ -2596,10 +2596,10 @@ struct hash<::stdb::memory::basic_string<wchar_t>>
 
 }  // namespace std
 
-#undef FBSTRING_HASH
-#undef FBSTRING_HASH1
+//#undef FBSTRING_HASH
+//#undef FBSTRING_HASH1
 
-#undef FBSTRING_DISABLE_SSO
+//#undef FBSTRING_DISABLE_SSO
 
 template <>
 struct fmt::formatter<stdb::memory::string> : private formatter<fmt::string_view>

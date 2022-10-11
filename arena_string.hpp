@@ -692,6 +692,56 @@ inline void arena_string_core<Char>::shrinkLarge(const size_t delta) {
 
 static_assert(sizeof (arena_string_core<char>) == 32);
 
+template<class Char>
+using arena_basic_string = basic_string<Char, std::char_traits<Char>, std::pmr::polymorphic_allocator<Char>, arena_string_core<Char>>;
+
 using arena_string = basic_string<char, std::char_traits<char>, std::pmr::polymorphic_allocator<char>, arena_string_core<char>>;
+
 } // namespace stdb::memory
 
+namespace fmt {
+template <>
+struct ::fmt::formatter<stdb::memory::arena_string> : private formatter<fmt::string_view>
+{
+    using formatter<fmt::string_view>::parse;
+
+    template <typename Context>
+    auto format(const stdb::memory::string& str, Context& ctx) const -> typename Context::iterator {
+        return formatter<fmt::string_view>::format({str.data(), str.size()}, ctx);
+    }
+};
+}   // namespace fmt
+
+
+namespace std {
+// for unordered_map
+template <>
+struct hash<::stdb::memory::arena_basic_string<char>>
+{
+    auto operator()(const ::stdb::memory::arena_basic_string<char>& str) const -> size_t {
+        return XXH32(str.data(), str.size(), str.size() * sizeof(char));
+    }
+};
+template <>
+struct hash<::stdb::memory::arena_basic_string<char16_t>>
+{
+    auto operator()(const ::stdb::memory::arena_basic_string<char16_t>& str) const -> size_t {
+        return XXH32(str.data(), str.size(), str.size() * sizeof(char16_t));
+    }
+};
+template <>
+struct hash<::stdb::memory::arena_basic_string<char32_t>>
+{
+    auto operator()(const ::stdb::memory::arena_basic_string<char32_t>& str) const -> size_t {
+        return XXH32(str.data(), str.size(), str.size() * sizeof(char32_t));
+    }
+};
+template <>
+struct hash<::stdb::memory::arena_basic_string<wchar_t>>
+{
+    auto operator()(const ::stdb::memory::arena_basic_string<wchar_t>& str) const -> size_t {
+        return XXH32(str.data(), str.size(), str.size() * sizeof(wchar_t));
+    }
+};
+
+}  // namespace std
