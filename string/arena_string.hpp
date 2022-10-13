@@ -702,6 +702,14 @@ using arena_basic_string =
 using arena_string =
   basic_string<char, std::char_traits<char>, pmr::polymorphic_allocator<char>, arena_string_core<char>>;
 
+inline auto toStdString(const arena_string& str) -> std::string  {
+    return std::string(str);
+}
+
+inline auto toStdString(arena_string&& str) -> std::string  {
+    return std::string (str);
+}
+
 }  // namespace stdb::memory
 
 namespace fmt {
