@@ -719,7 +719,7 @@ struct formatter<stdb::memory::arena_string> : private formatter<fmt::string_vie
     using formatter<fmt::string_view>::parse;
 
     template <typename Context>
-    auto format(const stdb::memory::string& str, Context& ctx) const -> typename Context::iterator {
+    auto format(const stdb::memory::arena_string& str, Context& ctx) const -> typename Context::iterator {
         return formatter<fmt::string_view>::format({str.data(), str.size()}, ctx);
     }
 };

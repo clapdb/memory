@@ -1079,6 +1079,8 @@ class basic_string
 
     ~basic_string() noexcept = default;
 
+    auto operator=(std::string_view lhs) -> basic_string&;
+
     auto operator=(const basic_string& lhs) -> basic_string&;
 
     // Move assignment
@@ -1231,6 +1233,8 @@ class basic_string
 
     // C++11 21.4.6 modifiers:
     auto operator+=(const basic_string& str) -> basic_string& { return append(str); }
+
+    auto operator+=(std::string_view str) -> basic_string& { return append(str); }
 
     auto operator+=(const value_type* s) -> basic_string& { return append(s); }  // NOLINT
 
@@ -1656,6 +1660,11 @@ template <typename E, class T, class A, class S>
 auto basic_string<E, T, A, S>::traitsLength(const value_type* s) ->  // NOLINT
   typename basic_string<E, T, A, S>::size_type {                     // NOLINT
     return s ? traits_type::length(s) : (throw std::logic_error("basic_string: null pointer initializer not valid"), 0);
+}
+template <typename E, class T, class A, class S>
+inline auto basic_string<E, T, A, S>::operator=(std::string_view lhs) -> basic_string<E, T, A, S>& {
+    Invariant checker(*this);
+    return assign(lhs.data(), lhs.size());  // NOLINT
 }
 
 template <typename E, class T, class A, class S>
