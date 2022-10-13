@@ -2539,7 +2539,10 @@ using string = basic_string<char>;
 // to convert a std::string or string variable s into type std::string
 // with very little overhead if s was already std::string
 inline auto toStdString(const stdb::memory::string& str) -> std::string {
-    return std::string(str.data(), str.size());  // NOLINT
+    return std::string(str);  // NOLINT
+}
+inline auto toStdString(stdb::memory::string&& str) -> std::string {
+    return std::string(str);  // NOLINT
 }
 
 inline auto toStdString(const std::string& str) -> const std::string& { return str; }

@@ -28,7 +28,7 @@ list(APPEND TEST_FLAGS
 )
 
 ### include arena src
-target_include_directories(memory_test PRIVATE ${ARENA_SOURCE_DIR}/)
+#target_include_directories(memory_test PRIVATE ${MEMORY_SOURCE_DIR}/)
 
 target_compile_options(memory_test PRIVATE ${TEST_FLAGS})
 if (APPLE)
