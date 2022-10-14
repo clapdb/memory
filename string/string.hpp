@@ -1234,7 +1234,7 @@ class basic_string
     // C++11 21.4.6 modifiers:
     auto operator+=(const basic_string& str) -> basic_string& { return append(str); }
 
-    auto operator+=(std::string_view str) -> basic_string& { return append(str); }
+    auto operator+=(std::basic_string_view<value_type> str) -> basic_string& { return append(str); }
 
     auto operator+=(const value_type* s) -> basic_string& { return append(s); }  // NOLINT
 
@@ -1515,13 +1515,61 @@ class basic_string
         }
     }
 
+    [[nodiscard]] auto starts_with(value_type c) const -> bool {
+        return operator std::basic_string_view<value_type>().starts_with(c);
+    }
+
+    [[nodiscard]] auto starts_with(const value_type * str) const -> bool {
+        return operator std::basic_string_view<value_type>().starts_with(str);
+    }
+
+    [[nodiscard]] auto starts_with(std::basic_string_view<value_type> str) const -> bool {
+        return operator std::basic_string_view<value_type>().starts_with(str);
+    }
+
+    [[nodiscard]] auto starts_with(const basic_string& str) const -> bool {
+        return operator std::basic_string_view<value_type>().starts_with(str);
+    }
+
+    [[nodiscard]] auto ends_with(value_type c) const -> bool {
+        return operator std::basic_string_view<value_type>().ends_with(c);
+    }
+
+    [[nodiscard]] auto ends_with(const value_type * str) const -> bool {
+        return operator std::basic_string_view<value_type>().ends_with(str);
+    }
+
+    [[nodiscard]] auto ends_with(std::basic_string_view<value_type> str) const -> bool {
+        return operator std::basic_string_view<value_type>().ends_with(str);
+    }
+
+    [[nodiscard]] auto ends_with(const basic_string& str) const -> bool {
+        return operator std::basic_string_view<value_type>().ends_with(str);
+    }
+
+    [[nodiscard]] auto contains(value_type c) const -> bool {
+        return find(c) != basic_string::npos;
+    }
+
+    [[nodiscard]] auto contains(const value_type * str) const -> bool {
+        return find(str) != basic_string::npos;
+    }
+
+    [[nodiscard]] auto contains(std::basic_string_view<value_type> str) const -> bool {
+        return find(str) != basic_string::npos;
+    }
+
+    [[nodiscard]] auto contains(const basic_string& str) const -> bool {
+        return find(str) != basic_string::npos;
+    }
+
     [[nodiscard]] auto find(const basic_string& str, size_type pos = 0) const -> size_type {
         return find(str.data(), pos, str.length());
     }
 
-    auto find(const value_type* needle, size_type pos, size_type nsize) const -> size_type;
+    [[nodiscard]] auto find(const value_type* needle, size_type pos, size_type nsize) const -> size_type;
 
-    auto find(const value_type* s, size_type pos = 0) const -> size_type {  // NOLINT
+    [[nodiscard]] auto find(const value_type* s, size_type pos = 0) const -> size_type {  // NOLINT
         return find(s, pos, traitsLength(s));
     }  // NOLINT
 
