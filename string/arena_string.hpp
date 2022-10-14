@@ -49,6 +49,11 @@ class arena_string_core
    public:
     arena_string_core(const pmr::polymorphic_allocator<Char>& allocator) noexcept : allocator_(allocator) { reset(); }
 
+    arena_string_core(const Char* str, std::size_t len) {
+        throw std::runtime_error("new arena_string without arena");
+        return arena_string_core(str, len, std::pmr::get_default_resource());
+    }
+
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
         assert(&rhs != this);
         switch (rhs.category()) {
