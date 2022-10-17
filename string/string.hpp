@@ -1516,35 +1516,35 @@ class basic_string
     }
 
     [[nodiscard]] auto starts_with(value_type c) const -> bool {
-        return operator std::basic_string_view<value_type>().starts_with(c);
+        return operator std::basic_string_view<value_type, traits_type>().starts_with(c);
     }
 
     [[nodiscard]] auto starts_with(const value_type * str) const -> bool {
-        return operator std::basic_string_view<value_type>().starts_with(str);
+        return operator std::basic_string_view<value_type, traits_type>().starts_with(str);
     }
 
     [[nodiscard]] auto starts_with(std::basic_string_view<value_type> str) const -> bool {
-        return operator std::basic_string_view<value_type>().starts_with(str);
+        return operator std::basic_string_view<value_type, traits_type>().starts_with(str);
     }
 
     [[nodiscard]] auto starts_with(const basic_string& str) const -> bool {
-        return operator std::basic_string_view<value_type>().starts_with(str);
+        return operator std::basic_string_view<value_type, traits_type>().starts_with(str);
     }
 
     [[nodiscard]] auto ends_with(value_type c) const -> bool {
-        return operator std::basic_string_view<value_type>().ends_with(c);
+        return operator std::basic_string_view<value_type, traits_type>().ends_with(c);
     }
 
     [[nodiscard]] auto ends_with(const value_type * str) const -> bool {
-        return operator std::basic_string_view<value_type>().ends_with(str);
+        return operator std::basic_string_view<value_type, traits_type>().ends_with(str);
     }
 
     [[nodiscard]] auto ends_with(std::basic_string_view<value_type> str) const -> bool {
-        return operator std::basic_string_view<value_type>().ends_with(str);
+        return operator std::basic_string_view<value_type, traits_type>().ends_with(str);
     }
 
     [[nodiscard]] auto ends_with(const basic_string& str) const -> bool {
-        return operator std::basic_string_view<value_type>().ends_with(str);
+        return operator std::basic_string_view<value_type, traits_type>().ends_with(str);
     }
 
     [[nodiscard]] auto contains(value_type c) const -> bool {

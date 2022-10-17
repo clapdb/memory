@@ -47,11 +47,11 @@ class arena_string_core
     friend class basic_string;
 
    public:
-    arena_string_core(const pmr::polymorphic_allocator<Char>& allocator) noexcept : allocator_(allocator) { reset(); }
+    explicit arena_string_core(const pmr::polymorphic_allocator<Char>& allocator) noexcept : allocator_(allocator) { reset(); }
 
-    arena_string_core(const Char* str, std::size_t len) {
+    arena_string_core([[maybe_unused]] const Char* str, [[maybe_unused]] std::size_t len) {
         throw std::runtime_error("new arena_string without arena");
-        return arena_string_core(str, len, std::pmr::get_default_resource());
+        //return arena_string_core(str, len, std::pmr::get_default_resource());
     }
 
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
