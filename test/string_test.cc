@@ -241,7 +241,7 @@ void arena_clause11_21_4_2_h(String& test) {
     String s4(lst1.begin(), lst1.end(), test.get_allocator());
     CHECK_EQ(test, s4);
     // Constructor from char_t pointers
-    char cc[20];
+    [[maybe_unused]] char cc[20];
     cc[0] = 'a';
     cc[1] = 'b';
 

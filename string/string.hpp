@@ -2612,21 +2612,23 @@ inline auto toStdString(std::string&& str) -> std::string&& { return std::move(s
 
 // Hash functions to make string usable with e.g. unordered_map
 
-// #define FBSTRING_HASH1(T)                                                               \
-//     template <>                                                                         \
-//     struct hash<::stdb::memory::basic_string<T>>                                      \
-//     {                                                                                   \
-//         auto operator()(const ::stdb::memory::basic_string<T>& str) const -> size_t { \
-//             return XXH32(str.data(), str.size(), str.size() * sizeof(T));               \
-//         }                                                                               \
-//     };
+/*
+#define FBSTRING_HASH1(T)                                                               \
+    template <>                                                                         \
+    struct hash<::stdb::memory::basic_string<T>>                                      \
+    {                                                                                   \
+        auto operator()(const ::stdb::memory::basic_string<T>& str) const -> size_t { \
+            return XXH32(str.data(), str.size(), str.size() * sizeof(T));               \
+        }                                                                               \
+    };
 
-// // The C++11 standard says that these four are defined for basic_string
-// #define FBSTRING_HASH        \
-//     FBSTRING_HASH1(char)     \
-//     FBSTRING_HASH1(char16_t) \
-//     FBSTRING_HASH1(char32_t) \
-//     FBSTRING_HASH1(wchar_t)
+// The C++11 standard says that these four are defined for basic_string
+#define FBSTRING_HASH        \
+    FBSTRING_HASH1(char)     \
+    FBSTRING_HASH1(char16_t) \
+    FBSTRING_HASH1(char32_t) \
+    FBSTRING_HASH1(wchar_t)
+*/
 
 namespace std {
 

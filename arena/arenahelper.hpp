@@ -26,17 +26,14 @@
 #include <utility>
 
 #include "align/align.hpp"
-
-#if defined(__GNUC__) && (__GNUC__ >= 11)
+#if defined(__linux__)
 #include <memory_resource>  // for memory_resource
+namespace pmr = ::std::pmr;
 #elif defined(__APPLE__)
 #include <experimental/memory_resource>  // for memory_resource
 #include <experimental/string>           // for memory_resource
 #include <experimental/vector>           // for memory_resource
 namespace pmr = ::std::experimental::pmr;
-#elif defined(__linux__)
-#include <memory_resource>  // for memory_resource
-namespace pmr = ::std::pmr;
 #else
 #error "no support for other compiler"
 #endif
