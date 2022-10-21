@@ -35,10 +35,10 @@ auto random(Integral1 low, Integral2 up) -> Integral2 {
 }
 
 template <>
-auto random<char, char>(char low, char high) -> char {
-    int32_t int_low = static_cast<int32_t>(low);
-    int32_t int_high = static_cast<int32_t>(high);
-    return random(int_low, int_high);
+auto random<unsigned char, unsigned char>(unsigned char low, unsigned char high) -> unsigned char {
+    auto int_low = static_cast<uint32_t>(low);
+    auto int_high = static_cast<uint32_t>(high);
+    return static_cast<unsigned char>(random(int_low, int_high));
 }
 
 template <class String>
@@ -1950,40 +1950,40 @@ void arena_clause11_21_4_8_9_a(String& test) {
 
 TEST_CASE("c++20 string starts_with") {
     SUBCASE("starts_with_char") {
-        stdb::memory::string  x("helloworld");
+        stdb::memory::string x("helloworld");
         CHECK_EQ(x.starts_with('h'), true);
         CHECK_EQ(x.starts_with('x'), false);
 
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.starts_with('h'), false);
     }
     SUBCASE("starts_with_cstr") {
-        stdb::memory::string  x("helloworld");
+        stdb::memory::string x("helloworld");
         CHECK_EQ(x.starts_with("hello"), true);
         CHECK_EQ(x.starts_with("ello"), false);
         CHECK_EQ(x.starts_with("helloworld"), true);
         CHECK_EQ(x.starts_with("helloworld "), false);
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.starts_with("helloworld"), false);
         CHECK_EQ(y.starts_with("ello"), false);
     }
     SUBCASE("starts_with_string_view") {
-        stdb::memory::string  x("helloworld");
-        CHECK_EQ(x.starts_with(std::string_view ("hello")), true);
-        CHECK_EQ(x.starts_with(std::string_view ("ello")), false);
-        CHECK_EQ(x.starts_with(std::string_view ("helloworld")), true);
-        CHECK_EQ(x.starts_with(std::string_view ("helloworld ")), false);
-        stdb::memory::string  y;
-        CHECK_EQ(y.starts_with(std::string_view ("helloworld")), false);
-        CHECK_EQ(y.starts_with(std::string_view ("ello")), false);
+        stdb::memory::string x("helloworld");
+        CHECK_EQ(x.starts_with(std::string_view("hello")), true);
+        CHECK_EQ(x.starts_with(std::string_view("ello")), false);
+        CHECK_EQ(x.starts_with(std::string_view("helloworld")), true);
+        CHECK_EQ(x.starts_with(std::string_view("helloworld ")), false);
+        stdb::memory::string y;
+        CHECK_EQ(y.starts_with(std::string_view("helloworld")), false);
+        CHECK_EQ(y.starts_with(std::string_view("ello")), false);
     }
     SUBCASE("starts_with_string") {
-        stdb::memory::string  x("helloworld");
+        stdb::memory::string x("helloworld");
         CHECK_EQ(x.starts_with(stdb::memory::string("hello")), true);
-        CHECK_EQ(x.starts_with(stdb::memory::string ("ello")), false);
+        CHECK_EQ(x.starts_with(stdb::memory::string("ello")), false);
         CHECK_EQ(x.starts_with(stdb::memory::string("helloworld")), true);
         CHECK_EQ(x.starts_with(stdb::memory::string("helloworld ")), false);
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.starts_with(stdb::memory::string("helloworld")), false);
         CHECK_EQ(y.starts_with(stdb::memory::string("ello")), false);
     }
@@ -2001,7 +2001,7 @@ TEST_CASE("c++20 arena_string starts_with") {
         CHECK_EQ(y.starts_with(' '), false);
     }
     SUBCASE("starts_with_cstr") {
-        stdb::memory::arena_string  x("helloworld", arena.get_memory_resource());
+        stdb::memory::arena_string x("helloworld", arena.get_memory_resource());
         CHECK_EQ(x.starts_with("hello"), true);
         CHECK_EQ(x.starts_with("ello"), false);
         CHECK_EQ(x.starts_with("helloworld"), true);
@@ -2012,20 +2012,20 @@ TEST_CASE("c++20 arena_string starts_with") {
         CHECK_EQ(y.starts_with(""), true);
     }
     SUBCASE("starts_with_string_view") {
-        stdb::memory::arena_string  x("helloworld", arena.get_memory_resource());
-        CHECK_EQ(x.starts_with(std::string_view ("hello")), true);
-        CHECK_EQ(x.starts_with(std::string_view ("ello")), false);
-        CHECK_EQ(x.starts_with(std::string_view ("helloworld")), true);
-        CHECK_EQ(x.starts_with(std::string_view ("helloworld ")), false);
+        stdb::memory::arena_string x("helloworld", arena.get_memory_resource());
+        CHECK_EQ(x.starts_with(std::string_view("hello")), true);
+        CHECK_EQ(x.starts_with(std::string_view("ello")), false);
+        CHECK_EQ(x.starts_with(std::string_view("helloworld")), true);
+        CHECK_EQ(x.starts_with(std::string_view("helloworld ")), false);
         stdb::memory::arena_string y(arena.get_memory_resource());
-        CHECK_EQ(y.starts_with(std::string_view ("helloworld")), false);
-        CHECK_EQ(y.starts_with(std::string_view ("ello")), false);
-        CHECK_EQ(y.starts_with(std::string_view ("")), true);
+        CHECK_EQ(y.starts_with(std::string_view("helloworld")), false);
+        CHECK_EQ(y.starts_with(std::string_view("ello")), false);
+        CHECK_EQ(y.starts_with(std::string_view("")), true);
     }
     SUBCASE("starts_with_string") {
-        stdb::memory::arena_string  x("helloworld", arena.get_memory_resource());
+        stdb::memory::arena_string x("helloworld", arena.get_memory_resource());
         CHECK_EQ(x.starts_with(stdb::memory::string("hello")), true);
-        CHECK_EQ(x.starts_with(stdb::memory::string ("ello")), false);
+        CHECK_EQ(x.starts_with(stdb::memory::string("ello")), false);
         CHECK_EQ(x.starts_with(stdb::memory::string("helloworld")), true);
         CHECK_EQ(x.starts_with(stdb::memory::string("helloworld ")), false);
         stdb::memory::arena_string y(arena.get_memory_resource());
@@ -2037,43 +2037,43 @@ TEST_CASE("c++20 arena_string starts_with") {
 
 TEST_CASE("c++20 string ends_with") {
     SUBCASE("ends_with_char") {
-        stdb::memory::string  x("helloworld");
+        stdb::memory::string x("helloworld");
         CHECK_EQ(x.ends_with('d'), true);
         CHECK_EQ(x.ends_with('x'), false);
 
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.ends_with('h'), false);
         CHECK_EQ(y.ends_with(' '), false);
     }
     SUBCASE("ends_with_cstr") {
-        stdb::memory::string  x("helloworld");
+        stdb::memory::string x("helloworld");
         CHECK_EQ(x.ends_with("world"), true);
         CHECK_EQ(x.ends_with("llo"), false);
         CHECK_EQ(x.ends_with("helloworld"), true);
         CHECK_EQ(x.ends_with(" helloworld"), false);
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.ends_with("helloworld"), false);
         CHECK_EQ(y.ends_with("ello"), false);
         CHECK_EQ(y.ends_with(""), true);
     }
     SUBCASE("ends_with_string_view") {
-        stdb::memory::string  x("helloworld");
-        CHECK_EQ(x.ends_with(std::string_view ("world")), true);
-        CHECK_EQ(x.ends_with(std::string_view ("hello")), false);
-        CHECK_EQ(x.ends_with(std::string_view ("helloworld")), true);
-        CHECK_EQ(x.ends_with(std::string_view (" helloworld")), false);
-        stdb::memory::string  y;
-        CHECK_EQ(y.ends_with(std::string_view ("helloworld")), false);
-        CHECK_EQ(y.ends_with(std::string_view ("ello")), false);
-        CHECK_EQ(y.ends_with(std::string_view ("")), true);
+        stdb::memory::string x("helloworld");
+        CHECK_EQ(x.ends_with(std::string_view("world")), true);
+        CHECK_EQ(x.ends_with(std::string_view("hello")), false);
+        CHECK_EQ(x.ends_with(std::string_view("helloworld")), true);
+        CHECK_EQ(x.ends_with(std::string_view(" helloworld")), false);
+        stdb::memory::string y;
+        CHECK_EQ(y.ends_with(std::string_view("helloworld")), false);
+        CHECK_EQ(y.ends_with(std::string_view("ello")), false);
+        CHECK_EQ(y.ends_with(std::string_view("")), true);
     }
     SUBCASE("ends_with_string") {
-        stdb::memory::string  x("helloworld");
+        stdb::memory::string x("helloworld");
         CHECK_EQ(x.ends_with(stdb::memory::string("world")), true);
-        CHECK_EQ(x.ends_with(stdb::memory::string ("ello")), false);
+        CHECK_EQ(x.ends_with(stdb::memory::string("ello")), false);
         CHECK_EQ(x.ends_with(stdb::memory::string("helloworld")), true);
         CHECK_EQ(x.ends_with(stdb::memory::string(" helloworld")), false);
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.ends_with(stdb::memory::string("helloworld")), false);
         CHECK_EQ(y.ends_with(stdb::memory::string("ello")), false);
         CHECK_EQ(y.ends_with(stdb::memory::string("")), true);
@@ -2087,33 +2087,33 @@ TEST_CASE("c++20 arena_string ends_with") {
         CHECK_EQ(x.ends_with('d'), true);
         CHECK_EQ(x.ends_with('x'), false);
 
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.ends_with('h'), false);
     }
     SUBCASE("ends_with_cstr") {
-        stdb::memory::arena_string  x("helloworld", arena.get_memory_resource());
+        stdb::memory::arena_string x("helloworld", arena.get_memory_resource());
         CHECK_EQ(x.ends_with("world"), true);
         CHECK_EQ(x.ends_with("ello"), false);
         CHECK_EQ(x.ends_with("helloworld"), true);
         CHECK_EQ(x.ends_with(" helloworld"), false);
-        stdb::memory::arena_string  y(arena.get_memory_resource());
+        stdb::memory::arena_string y(arena.get_memory_resource());
         CHECK_EQ(y.ends_with("helloworld"), false);
         CHECK_EQ(y.ends_with("ello"), false);
     }
     SUBCASE("ends_with_string_view") {
-        stdb::memory::arena_string  x("helloworld", arena.get_memory_resource());
-        CHECK_EQ(x.ends_with(std::string_view ("world")), true);
-        CHECK_EQ(x.ends_with(std::string_view ("ello")), false);
-        CHECK_EQ(x.ends_with(std::string_view ("helloworld")), true);
-        CHECK_EQ(x.ends_with(std::string_view (" helloworld")), false);
-        stdb::memory::string  y;
-        CHECK_EQ(y.starts_with(std::string_view ("helloworld")), false);
-        CHECK_EQ(y.starts_with(std::string_view ("ello")), false);
+        stdb::memory::arena_string x("helloworld", arena.get_memory_resource());
+        CHECK_EQ(x.ends_with(std::string_view("world")), true);
+        CHECK_EQ(x.ends_with(std::string_view("ello")), false);
+        CHECK_EQ(x.ends_with(std::string_view("helloworld")), true);
+        CHECK_EQ(x.ends_with(std::string_view(" helloworld")), false);
+        stdb::memory::string y;
+        CHECK_EQ(y.starts_with(std::string_view("helloworld")), false);
+        CHECK_EQ(y.starts_with(std::string_view("ello")), false);
     }
     SUBCASE("ends_with_string") {
-        stdb::memory::arena_string  x("helloworld", arena.get_memory_resource());
+        stdb::memory::arena_string x("helloworld", arena.get_memory_resource());
         CHECK_EQ(x.ends_with(stdb::memory::string("world")), true);
-        CHECK_EQ(x.ends_with(stdb::memory::string ("ello")), false);
+        CHECK_EQ(x.ends_with(stdb::memory::string("ello")), false);
         CHECK_EQ(x.ends_with(stdb::memory::string("helloworld")), true);
         CHECK_EQ(x.ends_with(stdb::memory::string(" helloworld")), false);
         stdb::memory::arena_string y(arena.get_memory_resource());
@@ -2125,46 +2125,46 @@ TEST_CASE("c++20 arena_string ends_with") {
 
 TEST_CASE("c++20 string contains") {
     SUBCASE("contains_with_char") {
-        stdb::memory::string  x("helloworld");
+        stdb::memory::string x("helloworld");
         CHECK_EQ(x.contains('l'), true);
         CHECK_EQ(x.contains('z'), false);
 
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.contains('y'), false);
         CHECK_EQ(y.contains(' '), false);
     }
     SUBCASE("contains_with_cstr") {
-        stdb::memory::string  x("helloworld");
+        stdb::memory::string x("helloworld");
         CHECK_EQ(x.contains("world"), true);
         CHECK_EQ(x.contains("llo"), true);
         CHECK_EQ(x.contains("lol"), false);
         CHECK_EQ(x.contains("helloworld"), true);
         CHECK_EQ(x.contains(" helloworld"), false);
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.contains("helloworld"), false);
         CHECK_EQ(y.contains("ello"), false);
         CHECK_EQ(y.contains(""), true);
     }
     SUBCASE("contains_with_string_view") {
-        stdb::memory::string  x("helloworld");
-        CHECK_EQ(x.contains(std::string_view ("world")), true);
-        CHECK_EQ(x.contains(std::string_view ("hello")), true);
-        CHECK_EQ(x.contains(std::string_view ("xxx")), false);
-        CHECK_EQ(x.contains(std::string_view ("helloworld")), true);
-        CHECK_EQ(x.contains(std::string_view (" helloworld")), false);
-        stdb::memory::string  y;
-        CHECK_EQ(y.contains(std::string_view ("helloworld")), false);
-        CHECK_EQ(y.contains(std::string_view ("ello")), false);
-        CHECK_EQ(y.contains(std::string_view ("")), true);
+        stdb::memory::string x("helloworld");
+        CHECK_EQ(x.contains(std::string_view("world")), true);
+        CHECK_EQ(x.contains(std::string_view("hello")), true);
+        CHECK_EQ(x.contains(std::string_view("xxx")), false);
+        CHECK_EQ(x.contains(std::string_view("helloworld")), true);
+        CHECK_EQ(x.contains(std::string_view(" helloworld")), false);
+        stdb::memory::string y;
+        CHECK_EQ(y.contains(std::string_view("helloworld")), false);
+        CHECK_EQ(y.contains(std::string_view("ello")), false);
+        CHECK_EQ(y.contains(std::string_view("")), true);
     }
     SUBCASE("contains_with_string") {
-        stdb::memory::string  x("helloworld");
+        stdb::memory::string x("helloworld");
         CHECK_EQ(x.contains(stdb::memory::string("world")), true);
-        CHECK_EQ(x.contains(stdb::memory::string ("ello")), true);
-        CHECK_EQ(x.contains(stdb::memory::string ("xello")), false);
+        CHECK_EQ(x.contains(stdb::memory::string("ello")), true);
+        CHECK_EQ(x.contains(stdb::memory::string("xello")), false);
         CHECK_EQ(x.contains(stdb::memory::string("helloworld")), true);
         CHECK_EQ(x.contains(stdb::memory::string(" helloworld")), false);
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.contains(stdb::memory::string("helloworld")), false);
         CHECK_EQ(y.contains(stdb::memory::string("ello")), false);
         CHECK_EQ(y.contains(stdb::memory::string("")), true);
@@ -2178,38 +2178,38 @@ TEST_CASE("c++20 arena_string contains") {
         CHECK_EQ(x.contains('d'), true);
         CHECK_EQ(x.contains('x'), false);
 
-        stdb::memory::string  y;
+        stdb::memory::string y;
         CHECK_EQ(y.contains('h'), false);
     }
     SUBCASE("contains_with_cstr") {
-        stdb::memory::arena_string  x("helloworld", arena.get_memory_resource());
+        stdb::memory::arena_string x("helloworld", arena.get_memory_resource());
         CHECK_EQ(x.contains("world"), true);
         CHECK_EQ(x.contains("ello"), true);
         CHECK_EQ(x.contains("zzello"), false);
         CHECK_EQ(x.contains("helloworld"), true);
         CHECK_EQ(x.contains(" helloworld"), false);
-        stdb::memory::arena_string  y(arena.get_memory_resource());
+        stdb::memory::arena_string y(arena.get_memory_resource());
         CHECK_EQ(y.contains("helloworld"), false);
         CHECK_EQ(y.contains("ello"), false);
         CHECK_EQ(y.contains(""), true);
     }
     SUBCASE("contains_with_string_view") {
-        stdb::memory::arena_string  x("helloworld", arena.get_memory_resource());
-        CHECK_EQ(x.contains(std::string_view ("world")), true);
-        CHECK_EQ(x.contains(std::string_view ("ello")), true);
-        CHECK_EQ(x.contains(std::string_view ("zzello")), false);
-        CHECK_EQ(x.contains(std::string_view ("helloworld")), true);
-        CHECK_EQ(x.contains(std::string_view (" helloworld")), false);
-        stdb::memory::string  y;
-        CHECK_EQ(y.contains(std::string_view ("helloworld")), false);
-        CHECK_EQ(y.contains(std::string_view ("ello")), false);
-        CHECK_EQ(y.contains(std::string_view ("")), true);
+        stdb::memory::arena_string x("helloworld", arena.get_memory_resource());
+        CHECK_EQ(x.contains(std::string_view("world")), true);
+        CHECK_EQ(x.contains(std::string_view("ello")), true);
+        CHECK_EQ(x.contains(std::string_view("zzello")), false);
+        CHECK_EQ(x.contains(std::string_view("helloworld")), true);
+        CHECK_EQ(x.contains(std::string_view(" helloworld")), false);
+        stdb::memory::string y;
+        CHECK_EQ(y.contains(std::string_view("helloworld")), false);
+        CHECK_EQ(y.contains(std::string_view("ello")), false);
+        CHECK_EQ(y.contains(std::string_view("")), true);
     }
     SUBCASE("contains_with_string") {
-        stdb::memory::arena_string  x("helloworld", arena.get_memory_resource());
+        stdb::memory::arena_string x("helloworld", arena.get_memory_resource());
         CHECK_EQ(x.contains(stdb::memory::string("world")), true);
-        CHECK_EQ(x.contains(stdb::memory::string ("ello")), true);
-        CHECK_EQ(x.contains(stdb::memory::string ("xello")), false);
+        CHECK_EQ(x.contains(stdb::memory::string("ello")), true);
+        CHECK_EQ(x.contains(stdb::memory::string("xello")), false);
         CHECK_EQ(x.contains(stdb::memory::string("helloworld")), true);
         CHECK_EQ(x.contains(stdb::memory::string(" helloworld")), false);
         stdb::memory::arena_string y(arena.get_memory_resource());
@@ -2218,7 +2218,6 @@ TEST_CASE("c++20 arena_string contains") {
         CHECK_EQ(y.contains(stdb::memory::string("")), true);
     }
 }
-
 
 TEST_CASE("string::testAllClauses") {
     std::cout << "Starting with seed: " << seed << std::endl;
@@ -2435,7 +2434,7 @@ TEST_CASE("string::testMoveOperatorPlusRhs") {
 //      other than libstdc++. Someday if we deem it important to present
 //      identical undefined behavior for other platforms, we can re-visit this.
 TEST_CASE("string::testConstructionFromLiteralZero") {
-    CHECK_THROWS_AS(string s(nullptr), std::logic_error);
+    CHECK_THROWS_AS(string s(nullptr), std::logic_error);  // NOLINT
 }  // NOLINT
 
 TEST_CASE("string::testFixedBugs_D479397") {
@@ -2931,7 +2930,7 @@ TEST_CASE("arena_string::Clone") {
     }
 
     SUBCASE("create_large") {
-        arena_string* m1 = arena.Create<arena_string>("1234567890123456789012345678901234567890");
+        auto* m1 = arena.Create<arena_string>("1234567890123456789012345678901234567890");
         auto* l1 = arena.Create<arena_string>();
         for (int i = 0; i < 125; ++i) {
             l1->append(*m1);

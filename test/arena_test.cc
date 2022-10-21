@@ -1232,7 +1232,7 @@ TEST_CASE("Arena-memory::string") {
 struct struct_with_string
 {
     ArenaFullManagedTag;
-    int x;
+    int x = 0;
     fb_string name;
 };
 

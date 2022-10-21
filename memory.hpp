@@ -27,7 +27,7 @@ constexpr auto is_digit(char chr) noexcept -> bool { return chr <= '9' && chr >=
 constexpr auto stoi_impl(const char* str, uint64_t value = 0) -> uint64_t {
     // NOLINTNEXTLINE
     return (*str != '\0') ? is_digit(*str)
-                              ? stoi_impl(str + 1, static_cast<uint64_t>(*str - '0') + value * 10)
+                              ? stoi_impl(str + 1, static_cast<uint64_t>(*str - '0') + value * 10)  // NOLINT
                               : throw "compile-time-error: not a digit"  // NOLINT: can not be throw in real world.
                           : value;
 }

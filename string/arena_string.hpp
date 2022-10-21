@@ -76,6 +76,7 @@ class arena_string_core
     }
 
     auto operator=(const arena_string_core& rhs) -> arena_string_core& = delete;
+    auto operator=(arena_string_core&&) -> arena_string_core& = delete;
 
     arena_string_core(arena_string_core&& goner) noexcept : allocator_(std::move(goner.allocator_)) {
         // Take goner's guts
@@ -700,7 +701,7 @@ inline void arena_string_core<Char>::shrinkLarge(const size_t delta) {
     // No need to write the terminator.
 }
 
-static_assert(sizeof(arena_string_core<char>) == 32);
+static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t));
 
 template <class Char>
 using arena_basic_string =

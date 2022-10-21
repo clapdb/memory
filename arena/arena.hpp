@@ -37,8 +37,20 @@
 #include <unordered_map>  // for polymorphic_allocator
 #include <utility>        // for exchange, forward
 
-#include "align/align.hpp"                                           // for AlignUpTo
-#include "arenahelper.hpp"                                           // for ArenaHelper
+#include "align/align.hpp"  // for AlignUpTo
+#include "arenahelper.hpp"  // for ArenaHelper
+#if defined(__linux__)
+#include <memory_resource>  // for memory_resource
+namespace pmr = ::std::pmr;
+#elif defined(__APPLE__)
+#include <experimental/memory_resource>  // for memory_resource
+#include <experimental/string>           // for memory_resource
+#include <experimental/vector>           // for memory_resource
+namespace pmr = ::std::experimental::pmr;
+#else
+#error "no support for other compiler"
+#endif
+
 #include "fmt/core.h"                                                // for format
 #define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
 
