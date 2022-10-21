@@ -28,8 +28,8 @@
 #include <type_traits>       // for integral_constant, true_type, is_same
 #include <utility>           // for move, make_pair, pair
 
-#include "arena/arenahelper.hpp"  // for ArenaFullManagedTag
-#include "xxhash.h"               // for XXH32
+#include "arena/arena.hpp"  // for ArenaFullManagedTag
+#include "xxhash.h"         // for XXH32
 
 namespace stdb::memory {
 
@@ -307,7 +307,7 @@ class string_core
    public:
     string_core() noexcept { reset(); }
 
-    string_core(const std::allocator<Char>& /*noused*/) noexcept { reset(); }
+    explicit string_core(const std::allocator<Char>& /*noused*/) noexcept { reset(); }
 
     string_core(const string_core& rhs) {
         assert(&rhs != this);
@@ -338,7 +338,7 @@ class string_core
     }
 
     string_core(const Char* const data, const size_t size,
-                const std::allocator<Char>& = std::allocator<Char>() /*unused*/,
+                const std::allocator<Char>& /*unused*/ = std::allocator<Char>(),
                 bool disableSSO = FBSTRING_DISABLE_SSO) {
         if (!disableSSO && size <= maxSmallSize) {
             initSmall(data, size);
@@ -1044,7 +1044,7 @@ class basic_string
     template <typename A2>  // NOLINTNEXTLINE
     /* implicit */ basic_string(const std::basic_string<E, T, A2>& str) : store_(str.data(), str.size()) {}
 
-    basic_string(const basic_string& str, size_type pos, size_type n = npos, const A& a = A()) : store_(a) {
+    basic_string(const basic_string& str, size_type pos, size_type n = npos, const A& a = A()) : store_(a) {  // NOLINT
         assign(str, pos, n);
     }
 
@@ -1060,7 +1060,7 @@ class basic_string
 
     template <class InIt>
     basic_string(InIt begin, InIt end,
-                 typename std::enable_if<!std::is_same<InIt, value_type*>::value, const A>::type& a = A())
+                 typename std::enable_if<!std::is_same<InIt, value_type*>::value, const A>::type& a = A())  // NOLINT
         : store_(a) {
         assign(begin, end);
     }
@@ -1073,7 +1073,7 @@ class basic_string
     basic_string(std::basic_string_view<value_type> view, const A& a = A()) : store_(view.data(), view.size(), a) {}
 
     // Construction from initialization list
-    basic_string(std::initializer_list<value_type> init_list, const A& a = A()) : store_(a) {
+    basic_string(std::initializer_list<value_type> init_list, const A& a = A()) : store_(a) {  // NOLINT
         assign(init_list.begin(), init_list.end());
     }
 
@@ -1127,7 +1127,7 @@ class basic_string
      * make string safe in cross cpu-core argument passing. because memory::string do not use atomic int, so the
      * refCounted ++/-- is not thread safe.
      */
-    auto clone() const -> basic_string {
+    [[nodiscard]] auto clone() const -> basic_string {  // NOLINT
         if (store_.category() == Storage::Category::isLarge) {
             // call copy constructor
             basic_string rst(*this);
@@ -1515,11 +1515,11 @@ class basic_string
         }
     }
 
-    [[nodiscard]] auto starts_with(value_type c) const -> bool {
+    [[nodiscard]] auto starts_with(value_type c) const -> bool {  // NOLINT
         return operator std::basic_string_view<value_type, traits_type>().starts_with(c);
     }
 
-    [[nodiscard]] auto starts_with(const value_type * str) const -> bool {
+    [[nodiscard]] auto starts_with(const value_type* str) const -> bool {
         return operator std::basic_string_view<value_type, traits_type>().starts_with(str);
     }
 
@@ -1531,11 +1531,11 @@ class basic_string
         return operator std::basic_string_view<value_type, traits_type>().starts_with(str);
     }
 
-    [[nodiscard]] auto ends_with(value_type c) const -> bool {
+    [[nodiscard]] auto ends_with(value_type c) const -> bool {  // NOLINT
         return operator std::basic_string_view<value_type, traits_type>().ends_with(c);
     }
 
-    [[nodiscard]] auto ends_with(const value_type * str) const -> bool {
+    [[nodiscard]] auto ends_with(const value_type* str) const -> bool {
         return operator std::basic_string_view<value_type, traits_type>().ends_with(str);
     }
 
@@ -1547,21 +1547,15 @@ class basic_string
         return operator std::basic_string_view<value_type, traits_type>().ends_with(str);
     }
 
-    [[nodiscard]] auto contains(value_type c) const -> bool {
-        return find(c) != basic_string::npos;
-    }
+    [[nodiscard]] auto contains(value_type c) const -> bool { return find(c) != basic_string::npos; }  // NOLINT
 
-    [[nodiscard]] auto contains(const value_type * str) const -> bool {
-        return find(str) != basic_string::npos;
-    }
+    [[nodiscard]] auto contains(const value_type* str) const -> bool { return find(str) != basic_string::npos; }
 
     [[nodiscard]] auto contains(std::basic_string_view<value_type> str) const -> bool {
         return find(str) != basic_string::npos;
     }
 
-    [[nodiscard]] auto contains(const basic_string& str) const -> bool {
-        return find(str) != basic_string::npos;
-    }
+    [[nodiscard]] auto contains(const basic_string& str) const -> bool { return find(str) != basic_string::npos; }
 
     [[nodiscard]] auto find(const basic_string& str, size_type pos = 0) const -> size_type {
         return find(str.data(), pos, str.length());
