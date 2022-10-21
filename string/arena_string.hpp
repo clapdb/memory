@@ -26,7 +26,7 @@ namespace stdb::memory {
 
 template <class Char>
 inline auto arena_smartRealloc(pmr::polymorphic_allocator<Char>& allocator, void* ptr, const size_t currentSize,
-                               const size_t currentCapacity, const size_t newCapacity) -> void* {
+                               [[maybe_unused]] const size_t currentCapacity, const size_t newCapacity) -> void* {
     assert(ptr);
     assert(currentSize <= currentCapacity && currentCapacity < newCapacity);
 
@@ -47,11 +47,13 @@ class arena_string_core
     friend class basic_string;
 
    public:
-    explicit arena_string_core(const pmr::polymorphic_allocator<Char>& allocator) noexcept : allocator_(allocator) { reset(); }
+    explicit arena_string_core(const pmr::polymorphic_allocator<Char>& allocator) noexcept : allocator_(allocator) {
+        reset();
+    }
 
     arena_string_core([[maybe_unused]] const Char* str, [[maybe_unused]] std::size_t len) {
         throw std::runtime_error("new arena_string without arena");
-        //return arena_string_core(str, len, std::pmr::get_default_resource());
+        // return arena_string_core(str, len, std::pmr::get_default_resource());
     }
 
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
@@ -256,7 +258,7 @@ class arena_string_core
         static void decrementRefs(Char* ptr) {
             auto const dis = fromData(ptr);
             // size_t oldcnt = dis->refCount_.fetch_sub(1, std::memory_order_acq_rel);
-            size_t oldcnt = dis->refCount_--;
+            [[maybe_unused]] size_t oldcnt = dis->refCount_--;
             assert(oldcnt > 0);
             /*
             if (oldcnt == 1) {
@@ -707,13 +709,9 @@ using arena_basic_string =
 using arena_string =
   basic_string<char, std::char_traits<char>, pmr::polymorphic_allocator<char>, arena_string_core<char>>;
 
-inline auto toStdString(const arena_string& str) -> std::string  {
-    return std::string(str);
-}
+inline auto toStdString(const arena_string& str) -> std::string { return std::string(str); }
 
-inline auto toStdString(arena_string&& str) -> std::string  {
-    return std::string (str);
-}
+inline auto toStdString(arena_string&& str) -> std::string { return std::string(str); }
 
 }  // namespace stdb::memory
 
