@@ -19,6 +19,8 @@
 */
 #pragma once
 
+#include <iostream>
+
 #include "arena/arena.hpp"
 #include "string.hpp"
 
@@ -33,6 +35,10 @@ inline auto arena_smartRealloc(pmr::polymorphic_allocator<Char>& allocator, void
     // arena do not support realloc, just allocate, and memcpy.
     if (auto* const result = allocator.allocate(newCapacity); result != nullptr) [[likely]] {
         std::memcpy(result, ptr, currentSize);
+        if (allocator == pmr::polymorphic_allocator<Char>()) {
+            // do dealloc while use std::pmr::polymorphism_allocator<Char>();
+            allocator.deallocate(static_cast<char*>(ptr), currentCapacity);
+        }
         return result;
     }
     throw std::bad_alloc();
@@ -50,11 +56,11 @@ class arena_string_core
     explicit arena_string_core(const pmr::polymorphic_allocator<Char>& allocator) noexcept : allocator_(allocator) {
         reset();
     }
-
+    /*
     arena_string_core([[maybe_unused]] const Char* str, [[maybe_unused]] std::size_t len) {
-        throw std::runtime_error("new arena_string without arena");
         // return arena_string_core(str, len, std::pmr::get_default_resource());
     }
+    */
 
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
         assert(&rhs != this);
@@ -98,8 +104,7 @@ class arena_string_core
         assert(size == 0 || memcmp(this->data(), data, size * sizeof(Char)) == 0);
     }
 
-    ~arena_string_core() noexcept
-    {
+    ~arena_string_core() noexcept {
         if (category() == Category::isSmall) {
             return;
         }
@@ -226,16 +231,20 @@ class arena_string_core
     void reset() { setSmallSize(0); }
 
     void destroyMediumLarge() noexcept {
-        auto const c = category();  // NOLINT
-        assert(c != Category::isSmall);
         if (allocator_ == pmr::polymorphic_allocator<Char>()) [[unlikely]] {
+            auto const c = category();  // NOLINT
+            assert(c != Category::isSmall);
             if (c == Category::isMedium) {
-                //free(ml_.data_);  // NOLINT
-                // calc the medium size, and deallocate it.
-                allocator_.deallocate(ml_.data_, calc_medium_by_size(size()));
+                // free(ml_.data_);  // NOLINT
+                //  calc the medium size, and deallocate it.
+                //  detail: reverse the allocation calculating
+                allocator_.deallocate(ml_.data_, (capacity() + 1) * sizeof(Char));
             } else {
-                RefCounted::decrementRefs(ml_.data_, ml_.size_, allocator_);  // NOLINT
+                // detail: reverse the allocation calculating
+                RefCounted::decrementRefs(ml_.data_, (ml_.capacity() + 1) * sizeof(Char) + RefCounted::getDataOffset(),
+                                          allocator_);  // NOLINT
             }
+            std::cerr << "Warning: use Medium or Large arena_string with pmr::polymorphism_allocator" << std::endl;
         }
     }
 
@@ -244,7 +253,8 @@ class arena_string_core
         // std::atomic<size_t> refCount_;
         size_t refCount_;  // no need atomic on seastar without access cross cpu
         Char data_[1];     // NOLINT(modernize-avoid-c-arrays)
-        [[nodiscard, gnu::always_inline]] static inline auto calc_large_by_size(const ::size_t size, ::size_t data_offset) -> ::size_t {
+        [[nodiscard, gnu::always_inline]] static inline auto calc_large_by_size(const ::size_t size,
+                                                                                ::size_t data_offset) -> ::size_t {
             size_t capacityBytes = 0;
             if (!checked_add(&capacityBytes, size, static_cast<size_t>(1))) {
                 throw(std::length_error(""));
@@ -271,11 +281,11 @@ class arena_string_core
         static void decrementRefs(Char* ptr, ::size_t size, pmr::polymorphic_allocator<Char>& allocator) {
             auto const dis = fromData(ptr);
             // size_t oldcnt = dis->refCount_.fetch_sub(1, std::memory_order_acq_rel);
-            [[maybe_unused]] size_t oldcnt = dis->refCount_--;
+            size_t oldcnt = dis->refCount_--;
             assert(oldcnt > 0);
             if (oldcnt == 1) {
-                const auto size_to_dealloc = calc_large_by_size(size, getDataOffset());
-                allocator.deallocate(reinterpret_cast<Char*>(dis), size_to_dealloc);
+                //                const auto size_to_dealloc = calc_large_by_size(size, getDataOffset());
+                allocator.deallocate(reinterpret_cast<Char*>(dis), size);
                 // free(dis);
                 // allocator.deallocate(dis);
             }
@@ -290,7 +300,7 @@ class arena_string_core
             if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset())) {
                 throw(std::length_error(""));
             }*/
-            ::size_t  capacityBytes = calc_large_by_size(*size, getDataOffset());
+            ::size_t capacityBytes = calc_large_by_size(*size, getDataOffset());
             //            const size_t allocSize = goodMallocSize(capacityBytes);
             if (auto result = static_cast<RefCounted*>(static_cast<void*>(allocator.allocate(capacityBytes)));
                 result != nullptr) {
@@ -324,7 +334,7 @@ class arena_string_core
                 throw(std::length_error(""));
             }
              */
-            ::size_t  capacityBytes = calc_large_by_size(*newCapacity, getDataOffset());
+            ::size_t capacityBytes = calc_large_by_size(*newCapacity, getDataOffset());
             //            const size_t allocNewCapacity = goodMallocSize(capacityBytes);
             auto const dis = fromData(data);
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
@@ -565,7 +575,7 @@ void arena_string_core<Char>::unshare(size_t minCapacity) {
     assert(effectiveCapacity >= ml_.capacity());  // NOLINT
     // Also copies terminator.
     string_detail::podCopy(ml_.data_, ml_.data_ + ml_.size_ + 1, newRC->data_);  // NOLINT
-    RefCounted::decrementRefs(ml_.data_, ml_.size_, allocator_);                                        // NOLINT
+    RefCounted::decrementRefs(ml_.data_, ml_.size_, allocator_);                 // NOLINT
     ml_.data_ = newRC->data_;                                                    // NOLINT
     ml_.setCapacity(effectiveCapacity, Category::isLarge);                       // NOLINT
     // size_ remains unchanged.
