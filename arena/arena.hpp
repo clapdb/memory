@@ -38,14 +38,13 @@
 #include <utility>        // for exchange, forward
 #include <variant>
 
-#include "align/align.hpp"  // for AlignUpTo
-#include "arenahelper.hpp"  // for ArenaHelper
-
+#include "align/align.hpp"                                           // for AlignUpTo
+#include "arenahelper.hpp"                                           // for ArenaHelper
 #include "fmt/core.h"                                                // for format
 #define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
 
-#include "string/string.hpp"
 #include "string/arena_string.hpp"
+#include "string/string.hpp"
 namespace stdb::memory {
 
 using ::std::size_t;
@@ -88,8 +87,7 @@ inline constexpr uint64_t kKiloByte = 1024;
 inline constexpr uint64_t kMegaByte = 1024 * 1024;
 
 template <typename T>
-concept VariantWithString = requires (T a)
-{
+concept VariantWithString = requires(T a) {
     std::holds_alternative<string>(a) || std::holds_alternative<arena_string>(a);
 };
 
@@ -98,7 +96,7 @@ concept VariantWithString = requires (T a)
  * otherwise it is a pmr container.
  */
 template <typename T>
-concept Creatable = Constructable<T> || (std::is_standard_layout<T>::value && std::is_trivial<T>::value) ||
+concept Creatable = Constructable<T> ||(std::is_standard_layout<T>::value&& std::is_trivial<T>::value) ||
                     std::is_constructible_v<T, pmr::polymorphic_allocator<T>> || VariantWithString<T>;
 
 /*

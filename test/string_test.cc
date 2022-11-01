@@ -3021,8 +3021,8 @@ TEST_CASE("arena_string::Create_variant") {
     using Expr = std::variant<bool, arena_string>;
     using Expr1 = std::variant<bool, string>;
     Arena arena(Arena::Options::GetDefaultOptions());
-    [[maybe_unused]] auto* rst =  arena.Create<Expr>();
-    [[maybe_unused]] auto* rst1 =  arena.Create<Expr1>();
+    [[maybe_unused]] auto* rst = arena.Create<Expr>();
+    [[maybe_unused]] auto* rst1 = arena.Create<Expr1>();
     CHECK_EQ(Constructable<arena_string>, true);
     CHECK_EQ(Constructable<string>, true);
 }

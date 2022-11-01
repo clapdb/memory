@@ -40,7 +40,6 @@ namespace pmr = ::std::experimental::pmr;
 #error "no support for other compiler"
 #endif
 
-
 namespace stdb::memory {
 /*
  * class ArenaHelper is for helping the Type stored in the Arena memory.
