@@ -19,6 +19,7 @@
 #include "arena/arena.hpp"    // for size_t, Arena, Arena::Options
 #include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK
 #include "string/arena_string.hpp"
+#include <variant>
 
 namespace stdb::memory {
 
@@ -3018,6 +3019,12 @@ TEST_CASE("arena_string::normal") {
         arena_string copied_str_long(std::move(str_long));
         CHECK_EQ(arena.check(copied_str_long.data()), ArenaContainStatus::BlockUsed);
     }
+}
+
+TEST_CASE("arena_string::Create_variant") {
+    using Expr = std::variant<bool, arena_string>;
+    Arena arena(Arena::Options::GetDefaultOptions());
+    arena.Create<Expr>();
 }
 
 TEST_CASE("arena_string::testAllClauses") {
