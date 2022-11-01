@@ -244,7 +244,7 @@ class arena_string_core
                 RefCounted::decrementRefs(ml_.data_, (ml_.capacity() + 1) * sizeof(Char) + RefCounted::getDataOffset(),
                                           allocator_);  // NOLINT
             }
-            std::cerr << "Warning: use Medium or Large arena_string with pmr::polymorphism_allocator" << std::endl;
+            std::cerr << "Warning: use Medium or Large arena_string with pmr::polymorphic_allocator" << std::endl;
         }
     }
 
