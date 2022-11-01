@@ -2223,10 +2223,14 @@ TEST_CASE("string::testAllClauses") {
     std::cout << "Starting with seed: " << seed << std::endl;
     std::string r;
     string c;
+    arena_string a;
 
     uint count = 0;
 
-    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_fbstring)(string&)) {
+    uint large_count = 0;
+
+    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_fbstring)(string&),
+                 void (*f_arena_string)(arena_string&)) {
         do {
             // NOLINTNEXTLINE
             if (true) {
@@ -2234,18 +2238,26 @@ TEST_CASE("string::testAllClauses") {
                 std::cout << "Testing clause " << clause << std::endl;
             }
             randomString(&r);
+            if (r.size() > 255) {
+                ++large_count;
+            }
             c = r;
+            a = r;
             CHECK_EQ(c, r);
+            CHECK_EQ(a, r);
 
             auto localSeed = seed + count;
             rng = RandomT(localSeed);
             f_string(r);
             rng = RandomT(localSeed);
             f_fbstring(c);
+            rng = RandomT(localSeed);
+            f_arena_string(a);
         } while (++count % 100 != 0);
+        std::cerr << "large count  : " << large_count << std::endl;
     };
 
-#define TEST_CLAUSE(x) l(#x, clause11_##x<std::string>, clause11_##x<string>);
+#define TEST_CLAUSE(x) l(#x, clause11_##x<std::string>, clause11_##x<string>, clause11_##x<arena_string>);
 
     TEST_CLAUSE(21_4_2_a);
     TEST_CLAUSE(21_4_2_b);
@@ -2963,6 +2975,7 @@ TEST_CASE("arena_string::Clone") {
         CHECK_NE(data1, data2);
     }
 }
+
 TEST_CASE("arena_string::normal") {
     Arena arena(Arena::Options::GetDefaultOptions());
     SUBCASE("Create") {
