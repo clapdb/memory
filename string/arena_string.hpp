@@ -22,6 +22,7 @@
 #include <iostream>
 
 #include "string.hpp"
+#include "arena/arenahelper.hpp"
 
 namespace stdb::memory {
 
