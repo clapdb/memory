@@ -29,6 +29,7 @@
 #include <utility>           // for move, make_pair, pair
 
 #include "xxhash.h"  // for XXH32
+#include "arena/arenahelper.hpp"
 
 namespace stdb::memory {
 
