@@ -28,7 +28,6 @@
 #include <type_traits>       // for integral_constant, true_type, is_same
 #include <utility>           // for move, make_pair, pair
 
-#include "arena/arena.hpp"  // for ArenaFullManagedTag
 #include "xxhash.h"         // for XXH32
 
 namespace stdb::memory {
@@ -985,6 +984,7 @@ class basic_string
     };
 
    public:
+    using ArenaManaged_ = void;
     // types
     using traits_type = T;
     using value_type = typename traits_type::char_type;
@@ -1028,8 +1028,6 @@ class basic_string
     //
     // if used in a struct which is default-initialized.  Hence the split into
     // these two separate constructors.
-
-    ArenaFullManagedTag;
 
     basic_string() noexcept : basic_string(A()) {}
 

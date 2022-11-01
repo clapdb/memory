@@ -36,24 +36,16 @@
 #include <typeinfo>       // for bad_cast, type_info
 #include <unordered_map>  // for polymorphic_allocator
 #include <utility>        // for exchange, forward
+#include <variant>
 
 #include "align/align.hpp"  // for AlignUpTo
 #include "arenahelper.hpp"  // for ArenaHelper
-#if defined(__linux__)
-#include <memory_resource>  // for memory_resource
-namespace pmr = ::std::pmr;
-#elif defined(__APPLE__)
-#include <experimental/memory_resource>  // for memory_resource
-#include <experimental/string>           // for memory_resource
-#include <experimental/vector>           // for memory_resource
-namespace pmr = ::std::experimental::pmr;
-#else
-#error "no support for other compiler"
-#endif
 
 #include "fmt/core.h"                                                // for format
 #define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
 
+#include "string/string.hpp"
+#include "string/arena_string.hpp"
 namespace stdb::memory {
 
 using ::std::size_t;
@@ -95,13 +87,19 @@ void arena_delete_object(void* obj) noexcept {
 inline constexpr uint64_t kKiloByte = 1024;
 inline constexpr uint64_t kMegaByte = 1024 * 1024;
 
+template <typename T>
+concept VariantWithString = requires (T a)
+{
+    std::holds_alternative<string>(a) || std::holds_alternative<arena_string>(a);
+};
+
 /*
  * Creatable concept requires the T is simple enough, or has Tags
  * otherwise it is a pmr container.
  */
 template <typename T>
-concept Creatable = Constructable<T> ||(std::is_standard_layout<T>::value&& std::is_trivial<T>::value) ||
-                    std::is_constructible_v<T, pmr::polymorphic_allocator<T>>;
+concept Creatable = Constructable<T> || (std::is_standard_layout<T>::value && std::is_trivial<T>::value) ||
+                    std::is_constructible_v<T, pmr::polymorphic_allocator<T>> || VariantWithString<T>;
 
 /*
  * TriviallyDestructible concept requires T just has default destructor.

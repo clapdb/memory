@@ -28,6 +28,18 @@
 #include "align/align.hpp"
 #define ArenaFullManagedTag using ArenaManaged_ = void;                    // NOLINT
 #define ArenaManagedCreateOnlyTag using ArenaManagedSkipDestruct_ = void;  // NOLINT
+#if defined(__linux__)
+#include <memory_resource>  // for memory_resource
+namespace pmr = ::std::pmr;
+#elif defined(__APPLE__)
+#include <experimental/memory_resource>  // for memory_resource
+#include <experimental/string>           // for memory_resource
+#include <experimental/vector>           // for memory_resource
+namespace pmr = ::std::experimental::pmr;
+#else
+#error "no support for other compiler"
+#endif
+
 
 namespace stdb::memory {
 /*

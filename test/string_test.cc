@@ -1,5 +1,3 @@
-#include "string/string.hpp"
-
 #include <cxxabi.h>     // for __forced_unwind
 #include <fmt/core.h>   // for format
 #include <sys/types.h>  // for uint
@@ -18,8 +16,6 @@
 
 #include "arena/arena.hpp"    // for size_t, Arena, Arena::Options
 #include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK
-#include "string/arena_string.hpp"
-#include <variant>
 
 namespace stdb::memory {
 
@@ -3023,12 +3019,12 @@ TEST_CASE("arena_string::normal") {
 
 TEST_CASE("arena_string::Create_variant") {
     using Expr = std::variant<bool, arena_string>;
+    using Expr1 = std::variant<bool, string>;
     Arena arena(Arena::Options::GetDefaultOptions());
-    //[[maybe_unused]] auto* rst =  arena.Create<Expr>();
-    CHECK_EQ(Constructable<Expr>, true);
+    [[maybe_unused]] auto* rst =  arena.Create<Expr>();
+    [[maybe_unused]] auto* rst1 =  arena.Create<Expr1>();
     CHECK_EQ(Constructable<arena_string>, true);
-    CHECK_EQ(std::is_constructible_v<arena_string, pmr::polymorphic_allocator<arena_string>>, true);
-    CHECK_EQ(std::is_constructible_v<Expr, pmr::polymorphic_allocator<Expr>>, true);
+    CHECK_EQ(Constructable<string>, true);
 }
 
 TEST_CASE("arena_string::testAllClauses") {
