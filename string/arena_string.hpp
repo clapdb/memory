@@ -57,7 +57,7 @@ class arena_string_core
         reset();
     }
 
-    arena_string_core(const Char* str, std::size_t len) : arena_string_core(str, len, pmr::polymorphic_allocator()) {}
+    arena_string_core(const Char* str, std::size_t len) : arena_string_core(str, len, pmr::get_default_resource()) {}
 
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
         assert(&rhs != this);

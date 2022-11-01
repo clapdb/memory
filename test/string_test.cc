@@ -3024,7 +3024,11 @@ TEST_CASE("arena_string::normal") {
 TEST_CASE("arena_string::Create_variant") {
     using Expr = std::variant<bool, arena_string>;
     Arena arena(Arena::Options::GetDefaultOptions());
-    arena.Create<Expr>();
+    //[[maybe_unused]] auto* rst =  arena.Create<Expr>();
+    CHECK_EQ(Constructable<Expr>, true);
+    CHECK_EQ(Constructable<arena_string>, true);
+    CHECK_EQ(std::is_constructible_v<arena_string, pmr::polymorphic_allocator<arena_string>>, true);
+    CHECK_EQ(std::is_constructible_v<Expr, pmr::polymorphic_allocator<Expr>>, true);
 }
 
 TEST_CASE("arena_string::testAllClauses") {
