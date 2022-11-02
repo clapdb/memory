@@ -231,6 +231,8 @@ class arena_string_core
         if (allocator_ == pmr::polymorphic_allocator<Char>()) [[unlikely]] {
             auto const c = category();  // NOLINT
             assert(c != Category::isSmall);
+            std::cerr << "Warning: arena_string with default polymorphic_allocator, content : \""
+                      << c_str() << "\"" << std::endl;
             if (c == Category::isMedium) {
                 // free(ml_.data_);  // NOLINT
                 //  calc the medium size, and deallocate it.
@@ -241,7 +243,6 @@ class arena_string_core
                 RefCounted::decrementRefs(ml_.data_, (ml_.capacity() + 1) * sizeof(Char) + RefCounted::getDataOffset(),
                                           allocator_);  // NOLINT
             }
-            std::cerr << "Warning: use Medium or Large arena_string with pmr::polymorphic_allocator" << std::endl;
         }
     }
 
