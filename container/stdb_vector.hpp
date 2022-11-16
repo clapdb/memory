@@ -248,7 +248,7 @@ void move_range_backward(T* __restrict__ dst, T* __restrict__ src_start, T* __re
 template<typename T>
 auto realloc_with_move(T* __restrict__ ptr, std::size_t old_size, std::size_t new_size) -> T* {
     // just after shrink_to_fit with zero size, the ptr may be nullptr.
-    if (ptr == nullptr) [[unlikely]] {
+    if (ptr == nullptr) {
         assert(old_size == 0);
         return static_cast<T*>(std::malloc(new_size * sizeof(T)));
     }
