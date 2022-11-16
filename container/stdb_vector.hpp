@@ -127,14 +127,9 @@ void copy_from_iterator(T* __restrict__ dst, Iterator first, Iterator last)
     assert(dst != nullptr);
     assert(first != last);
 
-    if constexpr (std::is_trivially_copyable_v<T>) {
-        if constexpr (check_iterator_is_random<Iterator>()) {
-            if (get_ptr_from_iter(first) < get_ptr_from_iter(last)) [[likely]] {
-                std::memcpy(dst, get_ptr_from_iter(first), static_cast<size_t>(last - first) * sizeof(T));
-            }
-        }
-        for (; first != last; ++first, ++dst) {
-            *dst = *first;
+    if constexpr (std::is_trivially_copyable_v<T> and check_iterator_is_random<Iterator>()) {
+        if (get_ptr_from_iter(first) < get_ptr_from_iter(last)) [[likely]] {
+            std::memcpy(dst, get_ptr_from_iter(first), static_cast<size_t>(last - first) * sizeof(T));
         }
     } else {
         for (; first != last; ++first, ++dst) {
@@ -1259,6 +1254,8 @@ class stdb_vector  : public core<T> {
                 auto* old_end = this->_finish;
                 this->_finish = this->_start + count;
                 construct_range(old_end, this->_finish);
+            } else {
+                this->_finish = this->_start + count;
             }
 
         } else {
@@ -1371,7 +1368,7 @@ class stdb_vector  : public core<T> {
         return Iterator(pos_ptr);
     }
 
-    template<Safety safety = Safety::Safe, class InputIt>
+    template<Safety safety = Safety::Safe, class InputIt> requires std::input_iterator<InputIt>
     constexpr auto insert(Iterator pos, InputIt first, InputIt last) -> Iterator {
         long count = last - first;
         if (count == 0) [[unlikely]] {

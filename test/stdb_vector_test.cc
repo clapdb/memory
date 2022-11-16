@@ -29,7 +29,7 @@ namespace stdb::container {
 
 
 TEST_CASE("Hilbert::stdb_vector::int") {
-    SUBCASE("default init") {
+    SUBCASE("zero init") {
         stdb_vector<int> vec;
         CHECK_EQ(vec.empty(), true);
         CHECK_EQ(vec.size(), 0);
@@ -160,28 +160,6 @@ TEST_CASE("Hilbert::stdb_vector::int") {
             vec_iter++;
             input_iter++;
         }
-        CHECK_EQ(input_iter, input.end());
-        CHECK_EQ(vec.front(), input.front());
-        CHECK_EQ(vec.back(), input.back());
-        vec.assign(input.rbegin(), input.rbegin() + 10);
-        // size will shrink
-        CHECK_EQ(vec.size(), 10);
-        // capacity will not shrink
-        CHECK_EQ(vec.capacity(), input.size());
-
-        for (std::size_t i = 0; i < 10; i++) {
-            CHECK_EQ(vec[i], input[input.size() - 1 - i]);
-            CHECK_EQ(vec.at(i), input.at(input.size() - 1 - i));
-        }
-        vec_iter = vec.begin();
-        auto input_reverse_iter = input.rbegin();
-        for (int i = 0; i < 10; ++i) {
-            CHECK_EQ(*vec_iter, *input_reverse_iter);
-            vec_iter++;
-            input_reverse_iter++;
-        }
-        CHECK_EQ(input_reverse_iter, input.rbegin() + 10);
-        CHECK_EQ(vec.front(), input.back());
     }
 
     SUBCASE("assign vector with initializer list") {
@@ -223,6 +201,51 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         }
         CHECK_EQ(vec2.size(), 200);
         CHECK_EQ(vec2.capacity(), 225);
+    }
+
+    SUBCASE("push_back_after_reserve") {
+        stdb_vector<int> vec;
+        vec.reserve(100);
+        for (int i = 0; i < 100; ++i) {
+            vec.push_back(i);
+        }
+        CHECK_EQ(vec.size(), 100);
+        CHECK_GE(vec.capacity(), 100);
+        for (int i = 0; i < 100; ++i) {
+            CHECK_EQ(vec[static_cast<std::size_t>(i)], i);
+        }
+        CHECK_EQ(vec.front(), 0);
+        CHECK_EQ(vec.back(), 99);
+
+        stdb_vector<int> vec2(100);
+        vec2.reserve(300);
+        for (int i = 0; i < 100; ++i) {
+            vec2.push_back(i);
+        }
+        CHECK_EQ(vec2.size(), 200);
+        CHECK_EQ(vec2.capacity(), 300);
+    }
+    SUBCASE("push_back_unsafe_after_reserve") {
+        stdb_vector<int> vec;
+        vec.reserve(100);
+        for (int i = 0; i < 100; ++i) {
+            vec.push_back<Safety::Unsafe>(i);
+        }
+        CHECK_EQ(vec.size(), 100);
+        CHECK_GE(vec.capacity(), 100);
+        for (int i = 0; i < 100; ++i) {
+            CHECK_EQ(vec[static_cast<std::size_t>(i)], i);
+        }
+        CHECK_EQ(vec.front(), 0);
+        CHECK_EQ(vec.back(), 99);
+
+        stdb_vector<int> vec2(100);
+        vec2.reserve(300);
+        for (int i = 0; i < 100; ++i) {
+            vec2.push_back<Safety::Unsafe>(i);
+        }
+        CHECK_EQ(vec2.size(), 200);
+        CHECK_EQ(vec2.capacity(), 300);
     }
 
     SUBCASE("clear") {
@@ -323,6 +346,16 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_GE(vec.capacity(), 150);
     }
 
+    SUBCASE("resize_unsafe") {
+        stdb_vector<int> vec;
+        vec.resize(100, 444);
+
+        CHECK_EQ(vec.size(), 100);
+        CHECK_EQ(vec[4], 444);
+        vec.resize<Safety::Unsafe>(200);
+        CHECK_NE(vec[140], 444);
+    }
+
     SUBCASE("resize with value") {
         stdb_vector<int> vec;
         vec.resize(100, 10);
@@ -386,6 +419,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec2.front(), 1);
         CHECK_EQ(vec2.back(), 20);
     }
+
     SUBCASE("insert_with_single_value") {
         stdb_vector<int> vec;
         vec.insert(vec.begin(), 1);
@@ -405,7 +439,63 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[1], 4);
+        vec.insert(vec.end() - 1, 5);
+        CHECK_EQ(vec.back(), 3);
+        CHECK_EQ(vec[3], 5);
     }
+
+    SUBCASE("insert_unsafe_with_single_value") {
+        stdb_vector<int> vec;
+        vec.reserve(10);
+        vec.insert<Safety::Unsafe>(vec.begin(), 1);
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 1);
+        vec.insert<Safety::Unsafe>(vec.begin(), 2);
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 1);
+        vec.insert<Safety::Unsafe>(vec.end(), 3);
+        CHECK_EQ(vec.size(), 3);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        vec.insert<Safety::Unsafe>(vec.begin() + 1, 4);
+        CHECK_EQ(vec.size(), 4);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        CHECK_EQ(vec[1], 4);
+        vec.insert<Safety::Unsafe>(vec.end() - 1, 5);
+        CHECK_EQ(vec.back(), 3);
+        CHECK_EQ(vec[3], 5);
+    }
+
+    SUBCASE("insert_with_multi_values") {
+        stdb_vector<int> vec;
+        vec.insert(vec.begin(), 3, 1);
+        CHECK_EQ(vec.size(), 3);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 1);
+        vec.insert(vec.begin(), 2, 2);
+        CHECK_EQ(vec.size(), 5);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 1);
+        vec.insert(vec.end(), 4, 3);
+        CHECK_EQ(vec.size(), 9);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        vec.insert(vec.begin() + 1, 5, 4);
+        CHECK_EQ(vec.size(), 14);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        CHECK_EQ(vec[1], 4);
+        CHECK_EQ(vec[5], 4);
+        vec.insert(vec.end() - 1, 6, 5);
+        CHECK_EQ(vec.back(), 3);
+        CHECK_EQ(vec[13], 5);
+    }
+
+
+
     SUBCASE("insert_with_initializer_list") {
         stdb_vector<int> vec;
         vec.insert(vec.begin(), {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
@@ -425,7 +515,12 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.front(), 11);
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[10], 31);
+        vec.insert(vec.end() - 1, {12,44});
+        CHECK_EQ(vec.size(), 42);
+        CHECK_EQ(vec.back(), 30);
+        CHECK_EQ(vec[40], 44);
     }
+
     SUBCASE("insert_from_another_vector") {
         stdb_vector<int> vec1;
         stdb_vector<int> vec2;
