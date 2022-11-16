@@ -640,11 +640,11 @@ class stdb_vector  : public core<T> {
     }
 
     constexpr auto at(std::size_t index) -> reference {
-        return this->at(index);
+        return core<T>::at(index);
     }
 
     constexpr auto at(size_type index) const-> const_reference {
-        return this->at(index);
+        return core<T>::at(index);
     }
 
     [[nodiscard]] constexpr auto data() noexcept -> pointer {
@@ -1248,15 +1248,19 @@ class stdb_vector  : public core<T> {
         destroy_ptr(this->_finish--);
     }
 
+    template<Safety safety = Safety::Safe>
     constexpr void resize(size_type count) {
         if (count > this->size()) {
             if (count > this->capacity()) {
                 this->realloc_with_old_data(count);
             }
-            // construct the new elements
-            auto* old_end = this->_finish;
-            this->_finish = this->_start + count;
-            construct_range(old_end, this->_finish);
+            if constexpr (safety == Safety::Safe) {
+                // construct the new elements
+                auto* old_end = this->_finish;
+                this->_finish = this->_start + count;
+                construct_range(old_end, this->_finish);
+            }
+
         } else {
             // destroy the elements that are not needed anymore
             auto * old_end = this->_finish;
@@ -1284,7 +1288,7 @@ class stdb_vector  : public core<T> {
     }
 
     constexpr void swap(stdb_vector& other) noexcept {
-        this->swap(other);
+        core<T>::swap(other);
     }
 
     template<Safety safety = Safety::Safe>
@@ -1414,6 +1418,29 @@ class stdb_vector  : public core<T> {
             }
         }
         assert(not this->full());
+        if (pos_ptr == this->_finish) [[unlikely]]{
+            new (this->_finish++) T (std::forward<Args>(args)...);
+            return Iterator(pos_ptr);
+        }
+        if (pos_ptr < this->_finish - 1) [[likely]] {
+            this->move_backward(pos_ptr + 1, pos_ptr);
+        } else {
+            core<T>::move_forward(pos_ptr + 1, pos_ptr);
+        }
+        new (pos_ptr) T(std::forward<Args>(args)...);
+        ++this->_finish;
+        return Iterator(pos_ptr);
+    }
+    template<Safety safety = Safety::Safe, typename... Args>
+    constexpr auto emplace(size_type pos, Args&&... args) -> Iterator {
+        if constexpr(safety == Safety::Safe)  {
+            if (this->full()) [[unlikely]] {
+                reserve(compute_next_capacity());
+            }
+        }
+        assert(not this->full());
+        T* pos_ptr = this->_start + pos;
+
         if (pos_ptr == this->_finish) [[unlikely]]{
             new (this->_finish++) T (std::forward<Args>(args)...);
             return Iterator(pos_ptr);
