@@ -58,7 +58,7 @@ set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${SANITIZE_PAR
 set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_MODULE_LINKER_FLAGS_DEBUG} ${SANITIZE_PARAM}")
 
 
-OPTION(STDB_CODE_COVERAGE
+OPTION(CODE_COVERAGE
        "build with code coverage, only work in DEBUG"
         OFF
         )
@@ -84,7 +84,7 @@ add_subdirectory(test EXCLUDE_FROM_ALL)
 add_subdirectory(benchmark EXCLUDE_FROM_ALL)
 ## code coverage
 
-if((${CMAKE_BUILD_TYPE} MATCHES Debug) AND STDB_CODE_COVERAGE)
+if((${CMAKE_BUILD_TYPE} MATCHES Debug) AND CODE_COVERAGE)
   include(CodeCoverage)
   append_coverage_compiler_flags()
 
