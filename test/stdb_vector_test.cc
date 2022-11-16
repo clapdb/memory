@@ -18,11 +18,12 @@
  +------------------------------------------------------------------------------+
 */
 
-#include "hilbert/container/stdb_vector.hpp"
+#include "container/stdb_vector.hpp"
 
 #include <doctest/doctest.h>
 
-#include "hilbert/string.hpp"
+#include "string/string.hpp"
+#include <iostream>
 
 namespace stdb::container {
 
@@ -32,10 +33,10 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         stdb_vector<int> vec;
         CHECK_EQ(vec.empty(), true);
         CHECK_EQ(vec.size(), 0);
-        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof(int));
+        CHECK_EQ(vec.capacity(), 0);
         CHECK_EQ(vec.begin(), vec.end());
         // stdb_vector will not start from 0 capacity;
-        CHECK_NE(vec.data(), nullptr);
+        CHECK_EQ(vec.data(), nullptr);
         CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof(int));
         stdb_vector<int> another_vec;
         CHECK_EQ(vec, another_vec);
@@ -47,27 +48,23 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec <=> another_vec, std::strong_ordering::equal);
     }
 
-    SUBCASE("init with capacity") {
+    SUBCASE("init with size") {
         stdb_vector<int> vec(10);
-        CHECK_EQ(vec.empty(), true);
-        CHECK_EQ(vec.size(), 0);
+        CHECK_EQ(vec.empty(), false);
+        CHECK_EQ(vec.size(), 10);
         CHECK_EQ(vec.capacity(), 10);
-        CHECK_EQ(vec.begin(), vec.end());
+        CHECK_NE(vec.begin(), vec.end());
+        for (auto it = vec.begin(); it != vec.end(); ++it) {
+            CHECK_EQ(*it, 0);
+        }
         CHECK_NE(vec.data(), nullptr);
         CHECK_EQ(vec.max_size(), kFastVectorMaxSize/ sizeof(int));
-        stdb_vector<int> another_vec(10);
-        CHECK_EQ(vec, another_vec);
-        CHECK_EQ(vec != another_vec, false);
-        CHECK_EQ(vec >= another_vec, true);
-        CHECK_EQ(vec <= another_vec, true);
-        CHECK_EQ(vec < another_vec, false);
-        CHECK_EQ(vec > another_vec, false);
-        CHECK_EQ(vec <=> another_vec, std::strong_ordering::equal);
     }
 
     SUBCASE("init with size and value") {
         stdb_vector<int> vec(10, 1);
         CHECK_EQ(vec.empty(), false);
+        std::cerr << "maybe assert failure" << std::endl;
         CHECK_EQ(vec.size(), 10);
         CHECK_EQ(vec.capacity(), 10);
         CHECK_NE(vec.data(), nullptr);
@@ -118,7 +115,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         vec.assign(10, 1);
         CHECK_EQ(vec.empty(), false);
         CHECK_EQ(vec.size(), 10);
-        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof(int));
+        CHECK_EQ(vec.capacity(), 10);
         CHECK_NE(vec.data(), nullptr);
         for (int v : vec) {
             CHECK_EQ(v, 1);
@@ -216,7 +213,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.size(), 100);
         CHECK_GE(vec.capacity(), 100);
         for (int i = 0; i < 100; ++i) {
-            CHECK_EQ(vec[i], i);
+            CHECK_EQ(vec[static_cast<std::size_t>(i)], i);
         }
         CHECK_EQ(vec.front(), 0);
         CHECK_EQ(vec.back(), 99);
@@ -225,8 +222,8 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         for (int i = 0; i < 100; ++i) {
             vec2.push_back(i);
         }
-        CHECK_EQ(vec2.size(), 100);
-        CHECK_EQ(vec2.capacity(), 100);
+        CHECK_EQ(vec2.size(), 200);
+        CHECK_EQ(vec2.capacity(), 225);
     }
 
     SUBCASE("clear") {
@@ -299,7 +296,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.size(), 100);
         CHECK_GE(vec.capacity(), 100);
         for (int i = 0; i < 100; ++i) {
-            CHECK_EQ(vec[i], 0);
+            CHECK_EQ(vec[static_cast<std::size_t>(i)], 0);
         }
         CHECK_EQ(vec.front(), 0);
         CHECK_EQ(vec.back(), 0);
@@ -308,7 +305,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.size(), 50);
         CHECK_GE(vec.capacity(), 100);
         for (int i = 0; i < 50; ++i) {
-            CHECK_EQ(vec[i], 0);
+            CHECK_EQ(vec[static_cast<std::size_t>(i)], 0);
         }
         CHECK_EQ(vec.front(), 0);
         CHECK_EQ(vec.back(), 0);
@@ -317,7 +314,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.size(), 150);
         CHECK_GE(vec.capacity(), 150);
         for (int i = 0; i < 50; ++i) {
-            CHECK_EQ(vec[i], 0);
+            CHECK_EQ(vec[static_cast<std::size_t>(i)], 0);
         }
         CHECK_EQ(vec.front(), 0);
         CHECK_EQ(vec.back(), 0);
@@ -333,7 +330,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.size(), 100);
         CHECK_GE(vec.capacity(), 100);
         for (int i = 0; i < 100; ++i) {
-            CHECK_EQ(vec[i], 10);
+            CHECK_EQ(vec[static_cast<std::size_t>(i)], 10);
         }
         CHECK_EQ(vec.front(), 10);
         CHECK_EQ(vec.back(), 10);
@@ -464,19 +461,20 @@ TEST_CASE("Hilbert::stdb_vector::int") {
 
 }
 
-TEST_CASE("Hilbert::stdb_vector::string") {
+TEST_CASE("Hilbert::stdb_vector::memory::string") {
     SUBCASE("default_constructor") {
-        stdb_vector<stdb::STring> vec;
+        stdb_vector<memory::string> vec;
         CHECK_EQ(vec.size(), 0);
-        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity/sizeof(stdb::STring));
+        CHECK_EQ(vec.capacity(), 0);
     }
-    SUBCASE("constructor_with_size") {
-        stdb_vector<stdb::STring> vec(10);
+    SUBCASE("constructor_followed_with_reserve") {
+        stdb_vector<memory::string> vec;
+        vec.reserve(10);
         CHECK_EQ(vec.size(), 0);
         CHECK_GE(vec.capacity(), 10);
     }
     SUBCASE("constructor_with_size_and_value") {
-        stdb_vector<stdb::STring> vec(10, "hello");
+        stdb_vector<memory::string> vec(10, "hello");
         CHECK_EQ(vec.size(), 10);
         CHECK_GE(vec.capacity(), 10);
         for (const auto& s : vec) {
@@ -484,7 +482,7 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         }
     }
     SUBCASE("constructor_with_initializer_list") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(vec.size(), 3);
         CHECK_GE(vec.capacity(), 3);
         CHECK_EQ(vec[0], "hello");
@@ -492,8 +490,8 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec[2], "!");
     }
     SUBCASE("constructor_with_another_vector") {
-        stdb_vector<stdb::STring> vec1 = {"hello", "world", "!"};
-        stdb_vector<stdb::STring> vec2(vec1);
+        stdb_vector<memory::string> vec1 = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec2(vec1);
         CHECK_EQ(vec1.size(), 3);
         CHECK_GE(vec1.capacity(), 3);
         CHECK_EQ(vec1[0], "hello");
@@ -506,8 +504,8 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec2[2], "!");
     }
     SUBCASE("constructor_with_another_vector_with_move") {
-        stdb_vector<stdb::STring> vec1 = {"hello", "world", "!"};
-        stdb_vector<stdb::STring> vec2(std::move(vec1));
+        stdb_vector<memory::string> vec1 = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec2(std::move(vec1));
         CHECK_EQ(vec1.size(), 0);
         CHECK_EQ(vec1.capacity(), 0);
         CHECK_EQ(vec2.size(), 3);
@@ -517,8 +515,8 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec2[2], "!");
     }
     SUBCASE("constructor_with_another_vector_from_iterators") {
-        stdb_vector<stdb::STring> vec1 = {"hello", "world", "!"};
-        stdb_vector<stdb::STring> vec2(vec1.begin(), vec1.end());
+        stdb_vector<memory::string> vec1 = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec2(vec1.begin(), vec1.end());
         CHECK_EQ(vec1.size(), 3);
         CHECK_GE(vec1.capacity(), 3);
         CHECK_EQ(vec1[0], "hello");
@@ -531,8 +529,8 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec2[2], "!");
     }
     SUBCASE("operator = ") {
-        stdb_vector<stdb::STring> vec1 = {"hello", "world", "!"};
-        stdb_vector<stdb::STring> vec2;
+        stdb_vector<memory::string> vec1 = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec2;
         vec2 = vec1;
         CHECK_EQ(vec1.size(), 3);
         CHECK_GE(vec1.capacity(), 3);
@@ -546,8 +544,8 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec2[2], "!");
     }
     SUBCASE("assign_with_iterators") {
-        stdb_vector<stdb::STring> vec1 = {"hello", "world", "!"};
-        stdb_vector<stdb::STring> vec2;
+        stdb_vector<memory::string> vec1 = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec2;
         vec2.assign(vec1.begin(), vec1.end());
         CHECK_EQ(vec1.size(), 3);
         CHECK_GE(vec1.capacity(), 3);
@@ -561,7 +559,7 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec2[2], "!");
     }
     SUBCASE("assign_with_initializer_list") {
-        stdb_vector<stdb::STring> vec;
+        stdb_vector<memory::string> vec;
         vec.assign({"hello", "world", "!"});
         CHECK_EQ(vec.size(), 3);
         CHECK_GE(vec.capacity(), 3);
@@ -570,7 +568,7 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec[2], "!");
     }
     SUBCASE("assign_with_size_and_value") {
-        stdb_vector<stdb::STring> vec;
+        stdb_vector<memory::string> vec;
         vec.assign(10, "hello");
         CHECK_EQ(vec.size(), 10);
         CHECK_GE(vec.capacity(), 10);
@@ -579,109 +577,109 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         }
     }
     SUBCASE("at") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(vec.at(0), "hello");
         CHECK_EQ(vec.at(1), "world");
         CHECK_EQ(vec.at(2), "!");
     }
     SUBCASE("operator []") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "world");
         CHECK_EQ(vec[2], "!");
     }
     SUBCASE("front") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(vec.front(), "hello");
     }
     SUBCASE("back") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(vec.back(), "!");
     }
     SUBCASE("data") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(vec.data()[0], "hello");
         CHECK_EQ(vec.data()[1], "world");
         CHECK_EQ(vec.data()[2], "!");
     }
     SUBCASE("begin") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*vec.begin(), "hello");
     }
     SUBCASE("cbegin") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*vec.cbegin(), "hello");
     }
     SUBCASE("end") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*(vec.end() - 1), "!");
     }
     SUBCASE("cend") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*(vec.cend() - 1), "!");
     }
     SUBCASE("rbegin") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*vec.rbegin(), "!");
     }
     SUBCASE("crbegin") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*vec.crbegin(), "!");
     }
     SUBCASE("rend") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*(vec.rend() - 1), "hello");
     }
     SUBCASE("crend") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*(vec.crend() - 1), "hello");
     }
     SUBCASE("empty") {
-        stdb_vector<stdb::STring> vec;
+        stdb_vector<memory::string> vec;
         CHECK(vec.empty());
         vec.push_back({"hello"});
         CHECK(!vec.empty());
     }
     SUBCASE("size") {
-        stdb_vector<stdb::STring> vec;
+        stdb_vector<memory::string> vec;
         CHECK_EQ(vec.size(), 0);
         vec.push_back("hello");
         CHECK_EQ(vec.size(), 1);
     }
     SUBCASE("max_size") {
-        stdb_vector<stdb::STring> vec;
-        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof (stdb::STring));
+        stdb_vector<memory::string> vec;
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof (memory::string));
     }
     SUBCASE("capacity") {
-        stdb_vector<stdb::STring> vec;
-        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof (stdb::STring));
+        stdb_vector<memory::string> vec;
+        CHECK_EQ(vec.capacity(), 0);
         vec.push_back("hello");
-        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof (stdb::STring));
+        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof (memory::string));
         vec.push_back("world");
-        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof (stdb::STring));
+        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof (memory::string));
         vec.push_back("!");
-        CHECK_GT(vec.capacity(), kFastVectorDefaultCapacity / sizeof (stdb::STring));
+        CHECK_GT(vec.capacity(), kFastVectorDefaultCapacity / sizeof (memory::string));
     }
     SUBCASE("reserve") {
-        stdb_vector<stdb::STring> vec;
+        stdb_vector<memory::string> vec;
         vec.reserve(100);
         CHECK_GE(vec.capacity(), 100);
     }
     SUBCASE("shrink_to_fit") {
-        stdb_vector<stdb::STring> vec;
+        stdb_vector<memory::string> vec;
         vec.reserve(100);
         CHECK_GE(vec.capacity(), 100);
         vec.shrink_to_fit();
         CHECK_GE(vec.capacity(), 0UL);
     }
     SUBCASE("clear") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(vec.size(), 3);
         vec.clear();
         CHECK_EQ(vec.size(), 0);
     }
     SUBCASE("insert_with_single_element") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         vec.insert(vec.begin() + 1, "inserted");
         CHECK_EQ(vec.size(), 4);
         CHECK_EQ(vec[0], "hello");
@@ -690,8 +688,8 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec[3], "!");
     }
     SUBCASE("insert_with_multiple_elements") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
-        vec.insert(vec.begin() + 1, 2, STring ("inserted"));
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        vec.insert(vec.begin() + 1, 2, memory::string ("inserted"));
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "inserted");
@@ -700,7 +698,7 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec[4], "!");
     }
     SUBCASE("insert_with_initializer_list") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         vec.insert(vec.begin() + 1, {"inserted", "inserted"});
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[0], "hello");
@@ -710,8 +708,8 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec[4], "!");
     }
     SUBCASE("insert_with_range") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
-        stdb_vector<stdb::STring> vec2 = {"inserted", "inserted"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec2 = {"inserted", "inserted"};
         vec.insert(vec.begin() + 1, vec2.begin(), vec2.end());
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[0], "hello");
@@ -721,40 +719,40 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec[4], "!");
     }
     SUBCASE("erase_with_single_element") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         vec.erase(vec.begin() + 1);
         CHECK_EQ(vec.size(), 2);
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "!");
     }
     SUBCASE("erase_with_range") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         vec.erase(vec.begin() + 1, vec.end());
         CHECK_EQ(vec.size(), 1);
         CHECK_EQ(vec[0], "hello");
     }
     SUBCASE("push_back") {
-        stdb_vector<stdb::STring> vec;
+        stdb_vector<memory::string> vec;
         vec.push_back({"hello"});
         CHECK_EQ(vec.size(), 1);
         CHECK_EQ(vec[0], "hello");
 
     }
     SUBCASE("emplace_back") {
-        stdb_vector<stdb::STring> vec;
+        stdb_vector<memory::string> vec;
         vec.emplace_back("hello");
         CHECK_EQ(vec.size(), 1);
         CHECK_EQ(vec[0], "hello");
     }
     SUBCASE("pop_back") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         vec.pop_back();
         CHECK_EQ(vec.size(), 2);
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "world");
     }
     SUBCASE("resize") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         vec.resize(5);
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[0], "hello");
@@ -764,7 +762,7 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec[4], "");
     }
     SUBCASE("resize_with_value") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         vec.resize(5, "value");
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[0], "hello");
@@ -774,8 +772,8 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec[4], "value");
     }
     SUBCASE("swap") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
-        stdb_vector<stdb::STring> vec2 = {"inserted", "inserted"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec2 = {"inserted", "inserted"};
         vec.swap(vec2);
         CHECK_EQ(vec.size(), 2);
         CHECK_EQ(vec[0], "inserted");
@@ -786,7 +784,7 @@ TEST_CASE("Hilbert::stdb_vector::string") {
         CHECK_EQ(vec2[2], "!");
     }
     SUBCASE("emplace") {
-        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
         vec.emplace(vec.begin() + 1, "inserted");
         CHECK_EQ(vec.size(), 4);
         CHECK_EQ(vec[0], "hello");
@@ -864,7 +862,8 @@ class non_copyable {
 };
 
 TEST_CASE("Hilbert::stdb_vector::non_movable") {
-    stdb_vector<non_movable> vec(10);
+    stdb_vector<non_movable> vec;
+    vec.reserve(10);
     for (int i = 0; i < 10; i++) {
         vec.emplace_back(i);
     }
@@ -882,12 +881,13 @@ TEST_CASE("Hilbert::stdb_vector::non_movable") {
     CHECK_EQ(vec[0]== 1000, true);
     CHECK_EQ(vec[11]== 1000, true);
     for (int i = 1; i < 11; ++i) {
-        CHECK_EQ(vec[i] == i -1, true);
+        CHECK_EQ(vec[static_cast<std::size_t>(i)] == i -1, true);
     }
 }
 
 TEST_CASE("Hilbert::stdb_vector::non_copyable") {
-    stdb_vector<non_copyable> vec(10);
+    stdb_vector<non_copyable> vec;
+    vec.reserve(10);
     for (int i = 0; i < 10; i++) {
         non_copyable nc(i);
         vec.push_back(std::move(nc));
@@ -905,15 +905,15 @@ TEST_CASE("Hilbert::stdb_vector::non_copyable") {
     CHECK_EQ(vec[0]== 1000, true);
     CHECK_EQ(vec[11]== 1000, true);
     for (int i = 1; i < 11; ++i) {
-        CHECK_EQ(vec[i] == i -1, true);
+        CHECK_EQ(vec[static_cast<size_t>(i)] == i -1, true);
     }
 }
 
 TEST_CASE("Hilbert::stdb_vector::std_vector_push") {
     uint32_t times = 100;
-    stdb::STring str{"123456789012344567890"};
-    std::vector<stdb::STring> vec;
-    stdb_vector<stdb::STring> stdb_vec(times);
+    memory::string str{"123456789012344567890"};
+    std::vector<memory::string> vec;
+    stdb_vector<memory::string> stdb_vec(times);
     vec.reserve(times);
     for (uint32_t i = 0; i < times; ++i) {
         vec.emplace_back(str);
@@ -921,7 +921,8 @@ TEST_CASE("Hilbert::stdb_vector::std_vector_push") {
     }
 }
 TEST_CASE("Hilbert::stdb_vector::fill") {
-    stdb_vector<int> vec(1000);
+    stdb_vector<int> vec;
+    vec.reserve(1000);
     auto fill = [](int* ptr) -> std::size_t{
       if (ptr != nullptr) {
           for (int i = 0; i < 700; ++i) {
@@ -933,12 +934,13 @@ TEST_CASE("Hilbert::stdb_vector::fill") {
     vec.fill(fill);
     CHECK_EQ(vec.size(), 700);
     for (int i = 0; i < 700; ++i) {
-        CHECK_EQ(vec[i], i);
+        CHECK_EQ(vec[static_cast<size_t>(i)], i);
     }
 }
 
 TEST_CASE("Hilbert::stdb_vector::get_buffer") {
-    stdb_vector<int> vec(1000);
+    stdb_vector<int> vec;
+    vec.reserve(1000);
     auto buffer = vec.get_buffer(40);
     CHECK_EQ(buffer.size(), 40);
     CHECK_EQ(vec.size(), 40);

@@ -27,8 +27,10 @@
 #include <new>
 #include <limits>
 #include <stdexcept>
-#include "hilbert/assert.hpp"
 #include <span>
+#include <iterator>
+#include <utility>
+#include <cassert>
 
 namespace stdb::container {
 
@@ -48,11 +50,11 @@ template<typename Iterator>
 
 template<typename T>
 void construct_range(T* __restrict__ first, T* __restrict__ last) {
-    STDB_ASSERT(first != nullptr and last != nullptr);
-    STDB_ASSERT(first < last);
+    assert(first != nullptr and last != nullptr);
+    assert(first < last);
     if constexpr (std::is_trivially_constructible_v<T> && std::is_standard_layout_v<T>) {
         // set zero to all bytes.
-        std::memset(first, 0, (last - first) * sizeof(T));
+        std::memset(first, 0, static_cast<size_t>(last - first) * sizeof(T));
     } else {
         for (; first != last; ++first) {
             new (first) T();
@@ -62,8 +64,8 @@ void construct_range(T* __restrict__ first, T* __restrict__ last) {
 
 template<typename T> requires std::is_object_v<T>
 void construct_range_with_cref(T* __restrict__ first, T* __restrict__ last, const T& value) {
-    STDB_ASSERT(first != nullptr and last != nullptr);
-    STDB_ASSERT(first < last);
+    assert(first != nullptr and last != nullptr);
+    assert(first < last);
     static_assert(std::is_copy_constructible_v<T>);
     for (; first != last; ++first) {
         new (first) T(value);
@@ -72,8 +74,8 @@ void construct_range_with_cref(T* __restrict__ first, T* __restrict__ last, cons
 
 template<typename T> requires std::is_trivially_copyable_v<T>
 void construct_range_with_value(T* __restrict__ first, T* __restrict__ last, T value) {
-    STDB_ASSERT(first != nullptr and last != nullptr);
-    STDB_ASSERT(first < last);
+    assert(first != nullptr and last != nullptr);
+    assert(first < last);
     static_assert(std::is_trivially_constructible_v<T> && std::is_standard_layout_v<T>);
     // set all data to value.
     if constexpr (sizeof(T) == sizeof(char)) {
@@ -89,9 +91,9 @@ void construct_range_with_value(T* __restrict__ first, T* __restrict__ last, T v
 template<typename T>
 void copy_range(T* __restrict__ dst, const T* __restrict__ src, std::size_t n)
 {
-    STDB_ASSERT(dst != nullptr and src != nullptr);
-    STDB_ASSERT(n > 0);
-    STDB_ASSERT(dst != src);
+    assert(dst != nullptr and src != nullptr);
+    assert(n > 0);
+    assert(dst != src);
     // if is trivial_copyable, use memcpy is faster.
     if constexpr (std::is_trivially_copyable_v<T>) {
         std::memcpy(dst, src, n * sizeof(T));
@@ -104,7 +106,7 @@ void copy_range(T* __restrict__ dst, const T* __restrict__ src, std::size_t n)
 
 template<typename T> requires std::is_trivially_copyable_v<T> or std::is_nothrow_move_constructible_v<T>
 void copy_value(T* __restrict__ dst, T value) {
-    STDB_ASSERT(dst != nullptr);
+    assert(dst != nullptr);
     if constexpr (std::is_trivially_copyable_v<T>) {
         *dst = value;
     } else {
@@ -115,7 +117,7 @@ void copy_value(T* __restrict__ dst, T value) {
 
 template<typename T> requires std::is_object_v<T>
 void copy_cref(T* __restrict__ dst, const T& value) {
-    STDB_ASSERT(dst != nullptr);
+    assert(dst != nullptr);
     if constexpr (std::is_trivially_copyable_v<T>) {
         *dst = value;
     } else {
@@ -133,13 +135,13 @@ constexpr auto check_iterator_is_random() -> bool {
 template<typename T, typename Iterator>
 void copy_from_iterator(T* __restrict__ dst, Iterator first, Iterator last)
 {
-    STDB_ASSERT(dst != nullptr);
-    STDB_ASSERT(first != last);
+    assert(dst != nullptr);
+    assert(first != last);
 
     if constexpr (std::is_trivially_copyable_v<T>) {
         if constexpr (check_iterator_is_random<Iterator>()) {
             if (get_ptr_from_iter(first) < get_ptr_from_iter(last)) [[likely]] {
-                std::memcpy(dst, get_ptr_from_iter(first), (last - first) * sizeof(T));
+                std::memcpy(dst, get_ptr_from_iter(first), static_cast<size_t>(last - first) * sizeof(T));
             }
         }
         for (; first != last; ++first, ++dst) {
@@ -179,9 +181,8 @@ void move_range_without_overlap(T* __restrict__ dst, T* __restrict__ src, std::s
     if (dst == src) [[unlikely]] {
         return;
     }
-    STDB_ASSERT(dst != nullptr and src != nullptr);
-//    STDB_ASSERT(n > 0);
-    STDB_ASSERT(dst != src);
+    assert(dst != nullptr and src != nullptr);
+    assert(dst != src);
     if constexpr (std::is_trivial_v<T> and std::is_standard_layout_v<T>) {
         std::memcpy(dst, src, n * sizeof(T));
     } else if constexpr (std::is_move_constructible_v<T>) {
@@ -203,8 +204,8 @@ void move_range_forward(T* __restrict__ dst, T* __restrict__ src, std::size_t n)
     if (dst == src) [[unlikely]] {
         return;
     }
-    STDB_ASSERT(src != nullptr and dst != nullptr);
-    STDB_ASSERT(dst < src or dst >= src + n);
+    assert(src != nullptr and dst != nullptr);
+    assert(dst < src or dst >= src + n);
     if constexpr (std::is_trivial_v<T> and std::is_standard_layout_v<T>) {
         std::memmove(dst, src, n * sizeof(T));
     } else if constexpr (std::is_move_constructible_v<T>) {
@@ -227,12 +228,12 @@ void move_range_forward(T* __restrict__ dst, T* __restrict__ src, std::size_t n)
 template<typename T>
 void move_range_backward(T* __restrict__ dst, T* __restrict__ src_start, T* __restrict__ src_end)
 {
-    STDB_ASSERT(dst != nullptr and src_start != nullptr and src_end != nullptr);
+    assert(dst != nullptr and src_start != nullptr and src_end != nullptr);
     if (dst == src_start or src_start == src_end) [[unlikely]] {
         return;
     }
     T* dst_end = dst + (src_end - src_start);
-    STDB_ASSERT(dst > src_start and dst <= src_end);
+    assert(dst > src_start and dst <= src_end);
     if constexpr (std::is_trivially_move_constructible_v<T>) {
         // backward move
         for (T* pilot = src_end; pilot >= src_start ; ) {
@@ -264,10 +265,10 @@ template<typename T>
 auto realloc_with_move(T* __restrict__ ptr, std::size_t old_size, std::size_t new_size) -> T* {
     // just after shrink_to_fit with zero size, the ptr may be nullptr.
     if (ptr == nullptr) [[unlikely]] {
-        STDB_ASSERT(old_size == 0);
+        assert(old_size == 0);
         return static_cast<T*>(std::malloc(new_size * sizeof(T)));
     }
-    STDB_ASSERT(new_size > 0);
+    assert(new_size > 0);
     auto new_ptr = static_cast<T*>(std::malloc(new_size * sizeof(T)));
     if (new_ptr == nullptr) [[unlikely]] {
         throw std::bad_alloc();
@@ -291,13 +292,14 @@ class core {
     using const_reference = const T&;
     using rvalue_reference = T&&;
    protected:
+    static constexpr std::size_t kFastVectorInitCapacity = sizeof (T) >= kFastVectorDefaultCapacity? 1 : kFastVectorDefaultCapacity / sizeof (T);
     T* _start;    // buffer start
     T* _finish;      // valid end
     T* _edge;   // buffer end
 
    private:
     [[gnu::always_inline]] void allocate(size_type cap) {
-        STDB_ASSERT(cap > 0);
+        assert(cap > 0);
         if (_start = static_cast<T*>(std::malloc(cap * sizeof(T))); _start != nullptr) [[likely]] {
             _edge = _start + cap;
         } else {
@@ -305,16 +307,13 @@ class core {
         }
     }
    public:
-    static constexpr std::size_t kFastVectorInitCapacity = sizeof (T) >= kFastVectorDefaultCapacity? 1 : kFastVectorDefaultCapacity / sizeof (T);
     core() : _start(nullptr), _finish(nullptr), _edge(nullptr) { }
 
-    core(size_type cap): core(0, cap) { }
-
+    // this function will never be called without set values/ or construct values.
     core(size_type size, size_type cap) {
-        STDB_ASSERT_MSG(size <= cap, "size must be less than cap");
+        assert(size <= cap);
         allocate(cap);
         _finish = _start + size;
-        construct_range(_start, _finish);
     }
 
     core(const core& rhs) {
@@ -385,33 +384,33 @@ class core {
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto size() const -> size_type {
-        STDB_ASSERT_MSG(_finish >= _start, "end must be greater than start");
-        return _finish - _start;
+        assert(_finish >= _start);
+        return static_cast<size_type>(_finish - _start);
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto capacity() const-> size_type {
-        STDB_ASSERT_MSG(_edge >= _start, "finish must be greater than start");
-        return _edge - _start;
+        assert(_edge >= _start);
+        return static_cast<size_type>(_edge - _start);
     }
 
     [[nodiscard, gnu::always_inline]] auto full() const -> bool {
-        STDB_ASSERT_MSG(_finish <= _edge, "end must be less than finish");
+        assert(_finish <= _edge);
         return _edge == _finish;
     }
     // data access section
     [[nodiscard, gnu::always_inline]] auto at(size_type index) const -> const_reference {
-        STDB_ASSERT_MSG(index < size(), "index out of range");
+        assert(index < size());
         return _start[index];
     }
     [[nodiscard, gnu::always_inline]] auto at(size_type index) -> reference {
-        STDB_ASSERT_MSG(index < size(), "index out of range");
+        assert(index < size());
         return _start[index];
     }
 
     [[gnu::always_inline]] void realloc_with_old_data(size_type new_cap) {
         // no check new_cap because it will be checked in caller.
         auto old_size = size();
-        STDB_ASSERT_MSG(new_cap > old_size, "new capacity must be greater than old size");
+        assert(new_cap > old_size);
         _start = realloc_with_move(_start, old_size, new_cap);
         _finish = _start + old_size;
         _edge = _start + new_cap;
@@ -422,7 +421,7 @@ class core {
      [[gnu::always_inline]] void realloc_and_emplace_back(size_type new_cap, Args&&... args) {
         // no check new_cap because it will be checked in caller.
         auto old_size = size();
-        STDB_ASSERT_MSG(new_cap > old_size, "new capacity must be greater than old size");
+        assert(new_cap > old_size);
         _start = realloc_with_move(_start, old_size, new_cap);
         _finish = _start + old_size;
         _edge = _start + new_cap;
@@ -438,12 +437,12 @@ class core {
     }
 
     [[gnu::always_inline]] void destroy() {
-        STDB_ASSERT_MSG(_start != nullptr, "start must not be nullptr");
-        STDB_ASSERT_MSG(_finish != nullptr, "end must not be nullptr");
-        STDB_ASSERT_MSG(_edge != nullptr, "finish must not be nullptr");
+        assert(_start != nullptr);
+        assert(_finish != nullptr);
+        assert(_edge != nullptr);
         // should allow start == end, and do a empty destroy.
-        STDB_ASSERT_MSG(_start <= _finish, "start must be less than end");
-        STDB_ASSERT_MSG(_finish <= _edge, "end must be less than finish");
+        assert(_start <= _finish);
+        assert(_finish <= _edge);
         destroy_range(_start, _finish);
     }
 
@@ -454,7 +453,7 @@ class core {
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(T* dst, T* src) {
         auto size_to_move = _finish - src;
-        move_range_forward(dst, src, size_to_move);
+        move_range_forward(dst, src, static_cast<size_type >(size_to_move));
     }
 
     // move [src, end()) to dst start range from end to front
@@ -489,15 +488,17 @@ class stdb_vector  : public core<T> {
      *
      * default constructor is not noexcept, because it may throw std::bad_alloc
      */
-    constexpr stdb_vector() : core<T>(core<T>::kFastVectorInitCapacity) { }
+    constexpr stdb_vector() : core<T>() { }
 
     /*
      * constructor with capacity
      */
-    constexpr explicit stdb_vector(std::size_t capacity) : core<T>(capacity) { }
+    constexpr explicit stdb_vector(std::size_t size) : core<T>(size, size) {
+        construct_range(this->_start, this->_finish);
+    }
 
     constexpr stdb_vector(std::size_t size, const T& value): core<T>(size, size) {
-        construct_range_with_cref(core<T>::_start, core<T>::_finish, value);
+        construct_range_with_cref(this->_start, this->_finish, value);
     }
 
     template<typename U = T> requires std::is_trivially_constructible_v<U> && std::is_standard_layout_v<U>
@@ -507,12 +508,21 @@ class stdb_vector  : public core<T> {
     }
 
     template<std::forward_iterator InputIt>
-    constexpr stdb_vector(InputIt first, InputIt last): core<T>(last - first, last - first) {
+    constexpr stdb_vector(InputIt first, InputIt last): core<T>() {
+        long size = last - first;
+        // if size == 0, then do nothing.and just for caller convenience.
+        assert(size >= 0);
+        core<T>::realloc_without_old_data(static_cast<size_type>(size));
         copy_from_iterator(core<T>::_start, first, last);
+        this->_finish = this->_start + size;
     }
 
-    constexpr stdb_vector(std::initializer_list<T> init) : core<T>(init.size(), init.size()) {
-        copy_range(core<T>::_start, init.begin(), init.size());
+    constexpr stdb_vector(std::initializer_list<T> init) : core<T>() {
+        assert((init.size()) > 0 and (init.size() <= core<T>::max_size()));
+        auto size = init.size();
+        core<T>::realloc_without_old_data(size);
+        copy_range(core<T>::_start, init.begin(), size);
+        this->_finish = this->_start + size;
     }
 
     /*
@@ -555,7 +565,9 @@ class stdb_vector  : public core<T> {
 
     template<std::forward_iterator Iterator>
     constexpr void assign(Iterator first, Iterator last) {
-        std::size_t count = last - first;
+        long size_to_assign = last - first;
+        assert(size_to_assign >= 0);
+        size_type count = static_cast<size_type>(size_to_assign);
         if (count > core<T>::capacity()) {
             // if count is larger than current capacity, we need to reallocate memory
             core<T>::realloc_without_old_data(count);
@@ -656,26 +668,26 @@ class stdb_vector  : public core<T> {
     }
 
     [[nodiscard]] constexpr auto data() const noexcept -> const_pointer {
-        return core<T>::start();
+        return core<T>::_start;
     }
 
     [[nodiscard]] constexpr auto front() const noexcept -> const_reference {
-        STDB_ASSERT_MSG(core<T>::size() > 0, "front() called on empty vector");
-        return *core<T>::start();
+        assert(size() > 0);
+        return *core<T>::_start;
     }
 
     [[nodiscard]] constexpr auto front() noexcept -> reference {
-        STDB_ASSERT_MSG(core<T>::size() > 0, "front() called on empty vector");
+        assert(size() > 0);
         return *core<T>::_start;
     }
 
     [[nodiscard]] constexpr auto back() const noexcept -> const_reference {
-        STDB_ASSERT_MSG(core<T>::size() > 0, "front() called on empty vector");
+        assert(size() > 0);
         return *(core<T>::_finish - 1);
     }
 
     [[nodiscard]] constexpr auto back() noexcept -> reference {
-        STDB_ASSERT_MSG(core<T>::size() > 0, "front() called on empty vector");
+        assert(size() > 0);
         return *(core<T>::_finish - 1);
     }
 
@@ -1222,7 +1234,7 @@ class stdb_vector  : public core<T> {
     }
 
     void erase(Iterator pos) {
-        STDB_ASSERT_MSG(pos >= begin() and pos < end(), "Iterator out of range");
+        assert(pos >= begin() and pos < end());
         T* ptr = get_ptr_from_iter(pos);
         destroy_ptr(ptr);
         core<T>::move_forward(ptr, ptr + 1);
@@ -1230,8 +1242,8 @@ class stdb_vector  : public core<T> {
     }
 
     void erase(ConstIterator first, ConstIterator last) {
-        STDB_ASSERT_MSG(first >= begin() and last < end(), "Iterator out of range");
-        STDB_ASSERT_MSG(last > first, "last must be greater than first");
+        assert(first >= begin() and last < end());
+        assert(last > first);
         auto first_ptr = get_ptr_from_iter(first);
         auto last_ptr = get_ptr_from_iter(last);
         destroy_range(first_ptr, last_ptr - first_ptr);
@@ -1240,7 +1252,7 @@ class stdb_vector  : public core<T> {
     }
 
     void erase(Iterator first, Iterator last) {
-        STDB_ASSERT_MSG(last > first, "last must be greater than first");
+        assert(last > first);
         T* first_ptr = get_ptr_from_iter(first);
         T* last_ptr = get_ptr_from_iter(last);
         destroy_range(first_ptr, last_ptr);
@@ -1293,7 +1305,7 @@ class stdb_vector  : public core<T> {
 
     template<Safety safety = Safety::Safe>
     constexpr auto insert(Iterator pos, const_reference value) -> Iterator {
-        STDB_ASSERT_MSG(pos >= begin() && pos <= end(), "pos must be in range");
+        assert(pos >= begin() && pos <= end());
         T* pos_ptr = get_ptr_from_iter(pos);
         if constexpr (safety == Safety::Safe) {
             if (core<T>::full()) [[unlikely]] {
@@ -1302,7 +1314,7 @@ class stdb_vector  : public core<T> {
                 pos_ptr = core<T>::_start + pos_index;
             }
         }
-        STDB_ASSERT_MSG(not core<T>::full(), "vector is full, it break safety");
+        assert(not core<T>::full());
         // insert value to the end pos
         if (pos_ptr == core<T>::_finish) [[unlikely]] {
             copy_cref(core<T>::_finish++, value);
@@ -1321,7 +1333,7 @@ class stdb_vector  : public core<T> {
 
     template<Safety safety = Safety::Safe>
     constexpr auto insert(Iterator pos, rvalue_reference value) -> Iterator {
-        STDB_ASSERT_MSG(pos >= begin() && pos <= end(), "pos must be in range");
+        assert((pos >= begin()) && (pos <= end()));
         T* pos_ptr = get_ptr_from_iter(pos);
         if constexpr(safety == Safety::Safe) {
             if (core<T>::full()) [[unlikely]] {
@@ -1330,7 +1342,7 @@ class stdb_vector  : public core<T> {
                 pos_ptr = core<T>::_start + pos_index;
             }
         }
-        STDB_ASSERT_MSG(not core<T>::full(), "vector is full, it break safety");
+        assert(not core<T>::full());
         // insert value to the end pos
         if (pos_ptr == core<T>::_finish) [[unlikely]] {
             copy_value(core<T>::_finish++, std::move(value));
@@ -1349,7 +1361,7 @@ class stdb_vector  : public core<T> {
 
     template<Safety safety = Safety::Safe>
     constexpr auto insert(Iterator pos, size_type count, const_reference value) -> Iterator {
-        STDB_ASSERT_MSG(pos >= begin() && pos <= end(), "pos must be in range");
+        assert(pos >= begin() && pos <= end());
         auto size = core<T>::size();
         T* pos_ptr = get_ptr_from_iter(pos);
         if constexpr( safety == Safety::Safe) {
@@ -1359,7 +1371,7 @@ class stdb_vector  : public core<T> {
                 pos_ptr = core<T>::_start + pos_index;
             }
         }
-        STDB_ASSERT_MSG(size + count <= core<T>::capacity(), "vector will over buffer, it break safety");
+        assert((size + count) <= core<T>::capacity());
         // new elements are inserted after the end pos
         if (pos_ptr + count >= core<T>::_finish) {
             core<T>::move_forward(pos_ptr + count, pos_ptr);
@@ -1373,28 +1385,31 @@ class stdb_vector  : public core<T> {
 
     template<Safety safety = Safety::Safe, class InputIt>
     constexpr auto insert(Iterator pos, InputIt first, InputIt last) -> Iterator {
-        const auto count = last - first;
+        long count = last - first;
         if (count == 0) [[unlikely]] {
             return pos;
         }
+        size_type size_to_insert = static_cast<size_type>(count);
         T* pos_ptr = get_ptr_from_iter(pos);
+
         if constexpr (safety == Safety::Safe) {
             auto size = core<T>::size();
-            if (size + count > core<T>::capacity()) [[unlikely]] {
+            if ((size + size_to_insert) > core<T>::capacity()) [[unlikely]] {
                 std::ptrdiff_t pos_index = pos_ptr - core<T>::_start;
-                reserve(compute_new_capacity(size + count));
+                reserve(compute_new_capacity(size + size_to_insert));
                 // calculate the new pos_ptr
                 pos_ptr = core<T>::_start + pos_index;
             }
         }
-        STDB_ASSERT_MSG(core<T>::size() + count <= core<T>::capacity(), "vector will over buffer, it break safety");
+
+        assert((core<T>::size() + size_to_insert) <= core<T>::capacity());
         if (pos_ptr + count >= core<T>::_finish) {
             core<T>::move_forward(pos_ptr + count, pos_ptr);
         } else {
             core<T>::move_backward(pos_ptr + count, pos_ptr);
         }
         copy_from_iterator(pos_ptr, first, last);
-        core<T>::_finish += count;
+        core<T>::_finish += size_to_insert;
         return Iterator(pos_ptr);
     }
 
@@ -1414,7 +1429,7 @@ class stdb_vector  : public core<T> {
                 pos_ptr = core<T>::_start + pos_offset;
             }
         }
-        STDB_ASSERT_MSG(not core<T>::full(), "vector is full, it break safety");
+        assert(not core<T>::full());
         if (pos_ptr == core<T>::_finish) [[unlikely]]{
             new (core<T>::_finish++) T (std::forward<Args>(args)...);
             return Iterator(pos_ptr);
@@ -1431,7 +1446,7 @@ class stdb_vector  : public core<T> {
 
    private:
     [[nodiscard]] auto compute_new_capacity(size_type new_size) const -> size_type {
-        STDB_ASSERT_MSG(new_size > core<T>::capacity(), "new_size must be greater than capacity");
+        assert(new_size > core<T>::capacity());
         if (auto next_capacity = compute_next_capacity(); next_capacity > new_size) {
             return next_capacity;
         }
