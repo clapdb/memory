@@ -29,7 +29,7 @@ constexpr int64_t times = 1024 * 8;
 
 template <typename T, template <typename, typename> typename Vec>
 void push_back() {
-    Vec<T, std::allocator<T>> vec;
+    std::vector<T> vec;
     vec.reserve(times);
     for (int64_t i = 0; i < times; ++i) {
         vec.push_back(static_cast<T>(i));
@@ -45,6 +45,16 @@ void push_back() {
     }
 }
 
+template <typename T>
+void push_back_unsafe() {
+    stdb_vector<T> vec;
+    vec.reserve(times);
+    for (int64_t i = 0; i < times; ++i) {
+        T t = static_cast<T>(i);
+        vec.template push_back<Safety::Unsafe>(t);
+    }
+}
+
 template <template <typename, typename> typename Vec>
 void push_back_small_str() {
     memory::string input("hello world");
@@ -62,6 +72,15 @@ void push_back_small_str() {
     vec.reserve(times);
     for (int64_t i = 0; i < times; ++i) {
         vec.push_back(input);
+    }
+}
+
+void push_back_small_str_unsafe() {
+    memory::string input("hello world");
+    stdb_vector<memory::string> vec;
+    vec.reserve(times);
+    for (int64_t i = 0; i < times; ++i) {
+        vec.push_back<Safety::Unsafe>(input);
     }
 }
 
@@ -87,6 +106,16 @@ void push_back_median_str() {
     }
 }
 
+void push_back_median_str_unsafe() {
+    memory::string input("hello world! for testing! 1223141234123453214132142314123421421412sdfsadbbagasdfgasfsdfasfasfdsafasfasfsadfasbaabasabababbaabaabab");
+    assert(input.size() < 250 and input.size() > 30);
+    stdb_vector<memory::string> vec;
+    vec.reserve(times);
+    for (int64_t i = 0; i < times; ++i) {
+        vec.push_back<Safety::Unsafe>(input);
+    }
+}
+
 template <template <typename, typename> typename Vec>
 void push_back_large_str() {
     memory::string input("123456789012345678901234567890123456789012345678901234567890"
@@ -107,6 +136,7 @@ void push_back_large_str() {
         vec.push_back(input);
     }
 }
+
 template <template <typename> typename Vec>
 void push_back_large_str() {
     memory::string input("123456789012345678901234567890123456789012345678901234567890"
@@ -125,6 +155,26 @@ void push_back_large_str() {
     vec.reserve(times);
     for (int64_t i = 0; i < times; ++i) {
         vec.push_back(input);
+    }
+}
+
+void push_back_large_str_unsafe() {
+    memory::string input("123456789012345678901234567890123456789012345678901234567890"
+                         "123456789012345678901234567890123456789012345678901234567890"
+                         "123456789012345678901234567890123456789012345678901234567890"
+                         "123456789012345678901234567890123456789012345678901234567890"
+                         "123456789012345678901234567890123456789012345678901234567890"
+                         "123456789012345678901234567890123456789012345678901234567890"
+                         "123456789012345678901234567890123456789012345678901234567890"
+                         "123456789012345678901234567890123456789012345678901234567890"
+                         "123456789012345678901234567890123456789012345678901234567890"
+                         "123456789012345678901234567890123456789012345678901234567890"
+      );
+    assert(input.size() > 400);
+    stdb_vector<memory::string> vec;
+    vec.reserve(times);
+    for (int64_t i = 0; i < times; ++i) {
+        vec.push_back<Safety::Unsafe>(input);
     }
 }
 
@@ -168,9 +218,21 @@ static void pushback_stdb_vector_64(benchmark::State& state) {
     }
 }
 
+static void pushback_stdb_vector_64_unsafe(benchmark::State& state) {
+    for (auto _ : state) {
+        push_back_unsafe<int64_t>();
+    }
+}
+
 static void pushback_stdb_vector_32(benchmark::State& state) {
     for (auto _ : state) {
         push_back<int32_t, stdb_vector>();
+    }
+}
+
+static void pushback_stdb_vector_32_unsafe(benchmark::State& state) {
+    for (auto _ : state) {
+        push_back_unsafe<int32_t>();
     }
 }
 
@@ -180,9 +242,21 @@ static void pushback_stdb_vector_8(benchmark::State& state) {
     }
 }
 
+static void pushback_stdb_vector_8_unsafe(benchmark::State& state) {
+    for (auto _ : state) {
+        push_back_unsafe<int8_t>();
+    }
+}
+
 static void pushback_stdb_vector_small_str(benchmark::State& state) {
     for (auto _ : state) {
         push_back_small_str<stdb_vector>();
+    }
+}
+
+static void pushback_stdb_vector_small_str_unsafe(benchmark::State& state) {
+    for (auto _ : state) {
+        push_back_small_str_unsafe();
     }
 }
 
@@ -192,9 +266,21 @@ static void pushback_stdb_vector_median_str(benchmark::State& state) {
     }
 }
 
+static void pushback_stdb_vector_median_str_unsafe(benchmark::State& state) {
+    for (auto _ : state) {
+        push_back_median_str_unsafe();
+    }
+}
+
 static void pushback_stdb_vector_large_str(benchmark::State& state) {
     for (auto _ : state) {
         push_back_large_str<stdb_vector>();
+    }
+}
+
+static void pushback_stdb_vector_large_str_unsafe(benchmark::State& state) {
+    for (auto _ : state) {
+        push_back_large_str_unsafe();
     }
 }
 
@@ -204,12 +290,20 @@ BENCHMARK(pushback_std_vector_8);
 BENCHMARK(pushback_stdb_vector_64);
 BENCHMARK(pushback_stdb_vector_32);
 BENCHMARK(pushback_stdb_vector_8);
+
+BENCHMARK(pushback_stdb_vector_64_unsafe);
+BENCHMARK(pushback_stdb_vector_32_unsafe);
+BENCHMARK(pushback_stdb_vector_8_unsafe);
+
 BENCHMARK(pushback_std_vector_small_str);
 BENCHMARK(pushback_stdb_vector_small_str);
+BENCHMARK(pushback_stdb_vector_small_str_unsafe);
 BENCHMARK(pushback_std_vector_median_str);
 BENCHMARK(pushback_stdb_vector_median_str);
+BENCHMARK(pushback_stdb_vector_median_str_unsafe);
 BENCHMARK(pushback_std_vector_large_str);
 BENCHMARK(pushback_stdb_vector_large_str);
+BENCHMARK(pushback_stdb_vector_large_str_unsafe);
 
 class just_move {
    public:
@@ -276,6 +370,17 @@ static void pushback_stdb_vector_just_move(benchmark::State& state) {
     }
 }
 
+static void pushback_stdb_vector_just_move_unsafe(benchmark::State& state) {
+    for (auto _ : state) {
+        stdb::container::stdb_vector<just_move> vec;
+        vec.reserve(times);
+        for (int64_t i = 0; i < times; ++i) {
+            just_move m(i);
+            vec.push_back<Safety::Unsafe>(std::move(m));
+        }
+    }
+}
+
 static void pushback_std_vector_just_copy(benchmark::State& state) {
     for (auto _ : state) {
         std::vector<just_copy> vec;
@@ -298,10 +403,23 @@ static void pushback_stdb_vector_just_copy(benchmark::State& state) {
     }
 }
 
+static void pushback_stdb_vector_just_copy_unsafe(benchmark::State& state) {
+    for (auto _ : state) {
+        stdb::container::stdb_vector<just_copy> vec;
+        vec.reserve(times);
+        for (int64_t i = 0; i < times; ++i) {
+            stdb::container::just_copy m(i);
+            vec.push_back<Safety::Unsafe>(m);
+        }
+    }
+}
+
 BENCHMARK(pushback_std_vector_just_move);
 BENCHMARK(pushback_stdb_vector_just_move);
+BENCHMARK(pushback_stdb_vector_just_move_unsafe);
 BENCHMARK(pushback_std_vector_just_copy);
 BENCHMARK(pushback_stdb_vector_just_copy);
+BENCHMARK(pushback_stdb_vector_just_copy_unsafe);
 
 BENCHMARK_MAIN();
 

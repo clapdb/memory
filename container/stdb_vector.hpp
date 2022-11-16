@@ -496,16 +496,16 @@ class stdb_vector  : public core<T> {
         long size = last - first;
         // if size == 0, then do nothing.and just for caller convenience.
         assert(size >= 0);
-        core<T>::realloc_without_old_data(static_cast<size_type>(size));
-        copy_from_iterator(core<T>::_start, first, last);
+        this->realloc_without_old_data(static_cast<size_type>(size));
+        copy_from_iterator(this->_start, first, last);
         this->_finish = this->_start + size;
     }
 
     constexpr stdb_vector(std::initializer_list<T> init) : core<T>() {
-        assert((init.size()) > 0 and (init.size() <= core<T>::max_size()));
+        assert((init.size()) > 0 and (init.size() <= this->max_size()));
         auto size = init.size();
-        core<T>::realloc_without_old_data(size);
-        copy_range(core<T>::_start, init.begin(), size);
+        this->realloc_without_old_data(size);
+        copy_range(this->_start, init.begin(), size);
         this->_finish = this->_start + size;
     }
 
@@ -533,18 +533,18 @@ class stdb_vector  : public core<T> {
 
     constexpr void assign(std::size_t count, const T& value) {
         // cleanup old data
-        if (count > core<T>::capacity()) {
+        if (count > this->capacity()) {
             // if count is larger than current capacity, we need to reallocate memory
-            core<T>::realloc_without_old_data(count);
+            this->realloc_without_old_data(count);
         }
         else {
             // if count is smaller than current capacity, we can just copy data
             // clear old data
-            core<T>::destroy();
+            this->destroy();
         }
-        core<T>::_finish = core<T>::_start + count;
+        this->_finish = this->_start + count;
         // construct data with value
-        construct_range_with_cref(core<T>::_start, core<T>::_finish, value);
+        construct_range_with_cref(this->_start, this->_finish, value);
     }
 
     template<std::forward_iterator Iterator>
@@ -552,17 +552,17 @@ class stdb_vector  : public core<T> {
         long size_to_assign = last - first;
         assert(size_to_assign >= 0);
         size_type count = static_cast<size_type>(size_to_assign);
-        if (count > core<T>::capacity()) {
+        if (count > this->capacity()) {
             // if count is larger than current capacity, we need to reallocate memory
-            core<T>::realloc_without_old_data(count);
+            this->realloc_without_old_data(count);
         }
         else {
             // if count is smaller than current capacity, we can just copy data
             // clear old data
-            core<T>::destroy();
+            this->destroy();
         }
-        copy_from_iterator(core<T>::_start, first, last);
-        core<T>::_finish  = core<T>::_start + count;
+        copy_from_iterator(this->_start, first, last);
+        this->_finish  = this->_start + count;
     }
 
     /*
@@ -584,7 +584,7 @@ class stdb_vector  : public core<T> {
     }
 
     [[nodiscard]] constexpr auto empty() const noexcept -> bool {
-        return core<T>::size() == 0;
+        return this->size() == 0;
     }
 
     [[nodiscard]] constexpr auto max_size() const noexcept -> size_type {
@@ -601,8 +601,8 @@ class stdb_vector  : public core<T> {
      * it is very heavy.
      */
     constexpr void shrink_to_fit() {
-        auto size = core<T>::size();
-        if (size == core<T>::capacity()) [[unlikely]]{
+        auto size = this->size();
+        if (size == capacity()) [[unlikely]]{
             return;
         }
 
@@ -611,7 +611,7 @@ class stdb_vector  : public core<T> {
             new (this) core<T>();
             return;
         }
-        core<T>::realloc_with_old_data(size);
+        this->realloc_with_old_data(size);
         return;
     }
 
@@ -622,8 +622,8 @@ class stdb_vector  : public core<T> {
      * reserve has no computing for new capacity, just do reallocation and data move.
      */
     constexpr void reserve(size_type new_capacity) {
-        if (new_capacity > core<T>::capacity()) [[likely]] {
-            core<T>::realloc_with_old_data(new_capacity);
+        if (new_capacity > capacity()) [[likely]] {
+            this->realloc_with_old_data(new_capacity);
         }
         return ;
     }
@@ -632,47 +632,47 @@ class stdb_vector  : public core<T> {
      * Element access section
      */
     [[nodiscard]] constexpr auto operator [] (size_type index) noexcept -> reference {
-        return core<T>::at(index);
+        return this->at(index);
     }
 
     [[nodiscard]] constexpr auto operator [] (size_type index) const noexcept -> const_reference {
-        return core<T>::at(index);
+        return this->at(index);
     }
 
     constexpr auto at(std::size_t index) -> reference {
-        return core<T>::at(index);
+        return this->at(index);
     }
 
     constexpr auto at(size_type index) const-> const_reference {
-        return core<T>::at(index);
+        return this->at(index);
     }
 
     [[nodiscard]] constexpr auto data() noexcept -> pointer {
-        return core<T>::_start;
+        return this->_start;
     }
 
     [[nodiscard]] constexpr auto data() const noexcept -> const_pointer {
-        return core<T>::_start;
+        return this->_start;
     }
 
     [[nodiscard]] constexpr auto front() const noexcept -> const_reference {
         assert(size() > 0);
-        return *core<T>::_start;
+        return *this->_start;
     }
 
     [[nodiscard]] constexpr auto front() noexcept -> reference {
         assert(size() > 0);
-        return *core<T>::_start;
+        return *this->_start;
     }
 
     [[nodiscard]] constexpr auto back() const noexcept -> const_reference {
         assert(size() > 0);
-        return *(core<T>::_finish - 1);
+        return *(this->_finish - 1);
     }
 
     [[nodiscard]] constexpr auto back() noexcept -> reference {
         assert(size() > 0);
-        return *(core<T>::_finish - 1);
+        return *(this->_finish - 1);
     }
 
     /*
@@ -1082,63 +1082,63 @@ class stdb_vector  : public core<T> {
     };  // class ConstReverseIterator
 
     auto begin() noexcept -> Iterator {
-        return Iterator(core<T>::_start);
+        return Iterator(this->_start);
     }
 
     auto begin() const noexcept -> ConstIterator {
-        return ConstIterator(core<T>::_start);
+        return ConstIterator(this->_start);
     }
 
     auto cbegin() const noexcept -> ConstIterator {
-        return ConstIterator(core<T>::_start);
+        return ConstIterator(this->_start);
     }
 
     auto end() noexcept -> Iterator {
-        return Iterator(core<T>::_finish);
+        return Iterator(this->_finish);
     }
 
     auto end() const noexcept -> ConstIterator {
-        return ConstIterator(core<T>::_finish);
+        return ConstIterator(this->_finish);
     }
 
     auto cend() const noexcept -> ConstIterator {
-        return ConstIterator(core<T>::_finish);
+        return ConstIterator(this->_finish);
     }
 
     auto rbegin() noexcept -> ReverseIterator {
-        return ReverseIterator(core<T>::_finish - 1);
+        return ReverseIterator(this->_finish - 1);
     }
 
     auto rbegin() const noexcept -> ConstReverseIterator {
-        return ConstReverseIterator(core<T>::_finish - 1);
+        return ConstReverseIterator(this->_finish - 1);
     }
 
     auto crbegin() const noexcept -> ConstReverseIterator {
-        return ConstReverseIterator(core<T>::_finish - 1);
+        return ConstReverseIterator(this->_finish - 1);
     }
 
     auto rend() noexcept -> ReverseIterator {
-        return ReverseIterator(core<T>::_start - 1);
+        return ReverseIterator(this->_start - 1);
     }
 
     auto rend() const noexcept -> ConstReverseIterator {
-        return ConstReverseIterator(core<T>::_start - 1);
+        return ConstReverseIterator(this->_start - 1);
     }
 
     auto crend() const noexcept -> ConstReverseIterator {
-        return ConstReverseIterator(core<T>::_start - 1);
+        return ConstReverseIterator(this->_start - 1);
     }
 
     template<Safety safety = Safety::Safe>
     void fill(size_type(*filler)(T*)) {
         if constexpr (safety == Safety::Safe) {
             auto to_fill = filler(nullptr);
-            if (to_fill + core<T>::size() > core<T>::capacity()) [[unlikely]]{
-                core<T>::realloc_with_old_data(compute_new_capacity(to_fill + core<T>::size()));
+            if (to_fill + this->size() > this->capacity()) [[unlikely]]{
+                this->realloc_with_old_data(compute_new_capacity(to_fill + size()));
             }
-            core<T>::_finish += filler(core<T>::_finish);
+            this->_finish += filler(this->_finish);
         } else {
-            core<T>::_finish += filler(core<T>::_finish);
+            this->_finish += filler(this->_finish);
         }
     }
 
@@ -1146,42 +1146,42 @@ class stdb_vector  : public core<T> {
      * get an alloced buffer for writing.
      */
     [[nodiscard, gnu::always_inline]] auto get_buffer(size_type buf_size) -> std::span<T> {
-        if (buf_size + core<T>::_finish > core<T>::_edge) {
-            core<T>::realloc_with_old_data(compute_new_capacity(buf_size));
+        if (buf_size + this->_finish > this->_edge) {
+            this->realloc_with_old_data(compute_new_capacity(buf_size));
         }
-        auto buf = std::span<T>(core<T>::_finish, buf_size);
-        core<T>::_finish += buf_size;
+        auto buf = std::span<T>(this->_finish, buf_size);
+        this->_finish += buf_size;
         return buf;
     }
 
     /*
      * Modifiers sections
      */
-    template<Safety safety = Safety::Safe>
-    void push_back(const_reference value) {
+    template<Safety safety = Safety::Safe, typename U = T> requires std::is_object_v<U>
+    void push_back(const value_type& value) {
         if constexpr (safety == Safety::Safe) {
-            if (!core<T>::full()) [[likely]] {
-                copy_cref(core<T>::_finish++, value);
+            if (!this->full()) [[likely]] {
+                copy_cref(this->_finish++, std::forward<const value_type&>(value));
             } else {
-                core<T>::realloc_and_emplace_back(compute_next_capacity(), std::forward<const_reference>(value));
+                this->realloc_and_emplace_back(compute_next_capacity(), std::forward<const_reference>(value));
             }
         } else {
-            STDB_ASSERT_MSG(not core<T>::full(), "vector is full, it break safety");
-            copy_cref(core<T>::_finish++, value);
+            assert(not this->full());
+            copy_cref(this->_finish++, std::forward<const value_type &>(value));
         }
     }
 
-    template<Safety safety = Safety::Safe>
-    void push_back(rvalue_reference value) {
+    template<Safety safety = Safety::Safe, typename U = T> requires std::is_trivial_v<U> || std::is_move_constructible_v<U>
+    void push_back(value_type&& value) {
         if constexpr (safety == Safety::Safe) {
-            if (!core<T>::full()) [[likely]] {
-                copy_value(core<T>::_finish++, std::move(value));
+            if (!this->full()) [[likely]] {
+                copy_value(this->_finish++, std::forward<value_type &&>(value));
             } else {
-                core<T>::realloc_and_emplace_back(compute_next_capacity(), std::forward<rvalue_reference>(value));
+                this->realloc_and_emplace_back(compute_next_capacity(), std::forward<rvalue_reference>(value));
             }
         } else {
-            STDB_ASSERT_MSG(not core<T>::full(), "vector is full, it break safety");
-            copy_value(core<T>::_finish++, std::move(value));
+            assert(not this->full());
+            copy_value(this->_finish++, std::forward<value_type &&>(value));
         }
     }
 
@@ -1189,40 +1189,40 @@ class stdb_vector  : public core<T> {
     auto emplace_back(Args&&... args) -> Iterator {
         static_assert(not std::is_trivial_v<T>, "Use push_back() instead of emplace_back() with trivial types");
         if constexpr(safety == Safety::Safe) {
-            if (!core<T>::full()) [[likely]] {
-                core<T>::construct_at(core<T>::_finish++, args...);
+            if (!this->full()) [[likely]] {
+                this->construct_at(this->_finish++, args...);
             } else {
-                core<T>::realloc_and_emplace_back(compute_next_capacity(), std::forward<Args...>(args...));
+                this->realloc_and_emplace_back(compute_next_capacity(), std::forward<Args...>(args...));
             }
-            return Iterator(core<T>::_finish - 1);
+            return Iterator(this->_finish - 1);
         } else {
-            STDB_ASSERT_MSG(not core<T>::full(), "vector is full, it break safety");
-            core<T>::construct_at(core<T>::_finish++, args...);
-            return Iterator(core<T>::_finish - 1);
+            assert(not this->full());
+            this->construct_at(this->_finish++, args...);
+            return Iterator(this->_finish - 1);
         }
 
     }
 
     void clear() noexcept {
-        core<T>::destroy();
-        core<T>::_finish = core<T>::_start;
+        this->destroy();
+        this->_finish = this->_start;
     }
 
     void erase(ConstIterator pos) {
-        STDB_ASSERT_MSG(pos >= begin() and pos < end(), "Iterator out of range");
+        assert(pos >= begin() and pos < end());
 
         auto pos_ptr = get_ptr_from_iter(pos);
         destroy_ptr(pos_ptr);
-        core<T>::move_forward(pos_ptr, pos_ptr + 1);
-        --core<T>::_finish;
+        this->move_forward(pos_ptr, pos_ptr + 1);
+        --this->_finish;
     }
 
     void erase(Iterator pos) {
         assert(pos >= begin() and pos < end());
         T* ptr = get_ptr_from_iter(pos);
         destroy_ptr(ptr);
-        core<T>::move_forward(ptr, ptr + 1);
-        --core<T>::_finish;
+        this->move_forward(ptr, ptr + 1);
+        --this->_finish;
     }
 
     void erase(ConstIterator first, ConstIterator last) {
@@ -1231,8 +1231,8 @@ class stdb_vector  : public core<T> {
         auto first_ptr = get_ptr_from_iter(first);
         auto last_ptr = get_ptr_from_iter(last);
         destroy_range(first_ptr, last_ptr - first_ptr);
-        core<T>::move_forward(first_ptr, last_ptr);
-        --core<T>::_finish;
+        this->move_forward(first_ptr, last_ptr);
+        --this->_finish;
     }
 
     void erase(Iterator first, Iterator last) {
@@ -1240,51 +1240,51 @@ class stdb_vector  : public core<T> {
         T* first_ptr = get_ptr_from_iter(first);
         T* last_ptr = get_ptr_from_iter(last);
         destroy_range(first_ptr, last_ptr);
-        core<T>::move_forward(first_ptr, last_ptr);
-        core<T>::_finish -= last_ptr - first_ptr;
+        this->move_forward(first_ptr, last_ptr);
+        this->_finish -= (last_ptr - first_ptr);
     }
 
     void pop_back() {
-        destroy_ptr(core<T>::_finish-- - 1);
+        destroy_ptr(this->_finish--);
     }
 
     constexpr void resize(size_type count) {
-        if (count > core<T>::size()) {
-            if (count > core<T>::capacity()) {
-                core<T>::realloc_with_old_data(count);
+        if (count > this->size()) {
+            if (count > this->capacity()) {
+                this->realloc_with_old_data(count);
             }
             // construct the new elements
-            auto* old_end = core<T>::_finish;
-            core<T>::_finish = core<T>::_start + count;
-            construct_range(old_end, core<T>::_finish);
+            auto* old_end = this->_finish;
+            this->_finish = this->_start + count;
+            construct_range(old_end, this->_finish);
         } else {
             // destroy the elements that are not needed anymore
-            auto * old_end = core<T>::_finish;
-            core<T>::_finish = core<T>::_start + count;
-            destroy_range(core<T>::_finish, old_end);
+            auto * old_end = this->_finish;
+            this->_finish = this->_start + count;
+            destroy_range(this->_finish, old_end);
         }
     }
 
     constexpr void resize(size_type count, const_reference value) {
         // no checking count == _size, because very unlikely, and it's not a big deal
-        if (count > core<T>::size()) {
-            if (count > core<T>::capacity()) {
-                core<T>::realloc_with_old_data(count);
+        if (count > this->size()) {
+            if (count > this->capacity()) {
+                this->realloc_with_old_data(count);
             }
             // destroy the elements that are not needed anymore
-            auto* old_end = core<T>::_finish;
-            core<T>::_finish = core<T>::_start + count;
-            construct_range_with_cref(old_end, core<T>::_finish, value);
+            auto* old_end = this->_finish;
+            this->_finish = this->_start + count;
+            construct_range_with_cref(old_end, this->_finish, value);
         } else {
             // destroy the elements that are not needed anymore
-            auto* old_end = core<T>::_finish;
-            core<T>::_finish = core<T>::_start + count;
-            destroy_range(core<T>::_finish, old_end);
+            auto* old_end = this->_finish;
+            this->_finish = this->_start + count;
+            destroy_range(this->_finish, old_end);
         }
     }
 
     constexpr void swap(stdb_vector& other) noexcept {
-        core<T>::swap(other);
+        this->swap(other);
     }
 
     template<Safety safety = Safety::Safe>
@@ -1292,26 +1292,26 @@ class stdb_vector  : public core<T> {
         assert(pos >= begin() && pos <= end());
         T* pos_ptr = get_ptr_from_iter(pos);
         if constexpr (safety == Safety::Safe) {
-            if (core<T>::full()) [[unlikely]] {
-                std::ptrdiff_t pos_index = pos_ptr - core<T>::_start;
+            if (this->full()) [[unlikely]] {
+                std::ptrdiff_t pos_index = pos_ptr - this->_start;
                 reserve(compute_next_capacity());
-                pos_ptr = core<T>::_start + pos_index;
+                pos_ptr = this->_start + pos_index;
             }
         }
-        assert(not core<T>::full());
+        assert(not this->full());
         // insert value to the end pos
-        if (pos_ptr == core<T>::_finish) [[unlikely]] {
-            copy_cref(core<T>::_finish++, value);
+        if (pos_ptr == this->_finish) [[unlikely]] {
+            copy_cref(this->_finish++, value);
             return Iterator(pos_ptr);
         }
         // move all elements after pos to the right, with backward direction, because have overlap
-        if (pos_ptr < core<T>::_finish - 1) [[likely]] {
-            core<T>::move_backward(pos_ptr + 1, pos_ptr);
+        if (pos_ptr < this->_finish - 1) [[likely]] {
+            this->move_backward(pos_ptr + 1, pos_ptr);
         } else {
-            core<T>::move_forward(pos_ptr + 1, pos_ptr);
+            this->move_forward(pos_ptr + 1, pos_ptr);
         }
         copy_cref(pos_ptr, value);
-        ++core<T>::_finish;
+        ++this->_finish;
         return Iterator(pos_ptr);
     }
 
@@ -1320,25 +1320,25 @@ class stdb_vector  : public core<T> {
         assert((pos >= begin()) && (pos <= end()));
         T* pos_ptr = get_ptr_from_iter(pos);
         if constexpr(safety == Safety::Safe) {
-            if (core<T>::full()) [[unlikely]] {
-                std::ptrdiff_t pos_index = pos_ptr - core<T>::_start;
+            if (this->full()) [[unlikely]] {
+                std::ptrdiff_t pos_index = pos_ptr - this->_start;
                 reserve(compute_next_capacity());
-                pos_ptr = core<T>::_start + pos_index;
+                pos_ptr = this->_start + pos_index;
             }
         }
-        assert(not core<T>::full());
+        assert(not this->full());
         // insert value to the end pos
-        if (pos_ptr == core<T>::_finish) [[unlikely]] {
-            copy_value(core<T>::_finish++, std::move(value));
+        if (pos_ptr == this->_finish) [[unlikely]] {
+            copy_value(this->_finish++, std::move(value));
             return Iterator(pos_ptr);
         }
-        if (pos_ptr < core<T>::_finish - 1) [[likely]]{
-            core<T>::move_backward(pos_ptr + 1, pos_ptr);
+        if (pos_ptr < this->_finish - 1) [[likely]]{
+            this->move_backward(pos_ptr + 1, pos_ptr);
 
         } else {
-            core<T>::move_forward(pos_ptr + 1, pos_ptr);
+            this->move_forward(pos_ptr + 1, pos_ptr);
         }
-        ++core<T>::_finish;
+        ++this->_finish;
         copy_value(pos_ptr, std::move(value));
         return Iterator(pos_ptr);
     }
@@ -1346,24 +1346,24 @@ class stdb_vector  : public core<T> {
     template<Safety safety = Safety::Safe>
     constexpr auto insert(Iterator pos, size_type count, const_reference value) -> Iterator {
         assert(pos >= begin() && pos <= end());
-        auto size = core<T>::size();
+        auto size = this->size();
         T* pos_ptr = get_ptr_from_iter(pos);
         if constexpr( safety == Safety::Safe) {
-            if (size + count > core<T>::capacity()) [[unlikely]] {
-                std::ptrdiff_t pos_index = pos_ptr - core<T>::_start;
+            if (size + count > this->capacity()) [[unlikely]] {
+                std::ptrdiff_t pos_index = pos_ptr - this->_start;
                 reserve(compute_new_capacity(size + count));
-                pos_ptr = core<T>::_start + pos_index;
+                pos_ptr = this->_start + pos_index;
             }
         }
-        assert((size + count) <= core<T>::capacity());
+        assert((size + count) <= this->capacity());
         // new elements are inserted after the end pos
-        if (pos_ptr + count >= core<T>::_finish) {
-            core<T>::move_forward(pos_ptr + count, pos_ptr);
+        if (pos_ptr + count >= this->_finish) {
+            this->move_forward(pos_ptr + count, pos_ptr);
         } else {
-            core<T>::move_backward(pos_ptr + count, pos_ptr);
+            this->move_backward(pos_ptr + count, pos_ptr);
         }
         construct_range_with_cref(pos_ptr, pos_ptr + count, value);
-        core<T>::_finish += count;
+        this->_finish += count;
         return Iterator(pos_ptr);
     }
 
@@ -1377,23 +1377,23 @@ class stdb_vector  : public core<T> {
         T* pos_ptr = get_ptr_from_iter(pos);
 
         if constexpr (safety == Safety::Safe) {
-            auto size = core<T>::size();
-            if ((size + size_to_insert) > core<T>::capacity()) [[unlikely]] {
-                std::ptrdiff_t pos_index = pos_ptr - core<T>::_start;
+            auto size = this->size();
+            if ((size + size_to_insert) > capacity()) [[unlikely]] {
+                std::ptrdiff_t pos_index = pos_ptr - this->_start;
                 reserve(compute_new_capacity(size + size_to_insert));
                 // calculate the new pos_ptr
-                pos_ptr = core<T>::_start + pos_index;
+                pos_ptr = this->_start + pos_index;
             }
         }
 
-        assert((core<T>::size() + size_to_insert) <= core<T>::capacity());
-        if (pos_ptr + count >= core<T>::_finish) {
-            core<T>::move_forward(pos_ptr + count, pos_ptr);
+        assert((this->size() + size_to_insert) <= this->capacity());
+        if (pos_ptr + count >= this->_finish) {
+            this->move_forward(pos_ptr + count, pos_ptr);
         } else {
-            core<T>::move_backward(pos_ptr + count, pos_ptr);
+            this->move_backward(pos_ptr + count, pos_ptr);
         }
         copy_from_iterator(pos_ptr, first, last);
-        core<T>::_finish += size_to_insert;
+        this->_finish += size_to_insert;
         return Iterator(pos_ptr);
     }
 
@@ -1406,38 +1406,38 @@ class stdb_vector  : public core<T> {
     constexpr auto emplace(Iterator pos, Args&&... args) -> Iterator {
         T* pos_ptr = get_ptr_from_iter(pos);
         if constexpr(safety == Safety::Safe)  {
-            if (core<T>::full()) [[unlikely]] {
-                std::ptrdiff_t pos_offset = pos_ptr - core<T>::_start;
+            if (this->full()) [[unlikely]] {
+                std::ptrdiff_t pos_offset = pos_ptr - this->_start;
                 reserve(compute_next_capacity());
                 // calculate the new pos_ptr
-                pos_ptr = core<T>::_start + pos_offset;
+                pos_ptr = this->_start + pos_offset;
             }
         }
-        assert(not core<T>::full());
-        if (pos_ptr == core<T>::_finish) [[unlikely]]{
-            new (core<T>::_finish++) T (std::forward<Args>(args)...);
+        assert(not this->full());
+        if (pos_ptr == this->_finish) [[unlikely]]{
+            new (this->_finish++) T (std::forward<Args>(args)...);
             return Iterator(pos_ptr);
         }
-        if (pos_ptr < core<T>::_finish - 1) [[likely]] {
-            core<T>::move_backward(pos_ptr + 1, pos_ptr);
+        if (pos_ptr < this->_finish - 1) [[likely]] {
+            this->move_backward(pos_ptr + 1, pos_ptr);
         } else {
             core<T>::move_forward(pos_ptr + 1, pos_ptr);
         }
         new (pos_ptr) T(std::forward<Args>(args)...);
-        ++core<T>::_finish;
+        ++this->_finish;
         return Iterator(pos_ptr);
     }
 
    private:
     [[nodiscard]] auto compute_new_capacity(size_type new_size) const -> size_type {
-        assert(new_size > core<T>::capacity());
+        assert(new_size > capacity());
         if (auto next_capacity = compute_next_capacity(); next_capacity > new_size) {
             return next_capacity;
         }
         return new_size;
     }
     [[nodiscard]] auto compute_next_capacity() const -> size_type {
-        auto cap = core<T>::capacity();
+        auto cap = capacity();
         if (cap < 4096 * 32 / sizeof(T) and cap > 0) [[likely]] {
             // the capacity is smaller than a page,
             // use 1.5 but not 2 to reuse memory objects.
