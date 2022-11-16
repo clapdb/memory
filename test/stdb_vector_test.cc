@@ -1,0 +1,949 @@
+/*
+ * Copyright (C) 2022 hurricane <l@stdb.io>. All rights reserved.
+ */
+/**
+ +------------------------------------------------------------------------------+
+ |                                                                              |
+ |                                                                              |
+ |                    ..######..########.########..########.                    |
+ |                    .##....##....##....##.....##.##.....##                    |
+ |                    .##..........##....##.....##.##.....##                    |
+ |                    ..######.....##....##.....##.########.                    |
+ |                    .......##....##....##.....##.##.....##                    |
+ |                    .##....##....##....##.....##.##.....##                    |
+ |                    ..######.....##....########..########.                    |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ +------------------------------------------------------------------------------+
+*/
+
+#include "hilbert/container/stdb_vector.hpp"
+
+#include <doctest/doctest.h>
+
+#include "hilbert/string.hpp"
+
+namespace stdb::container {
+
+
+TEST_CASE("Hilbert::stdb_vector::int") {
+    SUBCASE("default init") {
+        stdb_vector<int> vec;
+        CHECK_EQ(vec.empty(), true);
+        CHECK_EQ(vec.size(), 0);
+        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof(int));
+        CHECK_EQ(vec.begin(), vec.end());
+        // stdb_vector will not start from 0 capacity;
+        CHECK_NE(vec.data(), nullptr);
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof(int));
+        stdb_vector<int> another_vec;
+        CHECK_EQ(vec, another_vec);
+        CHECK_EQ(vec != another_vec, false);
+        CHECK_EQ(vec >= another_vec, true);
+        CHECK_EQ(vec <= another_vec, true);
+        CHECK_EQ(vec < another_vec, false);
+        CHECK_EQ(vec > another_vec, false);
+        CHECK_EQ(vec <=> another_vec, std::strong_ordering::equal);
+    }
+
+    SUBCASE("init with capacity") {
+        stdb_vector<int> vec(10);
+        CHECK_EQ(vec.empty(), true);
+        CHECK_EQ(vec.size(), 0);
+        CHECK_EQ(vec.capacity(), 10);
+        CHECK_EQ(vec.begin(), vec.end());
+        CHECK_NE(vec.data(), nullptr);
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize/ sizeof(int));
+        stdb_vector<int> another_vec(10);
+        CHECK_EQ(vec, another_vec);
+        CHECK_EQ(vec != another_vec, false);
+        CHECK_EQ(vec >= another_vec, true);
+        CHECK_EQ(vec <= another_vec, true);
+        CHECK_EQ(vec < another_vec, false);
+        CHECK_EQ(vec > another_vec, false);
+        CHECK_EQ(vec <=> another_vec, std::strong_ordering::equal);
+    }
+
+    SUBCASE("init with size and value") {
+        stdb_vector<int> vec(10, 1);
+        CHECK_EQ(vec.empty(), false);
+        CHECK_EQ(vec.size(), 10);
+        CHECK_EQ(vec.capacity(), 10);
+        CHECK_NE(vec.data(), nullptr);
+        for (int v : vec) {
+            CHECK_EQ(v, 1);
+        }
+
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize/ sizeof (int));
+        stdb_vector<int> another_vec({1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+        CHECK_EQ(vec, another_vec);
+        CHECK_EQ(vec != another_vec, false);
+        CHECK_EQ(vec >= another_vec, true);
+        CHECK_EQ(vec <= another_vec, true);
+        CHECK_EQ(vec < another_vec, false);
+        CHECK_EQ(vec > another_vec, false);
+        CHECK_EQ(vec <=> another_vec, std::strong_ordering::equal);
+    }
+
+    SUBCASE("init from iterators, and compare data") {
+        std::vector<int> input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        stdb_vector<int> vec(input.begin(), input.end());
+        CHECK_EQ(vec.empty(), false);
+        CHECK_EQ(vec.size(), input.size());
+        CHECK_EQ(vec.capacity(), input.size());
+        for (std::size_t i = 0; i < vec.size(); i++) {
+            CHECK_EQ(vec[i], input[i]);
+            CHECK_EQ(vec.at(i), input.at(i));
+        }
+        auto vec_iter = vec.begin();
+        auto input_iter = input.begin();
+        while (vec_iter != vec.end()) {
+            CHECK_EQ(*vec_iter, *input_iter);
+            vec_iter++;
+            input_iter++;
+        }
+        CHECK_EQ(input_iter, input.end());
+
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize/sizeof(int));
+        CHECK_EQ(vec.front(), input.front());
+        CHECK_EQ(vec.back(), input.back());
+
+        stdb_vector<int> another_vec(vec.cbegin(), vec.cend());
+        CHECK_EQ(vec, another_vec);
+    }
+
+    SUBCASE("assign vector with single value") {
+        stdb_vector<int> vec;
+        vec.assign(10, 1);
+        CHECK_EQ(vec.empty(), false);
+        CHECK_EQ(vec.size(), 10);
+        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof(int));
+        CHECK_NE(vec.data(), nullptr);
+        for (int v : vec) {
+            CHECK_EQ(v, 1);
+        }
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 1);
+
+        vec.assign(200, 10);
+        CHECK_EQ(vec.size(), 200);
+        CHECK_EQ(vec.capacity(), 200);
+        for (int v : vec) {
+            CHECK_EQ(v, 10);
+        }
+        CHECK_EQ(vec.front(), 10);
+        CHECK_EQ(vec.back(), 10);
+
+        vec.assign(50, 5);
+        CHECK_EQ(vec.size(), 50);
+        // capacity will not shrink
+        CHECK_EQ(vec.capacity(), 200);
+        for (int v : vec) {
+            CHECK_EQ(v, 5);
+        }
+        CHECK_EQ(vec.front(), 5);
+        CHECK_EQ(vec.back(), 5);
+    }
+
+    SUBCASE("assign vector with iterators") {
+        stdb_vector<int> vec;
+        std::vector<int> input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        vec.assign(input.begin(), input.end());
+        CHECK_EQ(vec.empty(), false);
+        CHECK_EQ(vec.size(), input.size());
+        CHECK_EQ(vec.capacity(), input.size());
+        for (std::size_t i = 0; i < vec.size(); i++) {
+            CHECK_EQ(vec[i], input[i]);
+            CHECK_EQ(vec.at(i), input.at(i));
+        }
+        auto vec_iter = vec.begin();
+        auto input_iter = input.begin();
+        while (vec_iter != vec.end()) {
+            CHECK_EQ(*vec_iter, *input_iter);
+            vec_iter++;
+            input_iter++;
+        }
+        CHECK_EQ(input_iter, input.end());
+        CHECK_EQ(vec.front(), input.front());
+        CHECK_EQ(vec.back(), input.back());
+        vec.assign(input.rbegin(), input.rbegin() + 10);
+        // size will shrink
+        CHECK_EQ(vec.size(), 10);
+        // capacity will not shrink
+        CHECK_EQ(vec.capacity(), input.size());
+
+        for (std::size_t i = 0; i < 10; i++) {
+            CHECK_EQ(vec[i], input[input.size() - 1 - i]);
+            CHECK_EQ(vec.at(i), input.at(input.size() - 1 - i));
+        }
+        vec_iter = vec.begin();
+        auto input_reverse_iter = input.rbegin();
+        for (int i = 0; i < 10; ++i) {
+            CHECK_EQ(*vec_iter, *input_reverse_iter);
+            vec_iter++;
+            input_reverse_iter++;
+        }
+        CHECK_EQ(input_reverse_iter, input.rbegin() + 10);
+        CHECK_EQ(vec.front(), input.back());
+    }
+
+    SUBCASE("assign vector with initializer list") {
+        stdb_vector<int> vec;
+        vec.assign({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
+        CHECK_EQ(vec.empty(), false);
+        CHECK_EQ(vec.size(), 20);
+        CHECK_EQ(vec.capacity(), 20);
+        for (std::size_t i = 0; i < vec.size(); i++) {
+            CHECK_EQ(vec[i], i + 1);
+            CHECK_EQ(vec.at(i), i + 1);
+        }
+        auto vec_iter = vec.begin();
+        for (std::size_t i = 0; i < vec.size(); i++) {
+            CHECK_EQ(*vec_iter, i + 1);
+            vec_iter++;
+        }
+        CHECK_EQ(vec_iter, vec.end());
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 20);
+    }
+
+    SUBCASE("push_back") {
+        stdb_vector<int> vec;
+        for (int i = 0; i < 100; ++i) {
+            vec.push_back(i);
+        }
+        CHECK_EQ(vec.size(), 100);
+        CHECK_GE(vec.capacity(), 100);
+        for (int i = 0; i < 100; ++i) {
+            CHECK_EQ(vec[i], i);
+        }
+        CHECK_EQ(vec.front(), 0);
+        CHECK_EQ(vec.back(), 99);
+
+        stdb_vector<int> vec2(100);
+        for (int i = 0; i < 100; ++i) {
+            vec2.push_back(i);
+        }
+        CHECK_EQ(vec2.size(), 100);
+        CHECK_EQ(vec2.capacity(), 100);
+    }
+
+    SUBCASE("clear") {
+        stdb_vector<int> vec;
+        vec.assign(100, 10);
+        CHECK_EQ(vec.size(), 100);
+        CHECK_GE(vec.capacity(), 100);
+        vec.clear();
+        CHECK_EQ(vec.size(), 0);
+        CHECK_GE(vec.capacity(), 100);
+        vec.assign(100, 10);
+        CHECK_EQ(vec.size(), 100);
+        CHECK_GE(vec.capacity(), 100);
+        vec.clear();
+        CHECK_EQ(vec.size(), 0);
+        CHECK_GE(vec.capacity(), 100);
+    }
+
+    SUBCASE("erase") {
+        stdb_vector<int> vec;
+        vec.assign({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
+        CHECK_EQ(vec.size(), 20);
+        CHECK_GE(vec.capacity(), 20);
+        vec.erase(vec.begin());
+        CHECK_EQ(vec.size(), 19);
+        CHECK_GE(vec.capacity(), 20);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 20);
+        vec.erase(vec.begin() + 5);
+        CHECK_EQ(vec.size(), 18);
+        CHECK_GE(vec.capacity(), 20);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 20);
+        vec.erase(vec.begin() + 5, vec.begin() + 10);
+        CHECK_EQ(vec.size(), 13);
+        CHECK_GE(vec.capacity(), 20);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 20);
+    }
+
+    SUBCASE("pop_back") {
+        stdb_vector<int> vec;
+        vec.assign({1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                    41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+                    61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+                    81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100});
+        CHECK_EQ(vec.size(), 100);
+        CHECK_EQ(vec.capacity(), 100);
+        vec.pop_back();
+        CHECK_EQ(vec.size(), 99);
+        CHECK_EQ(vec.capacity(), 100);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 99);
+        vec.pop_back();
+        CHECK_EQ(vec.size(), 98);
+        CHECK_EQ(vec.capacity(), 100);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 98);
+        vec.pop_back();
+        CHECK_EQ(vec.size(), 97);
+        CHECK_EQ(vec.capacity(), 100);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 97);
+    }
+
+    SUBCASE("resize") {
+        stdb_vector<int> vec;
+        vec.resize(100);
+        CHECK_EQ(vec.size(), 100);
+        CHECK_GE(vec.capacity(), 100);
+        for (int i = 0; i < 100; ++i) {
+            CHECK_EQ(vec[i], 0);
+        }
+        CHECK_EQ(vec.front(), 0);
+        CHECK_EQ(vec.back(), 0);
+
+        vec.resize(50);
+        CHECK_EQ(vec.size(), 50);
+        CHECK_GE(vec.capacity(), 100);
+        for (int i = 0; i < 50; ++i) {
+            CHECK_EQ(vec[i], 0);
+        }
+        CHECK_EQ(vec.front(), 0);
+        CHECK_EQ(vec.back(), 0);
+
+        vec.resize(150);
+        CHECK_EQ(vec.size(), 150);
+        CHECK_GE(vec.capacity(), 150);
+        for (int i = 0; i < 50; ++i) {
+            CHECK_EQ(vec[i], 0);
+        }
+        CHECK_EQ(vec.front(), 0);
+        CHECK_EQ(vec.back(), 0);
+
+        vec.resize(0);
+        CHECK_EQ(vec.size(), 0);
+        CHECK_GE(vec.capacity(), 150);
+    }
+
+    SUBCASE("resize with value") {
+        stdb_vector<int> vec;
+        vec.resize(100, 10);
+        CHECK_EQ(vec.size(), 100);
+        CHECK_GE(vec.capacity(), 100);
+        for (int i = 0; i < 100; ++i) {
+            CHECK_EQ(vec[i], 10);
+        }
+        CHECK_EQ(vec.front(), 10);
+        CHECK_EQ(vec.back(), 10);
+
+        vec.resize(50, 100);
+        CHECK_EQ(vec.size(), 50);
+        CHECK_GE(vec.capacity(), 100);
+        CHECK_EQ(vec.front(), 10);
+        CHECK_EQ(vec.back(), 10);
+    }
+
+    SUBCASE("reserve") {
+        stdb_vector<int> vec;
+        vec.reserve(100);
+        CHECK_EQ(vec.size(), 0);
+        CHECK_GE(vec.capacity(), 100);
+        vec.reserve(50);
+        CHECK_EQ(vec.size(), 0);
+        CHECK_GE(vec.capacity(), 100);
+    }
+
+    SUBCASE("shrink_to_fit") {
+        stdb_vector<int> vec;
+        vec.reserve(100);
+        CHECK_EQ(vec.size(), 0);
+        CHECK_GE(vec.capacity(), 100);
+        vec.shrink_to_fit();
+        CHECK_EQ(vec.size(), 0);
+        CHECK_EQ(vec.capacity(), 0);
+
+        vec.reserve(1000);
+        CHECK_EQ(vec.size(), 0);
+        CHECK_EQ(vec.capacity(), 1000);
+    }
+    SUBCASE("swap") {
+        stdb_vector<int> vec1;
+        stdb_vector<int> vec2;
+        vec1.assign({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
+        vec2.assign({21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                     41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+                     61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+                     81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100});
+        CHECK_EQ(vec1.size(), 20);
+        CHECK_EQ(vec2.size(), 80);
+        CHECK_GE(vec1.capacity(), 20);
+        CHECK_GE(vec2.capacity(), 80);
+        vec1.swap(vec2);
+        CHECK_EQ(vec1.size(), 80);
+        CHECK_EQ(vec2.size(), 20);
+        CHECK_GE(vec1.capacity(), 80);
+        CHECK_GE(vec2.capacity(), 20);
+        CHECK_EQ(vec1.front(), 21);
+        CHECK_EQ(vec1.back(), 100);
+        CHECK_EQ(vec2.front(), 1);
+        CHECK_EQ(vec2.back(), 20);
+    }
+    SUBCASE("insert_with_single_value") {
+        stdb_vector<int> vec;
+        vec.insert(vec.begin(), 1);
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 1);
+        vec.insert(vec.begin(), 2);
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 1);
+        vec.insert(vec.end(), 3);
+        CHECK_EQ(vec.size(), 3);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        vec.insert(vec.begin() + 1, 4);
+        CHECK_EQ(vec.size(), 4);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        CHECK_EQ(vec[1], 4);
+    }
+    SUBCASE("insert_with_initializer_list") {
+        stdb_vector<int> vec;
+        vec.insert(vec.begin(), {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        CHECK_EQ(vec.size(), 10);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 10);
+        vec.insert(vec.begin(), {11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
+        CHECK_EQ(vec.size(), 20);
+        CHECK_EQ(vec.front(), 11);
+        CHECK_EQ(vec.back(), 10);
+        vec.insert(vec.end(), {21, 22, 23, 24, 25, 26, 27, 28, 29, 30});
+        CHECK_EQ(vec.size(), 30);
+        CHECK_EQ(vec.front(), 11);
+        CHECK_EQ(vec.back(), 30);
+        vec.insert(vec.begin() + 10, {31, 32, 33, 34, 35, 36, 37, 38, 39, 40});
+        CHECK_EQ(vec.size(), 40);
+        CHECK_EQ(vec.front(), 11);
+        CHECK_EQ(vec.back(), 30);
+        CHECK_EQ(vec[10], 31);
+    }
+    SUBCASE("insert_from_another_vector") {
+        stdb_vector<int> vec1;
+        stdb_vector<int> vec2;
+        std::vector<int> vec3 = {11,22,33,44,55,66,77,88,99,100};
+        vec1.insert(vec1.begin(), vec2.begin(), vec2.end());
+        CHECK_EQ(vec1.size(), 0);
+        vec1.insert(vec1.begin(), vec3.begin(), vec3.end());
+        CHECK_EQ(vec1.size(), 10);
+        vec2.insert(vec2.begin(), vec3.begin(), vec3.end());
+        CHECK_EQ(vec1, vec2);
+    }
+    SUBCASE("emplace") {
+        stdb_vector<int> vec;
+        vec.emplace(vec.begin(), 1);
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 1);
+        vec.emplace(vec.begin(), 2);
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 1);
+        vec.emplace(vec.end(), 3);
+        CHECK_EQ(vec.size(), 3);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        vec.emplace(vec.begin() + 1, 4);
+        CHECK_EQ(vec.size(), 4);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        CHECK_EQ(vec[1], 4);
+    }
+
+}
+
+TEST_CASE("Hilbert::stdb_vector::string") {
+    SUBCASE("default_constructor") {
+        stdb_vector<stdb::STring> vec;
+        CHECK_EQ(vec.size(), 0);
+        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity/sizeof(stdb::STring));
+    }
+    SUBCASE("constructor_with_size") {
+        stdb_vector<stdb::STring> vec(10);
+        CHECK_EQ(vec.size(), 0);
+        CHECK_GE(vec.capacity(), 10);
+    }
+    SUBCASE("constructor_with_size_and_value") {
+        stdb_vector<stdb::STring> vec(10, "hello");
+        CHECK_EQ(vec.size(), 10);
+        CHECK_GE(vec.capacity(), 10);
+        for (const auto& s : vec) {
+            CHECK_EQ(s, "hello");
+        }
+    }
+    SUBCASE("constructor_with_initializer_list") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(vec.size(), 3);
+        CHECK_GE(vec.capacity(), 3);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "world");
+        CHECK_EQ(vec[2], "!");
+    }
+    SUBCASE("constructor_with_another_vector") {
+        stdb_vector<stdb::STring> vec1 = {"hello", "world", "!"};
+        stdb_vector<stdb::STring> vec2(vec1);
+        CHECK_EQ(vec1.size(), 3);
+        CHECK_GE(vec1.capacity(), 3);
+        CHECK_EQ(vec1[0], "hello");
+        CHECK_EQ(vec1[1], "world");
+        CHECK_EQ(vec1[2], "!");
+        CHECK_EQ(vec2.size(), 3);
+        CHECK_GE(vec2.capacity(), 3);
+        CHECK_EQ(vec2[0], "hello");
+        CHECK_EQ(vec2[1], "world");
+        CHECK_EQ(vec2[2], "!");
+    }
+    SUBCASE("constructor_with_another_vector_with_move") {
+        stdb_vector<stdb::STring> vec1 = {"hello", "world", "!"};
+        stdb_vector<stdb::STring> vec2(std::move(vec1));
+        CHECK_EQ(vec1.size(), 0);
+        CHECK_EQ(vec1.capacity(), 0);
+        CHECK_EQ(vec2.size(), 3);
+        CHECK_GE(vec2.capacity(), 3);
+        CHECK_EQ(vec2[0], "hello");
+        CHECK_EQ(vec2[1], "world");
+        CHECK_EQ(vec2[2], "!");
+    }
+    SUBCASE("constructor_with_another_vector_from_iterators") {
+        stdb_vector<stdb::STring> vec1 = {"hello", "world", "!"};
+        stdb_vector<stdb::STring> vec2(vec1.begin(), vec1.end());
+        CHECK_EQ(vec1.size(), 3);
+        CHECK_GE(vec1.capacity(), 3);
+        CHECK_EQ(vec1[0], "hello");
+        CHECK_EQ(vec1[1], "world");
+        CHECK_EQ(vec1[2], "!");
+        CHECK_EQ(vec2.size(), 3);
+        CHECK_GE(vec2.capacity(), 3);
+        CHECK_EQ(vec2[0], "hello");
+        CHECK_EQ(vec2[1], "world");
+        CHECK_EQ(vec2[2], "!");
+    }
+    SUBCASE("operator = ") {
+        stdb_vector<stdb::STring> vec1 = {"hello", "world", "!"};
+        stdb_vector<stdb::STring> vec2;
+        vec2 = vec1;
+        CHECK_EQ(vec1.size(), 3);
+        CHECK_GE(vec1.capacity(), 3);
+        CHECK_EQ(vec1[0], "hello");
+        CHECK_EQ(vec1[1], "world");
+        CHECK_EQ(vec1[2], "!");
+        CHECK_EQ(vec2.size(), 3);
+        CHECK_GE(vec2.capacity(), 3);
+        CHECK_EQ(vec2[0], "hello");
+        CHECK_EQ(vec2[1], "world");
+        CHECK_EQ(vec2[2], "!");
+    }
+    SUBCASE("assign_with_iterators") {
+        stdb_vector<stdb::STring> vec1 = {"hello", "world", "!"};
+        stdb_vector<stdb::STring> vec2;
+        vec2.assign(vec1.begin(), vec1.end());
+        CHECK_EQ(vec1.size(), 3);
+        CHECK_GE(vec1.capacity(), 3);
+        CHECK_EQ(vec1[0], "hello");
+        CHECK_EQ(vec1[1], "world");
+        CHECK_EQ(vec1[2], "!");
+        CHECK_EQ(vec2.size(), 3);
+        CHECK_GE(vec2.capacity(), 3);
+        CHECK_EQ(vec2[0], "hello");
+        CHECK_EQ(vec2[1], "world");
+        CHECK_EQ(vec2[2], "!");
+    }
+    SUBCASE("assign_with_initializer_list") {
+        stdb_vector<stdb::STring> vec;
+        vec.assign({"hello", "world", "!"});
+        CHECK_EQ(vec.size(), 3);
+        CHECK_GE(vec.capacity(), 3);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "world");
+        CHECK_EQ(vec[2], "!");
+    }
+    SUBCASE("assign_with_size_and_value") {
+        stdb_vector<stdb::STring> vec;
+        vec.assign(10, "hello");
+        CHECK_EQ(vec.size(), 10);
+        CHECK_GE(vec.capacity(), 10);
+        for (const auto& s : vec) {
+            CHECK_EQ(s, "hello");
+        }
+    }
+    SUBCASE("at") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(vec.at(0), "hello");
+        CHECK_EQ(vec.at(1), "world");
+        CHECK_EQ(vec.at(2), "!");
+    }
+    SUBCASE("operator []") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "world");
+        CHECK_EQ(vec[2], "!");
+    }
+    SUBCASE("front") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(vec.front(), "hello");
+    }
+    SUBCASE("back") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(vec.back(), "!");
+    }
+    SUBCASE("data") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(vec.data()[0], "hello");
+        CHECK_EQ(vec.data()[1], "world");
+        CHECK_EQ(vec.data()[2], "!");
+    }
+    SUBCASE("begin") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(*vec.begin(), "hello");
+    }
+    SUBCASE("cbegin") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(*vec.cbegin(), "hello");
+    }
+    SUBCASE("end") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(*(vec.end() - 1), "!");
+    }
+    SUBCASE("cend") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(*(vec.cend() - 1), "!");
+    }
+    SUBCASE("rbegin") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(*vec.rbegin(), "!");
+    }
+    SUBCASE("crbegin") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(*vec.crbegin(), "!");
+    }
+    SUBCASE("rend") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(*(vec.rend() - 1), "hello");
+    }
+    SUBCASE("crend") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(*(vec.crend() - 1), "hello");
+    }
+    SUBCASE("empty") {
+        stdb_vector<stdb::STring> vec;
+        CHECK(vec.empty());
+        vec.push_back({"hello"});
+        CHECK(!vec.empty());
+    }
+    SUBCASE("size") {
+        stdb_vector<stdb::STring> vec;
+        CHECK_EQ(vec.size(), 0);
+        vec.push_back("hello");
+        CHECK_EQ(vec.size(), 1);
+    }
+    SUBCASE("max_size") {
+        stdb_vector<stdb::STring> vec;
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof (stdb::STring));
+    }
+    SUBCASE("capacity") {
+        stdb_vector<stdb::STring> vec;
+        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof (stdb::STring));
+        vec.push_back("hello");
+        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof (stdb::STring));
+        vec.push_back("world");
+        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof (stdb::STring));
+        vec.push_back("!");
+        CHECK_GT(vec.capacity(), kFastVectorDefaultCapacity / sizeof (stdb::STring));
+    }
+    SUBCASE("reserve") {
+        stdb_vector<stdb::STring> vec;
+        vec.reserve(100);
+        CHECK_GE(vec.capacity(), 100);
+    }
+    SUBCASE("shrink_to_fit") {
+        stdb_vector<stdb::STring> vec;
+        vec.reserve(100);
+        CHECK_GE(vec.capacity(), 100);
+        vec.shrink_to_fit();
+        CHECK_GE(vec.capacity(), 0UL);
+    }
+    SUBCASE("clear") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        CHECK_EQ(vec.size(), 3);
+        vec.clear();
+        CHECK_EQ(vec.size(), 0);
+    }
+    SUBCASE("insert_with_single_element") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        vec.insert(vec.begin() + 1, "inserted");
+        CHECK_EQ(vec.size(), 4);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "inserted");
+        CHECK_EQ(vec[2], "world");
+        CHECK_EQ(vec[3], "!");
+    }
+    SUBCASE("insert_with_multiple_elements") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        vec.insert(vec.begin() + 1, 2, STring ("inserted"));
+        CHECK_EQ(vec.size(), 5);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "inserted");
+        CHECK_EQ(vec[2], "inserted");
+        CHECK_EQ(vec[3], "world");
+        CHECK_EQ(vec[4], "!");
+    }
+    SUBCASE("insert_with_initializer_list") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        vec.insert(vec.begin() + 1, {"inserted", "inserted"});
+        CHECK_EQ(vec.size(), 5);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "inserted");
+        CHECK_EQ(vec[2], "inserted");
+        CHECK_EQ(vec[3], "world");
+        CHECK_EQ(vec[4], "!");
+    }
+    SUBCASE("insert_with_range") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<stdb::STring> vec2 = {"inserted", "inserted"};
+        vec.insert(vec.begin() + 1, vec2.begin(), vec2.end());
+        CHECK_EQ(vec.size(), 5);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "inserted");
+        CHECK_EQ(vec[2], "inserted");
+        CHECK_EQ(vec[3], "world");
+        CHECK_EQ(vec[4], "!");
+    }
+    SUBCASE("erase_with_single_element") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        vec.erase(vec.begin() + 1);
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "!");
+    }
+    SUBCASE("erase_with_range") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        vec.erase(vec.begin() + 1, vec.end());
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec[0], "hello");
+    }
+    SUBCASE("push_back") {
+        stdb_vector<stdb::STring> vec;
+        vec.push_back({"hello"});
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec[0], "hello");
+
+    }
+    SUBCASE("emplace_back") {
+        stdb_vector<stdb::STring> vec;
+        vec.emplace_back("hello");
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec[0], "hello");
+    }
+    SUBCASE("pop_back") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        vec.pop_back();
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "world");
+    }
+    SUBCASE("resize") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        vec.resize(5);
+        CHECK_EQ(vec.size(), 5);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "world");
+        CHECK_EQ(vec[2], "!");
+        CHECK_EQ(vec[3], "");
+        CHECK_EQ(vec[4], "");
+    }
+    SUBCASE("resize_with_value") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        vec.resize(5, "value");
+        CHECK_EQ(vec.size(), 5);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "world");
+        CHECK_EQ(vec[2], "!");
+        CHECK_EQ(vec[3], "value");
+        CHECK_EQ(vec[4], "value");
+    }
+    SUBCASE("swap") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        stdb_vector<stdb::STring> vec2 = {"inserted", "inserted"};
+        vec.swap(vec2);
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec[0], "inserted");
+        CHECK_EQ(vec[1], "inserted");
+        CHECK_EQ(vec2.size(), 3);
+        CHECK_EQ(vec2[0], "hello");
+        CHECK_EQ(vec2[1], "world");
+        CHECK_EQ(vec2[2], "!");
+    }
+    SUBCASE("emplace") {
+        stdb_vector<stdb::STring> vec = {"hello", "world", "!"};
+        vec.emplace(vec.begin() + 1, "inserted");
+        CHECK_EQ(vec.size(), 4);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "inserted");
+        CHECK_EQ(vec[2], "world");
+        CHECK_EQ(vec[3], "!");
+        vec.emplace(vec.end(), "end");
+        CHECK_EQ(vec.size(), 5);
+        CHECK_EQ(vec.back(), "end");
+
+    }
+}
+
+class non_movable {
+   private:
+    int* ptr;
+   public:
+    non_movable() : ptr(new int(0)) {
+        std::cout << "non_movable constructor default" << std::endl;
+    }
+    non_movable(int i) : ptr(new int(i)) {
+        std::cout << "non_movable constructor with : " << i << std::endl;
+    }
+    non_movable(const non_movable& rhs): ptr(new int(*rhs.ptr)) {
+        std::cout << "copy non_movable with : " << *ptr << std::endl;
+    }
+    non_movable(non_movable&&) = delete;
+    non_movable& operator=(const non_movable&) = delete;
+    non_movable& operator=(non_movable&&) = delete;
+    auto operator == (const int rhs) const -> bool {
+        return *ptr == rhs;
+    }
+    void print() const {
+        std::cout << *ptr << std::endl;
+    }
+    ~non_movable() {
+        std::cout << "non_movable destructor with : " << *ptr << std::endl;
+        delete ptr;
+    }
+};
+
+class non_copyable {
+   private:
+    int* ptr;
+   public:
+    non_copyable() : ptr(new int(0)) {
+        std::cout << "non_copyable constructor default" << std::endl;
+    }
+    non_copyable(int i) : ptr(new int(i)) {
+        std::cout << "non_copyable constructor with : " << i << std::endl;
+    }
+    non_copyable(const non_copyable&) = delete;
+    non_copyable(non_copyable&& rhs) noexcept: ptr(rhs.ptr) {
+        std::cout << "move non_copyable with : " << *ptr << std::endl;
+        rhs.ptr = nullptr;
+    }
+    non_copyable& operator=(const non_copyable&) = delete;
+    non_copyable& operator=(non_copyable&&) = delete;
+    auto operator == (const int rhs) const -> bool {
+        return *ptr == rhs;
+    }
+    void print() const {
+        std::cout << *ptr << std::endl;
+    }
+    ~non_copyable() {
+        if (ptr) {
+            std::cout << "non_copyable destructor with : " << *ptr << std::endl;
+        }
+        else {
+            std::cout << "non_copyable destructor with : nullptr" << std::endl;
+        }
+
+        delete ptr;
+    }
+};
+
+TEST_CASE("Hilbert::stdb_vector::non_movable") {
+    stdb_vector<non_movable> vec(10);
+    for (int i = 0; i < 10; i++) {
+        vec.emplace_back(i);
+    }
+    non_movable nm(1000);
+    vec.insert(vec.begin(), nm);
+    CHECK_EQ(vec.size(), 11);
+
+    vec.insert(vec.end(), nm);
+    CHECK_EQ(vec.size(), 12);
+    /*
+    for (auto& non : vec) {
+        non.print();
+    }
+    */
+    CHECK_EQ(vec[0]== 1000, true);
+    CHECK_EQ(vec[11]== 1000, true);
+    for (int i = 1; i < 11; ++i) {
+        CHECK_EQ(vec[i] == i -1, true);
+    }
+}
+
+TEST_CASE("Hilbert::stdb_vector::non_copyable") {
+    stdb_vector<non_copyable> vec(10);
+    for (int i = 0; i < 10; i++) {
+        non_copyable nc(i);
+        vec.push_back(std::move(nc));
+    }
+    vec.insert(vec.begin(), non_copyable(1000));
+    CHECK_EQ(vec.size(), 11);
+
+    vec.insert(vec.end(), non_copyable(1000));
+    CHECK_EQ(vec.size(), 12);
+    /*
+    for (auto& non : vec) {
+        non.print();
+    }
+    */
+    CHECK_EQ(vec[0]== 1000, true);
+    CHECK_EQ(vec[11]== 1000, true);
+    for (int i = 1; i < 11; ++i) {
+        CHECK_EQ(vec[i] == i -1, true);
+    }
+}
+
+TEST_CASE("Hilbert::stdb_vector::std_vector_push") {
+    uint32_t times = 100;
+    stdb::STring str{"123456789012344567890"};
+    std::vector<stdb::STring> vec;
+    stdb_vector<stdb::STring> stdb_vec(times);
+    vec.reserve(times);
+    for (uint32_t i = 0; i < times; ++i) {
+        vec.emplace_back(str);
+        stdb_vec.emplace_back(str);
+    }
+}
+TEST_CASE("Hilbert::stdb_vector::fill") {
+    stdb_vector<int> vec(1000);
+    auto fill = [](int* ptr) -> std::size_t{
+      if (ptr != nullptr) {
+          for (int i = 0; i < 700; ++i) {
+              ptr[i] = i;
+          }
+      }
+      return 700;
+    };
+    vec.fill(fill);
+    CHECK_EQ(vec.size(), 700);
+    for (int i = 0; i < 700; ++i) {
+        CHECK_EQ(vec[i], i);
+    }
+}
+
+TEST_CASE("Hilbert::stdb_vector::get_buffer") {
+    stdb_vector<int> vec(1000);
+    auto buffer = vec.get_buffer(40);
+    CHECK_EQ(buffer.size(), 40);
+    CHECK_EQ(vec.size(), 40);
+    CHECK_EQ(vec.capacity(), 1000);
+}
+
+
+} // namespace stdb::container
