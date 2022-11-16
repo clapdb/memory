@@ -57,6 +57,11 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${SANITIZE_PARAM}")
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${SANITIZE_PARAM}")
 set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_MODULE_LINKER_FLAGS_DEBUG} ${SANITIZE_PARAM}")
 
+
+OPTION(STDB_CODE_COVERAGE
+       "build with code coverage, only work in DEBUG"
+        OFF
+        )
 # fmt
 find_package(fmt REQUIRED)
 find_package(xxHash REQUIRED)
@@ -77,3 +82,29 @@ add_subdirectory(arena)
 add_subdirectory(doctest EXCLUE_FROM_ALL)
 add_subdirectory(test EXCLUDE_FROM_ALL)
 add_subdirectory(benchmark EXCLUDE_FROM_ALL)
+## code coverage
+
+if((${CMAKE_BUILD_TYPE} MATCHES Debug) AND STDB_CODE_COVERAGE)
+  include(CodeCoverage)
+  append_coverage_compiler_flags()
+
+  set(COVERAGE_EXCLUDES
+    "doctest/*"
+    "test/*"
+    "build/*"
+    "build.debug/*"
+    "build_debug/*"
+    "cmake-build-*"
+    "/usr/*")
+
+  set(GCOVR_ADDITIONAL_ARGS
+    "--print-summary"
+  )
+
+  setup_target_for_coverage_gcovr_html(
+    NAME coverage
+    EXECUTABLE tests/alltests
+  )
+endif()
+
+
