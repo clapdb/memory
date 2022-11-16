@@ -582,7 +582,40 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec1.size(), 10);
         vec2.insert(vec2.begin(), vec3.begin(), vec3.end());
         CHECK_EQ(vec1, vec2);
+        std::vector<int> vec4 = {100, 100};
+        vec1.insert(vec1.end(), vec4.begin(), vec4.end());
+        CHECK_EQ(vec1.size(), 12);
+        CHECK_EQ(vec1.back(), 100);
+        std::vector<int> vec5 = {200, 200};
+        vec1.insert(vec1.end() - 1, vec5.begin(), vec5.end());
+        CHECK_EQ(vec1.size(), 14);
+        CHECK_EQ(vec1.back(), 100);
+        CHECK_EQ(vec1[12], 200);
     }
+
+    SUBCASE("insert_unsafe_from_another_vector") {
+        stdb_vector<int> vec1;
+        vec1.reserve(100);
+        stdb_vector<int> vec2;
+        vec2.reserve(100);
+        std::vector<int> vec3 = {11,22,33,44,55,66,77,88,99,100};
+        vec1.insert<Safety::Unsafe>(vec1.begin(), vec2.begin(), vec2.end());
+        CHECK_EQ(vec1.size(), 0);
+        vec1.insert<Safety::Unsafe>(vec1.begin(), vec3.begin(), vec3.end());
+        CHECK_EQ(vec1.size(), 10);
+        vec2.insert<Safety::Unsafe>(vec2.begin(), vec3.begin(), vec3.end());
+        CHECK_EQ(vec1, vec2);
+        std::vector<int> vec4 = {100, 100};
+        vec1.insert<Safety::Unsafe>(vec1.end(), vec4.begin(), vec4.end());
+        CHECK_EQ(vec1.size(), 12);
+        CHECK_EQ(vec1.back(), 100);
+        std::vector<int> vec5 = {200, 200};
+        vec1.insert<Safety::Unsafe>(vec1.end() - 1, vec5.begin(), vec5.end());
+        CHECK_EQ(vec1.size(), 14);
+        CHECK_EQ(vec1.back(), 100);
+        CHECK_EQ(vec1[12], 200);
+    }
+
     SUBCASE("emplace") {
         stdb_vector<int> vec;
         vec.emplace(vec.begin(), 1);
@@ -598,6 +631,27 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
         vec.emplace(vec.begin() + 1, 4);
+        CHECK_EQ(vec.size(), 4);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        CHECK_EQ(vec[1], 4);
+    }
+
+    SUBCASE("emplace_with_index") {
+        stdb_vector<int> vec;
+        vec.emplace(0, 1);
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 1);
+        vec.emplace(0, 2);
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 1);
+        vec.emplace(2, 3);
+        CHECK_EQ(vec.size(), 3);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        vec.emplace(1, 4);
         CHECK_EQ(vec.size(), 4);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
@@ -851,10 +905,16 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec[2], "inserted");
         CHECK_EQ(vec[3], "world");
         CHECK_EQ(vec[4], "!");
+        vec.insert(vec.end(), {"final"});
+        CHECK_EQ(vec.size(), 6);
+        CHECK_EQ(vec[5], "final");
+        vec.insert(vec.end() - 1, {"middle"});
+        CHECK_EQ(vec[5], "middle");
+        CHECK_EQ(vec[6], "final");
     }
     SUBCASE("insert_with_range") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
-        stdb_vector<memory::string> vec2 = {"inserted", "inserted"};
+        std::vector<memory::string> vec2 = {"inserted", "inserted"};
         vec.insert(vec.begin() + 1, vec2.begin(), vec2.end());
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[0], "hello");
@@ -862,6 +922,15 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec[2], "inserted");
         CHECK_EQ(vec[3], "world");
         CHECK_EQ(vec[4], "!");
+        vec.insert(vec.end(), vec2.begin(), vec2.end());
+        CHECK_EQ(vec.size(), 7);
+        CHECK_EQ(vec[5], "inserted");
+        CHECK_EQ(vec[6], "inserted");
+        std::vector<memory::string> vec3 = {"final"};
+        vec.insert(vec.end() - 1, vec3.begin(), vec3.end());
+        CHECK_EQ(vec.size(), 8);
+        CHECK_EQ(vec[6], "final");
+        CHECK_EQ(vec[7], "inserted");
     }
     SUBCASE("erase_with_single_element") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
