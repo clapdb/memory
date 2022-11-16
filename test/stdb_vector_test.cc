@@ -494,6 +494,31 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec[13], 5);
     }
 
+    SUBCASE("insert_unsafe_with_multi_values") {
+        stdb_vector<int> vec;
+        vec.reserve(20);
+        vec.insert<Safety::Unsafe>(vec.begin(), 3, 1);
+        CHECK_EQ(vec.size(), 3);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 1);
+        vec.insert<Safety::Unsafe>(vec.begin(), 2, 2);
+        CHECK_EQ(vec.size(), 5);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 1);
+        vec.insert<Safety::Unsafe>(vec.end(), 4, 3);
+        CHECK_EQ(vec.size(), 9);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        vec.insert<Safety::Unsafe>(vec.begin() + 1, 5, 4);
+        CHECK_EQ(vec.size(), 14);
+        CHECK_EQ(vec.front(), 2);
+        CHECK_EQ(vec.back(), 3);
+        CHECK_EQ(vec[1], 4);
+        CHECK_EQ(vec[5], 4);
+        vec.insert<Safety::Unsafe>(vec.end() - 1, 6, 5);
+        CHECK_EQ(vec.back(), 3);
+        CHECK_EQ(vec[13], 5);
+    }
 
 
     SUBCASE("insert_with_initializer_list") {
@@ -516,6 +541,32 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[10], 31);
         vec.insert(vec.end() - 1, {12,44});
+        CHECK_EQ(vec.size(), 42);
+        CHECK_EQ(vec.back(), 30);
+        CHECK_EQ(vec[40], 44);
+    }
+
+    SUBCASE("insert_unsafe_with_initializer_list") {
+        stdb_vector<int> vec;
+        vec.reserve(100);
+        vec.insert<Safety::Unsafe>(vec.begin(), {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        CHECK_EQ(vec.size(), 10);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(vec.back(), 10);
+        vec.insert<Safety::Unsafe>(vec.begin(), {11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
+        CHECK_EQ(vec.size(), 20);
+        CHECK_EQ(vec.front(), 11);
+        CHECK_EQ(vec.back(), 10);
+        vec.insert<Safety::Unsafe>(vec.end(), {21, 22, 23, 24, 25, 26, 27, 28, 29, 30});
+        CHECK_EQ(vec.size(), 30);
+        CHECK_EQ(vec.front(), 11);
+        CHECK_EQ(vec.back(), 30);
+        vec.insert<Safety::Unsafe>(vec.begin() + 10, {31, 32, 33, 34, 35, 36, 37, 38, 39, 40});
+        CHECK_EQ(vec.size(), 40);
+        CHECK_EQ(vec.front(), 11);
+        CHECK_EQ(vec.back(), 30);
+        CHECK_EQ(vec[10], 31);
+        vec.insert<Safety::Unsafe>(vec.end() - 1, {12,44});
         CHECK_EQ(vec.size(), 42);
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[40], 44);
