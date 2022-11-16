@@ -67,25 +67,14 @@ void construct_range_with_cref(T* __restrict__ first, T* __restrict__ last, cons
     assert(first != nullptr and last != nullptr);
     assert(first < last);
     static_assert(std::is_copy_constructible_v<T>);
-    for (; first != last; ++first) {
-        new (first) T(value);
-    }
-}
-
-template<typename T> requires std::is_trivially_copyable_v<T>
-void construct_range_with_value(T* __restrict__ first, T* __restrict__ last, T value) {
-    assert(first != nullptr and last != nullptr);
-    assert(first < last);
-    static_assert(std::is_trivially_constructible_v<T> && std::is_standard_layout_v<T>);
-    // set all data to value.
-    if constexpr (sizeof(T) == sizeof(char)) {
-        // use optimized memset if we can.
+    if constexpr (sizeof (T) == sizeof (char)) {
         std::memset(first, static_cast<int>(value), (last - first) * sizeof(T));
     } else {
         for (; first != last; ++first) {
-            *first = value;
+            new (first) T(value);
         }
     }
+
 }
 
 template<typename T>
@@ -497,14 +486,9 @@ class stdb_vector  : public core<T> {
         construct_range(this->_start, this->_finish);
     }
 
+
     constexpr stdb_vector(std::size_t size, const T& value): core<T>(size, size) {
         construct_range_with_cref(this->_start, this->_finish, value);
-    }
-
-    template<typename U = T> requires std::is_trivially_constructible_v<U> && std::is_standard_layout_v<U>
-    constexpr stdb_vector(std::size_t size, T value): core<T>(size, size) {
-        // do not move, because move will steal the content, and is not constexpr.
-        construct_range_with_value(core<T>::start(), core<T>::finish(), value);
     }
 
     template<std::forward_iterator InputIt>
