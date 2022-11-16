@@ -64,7 +64,6 @@ TEST_CASE("Hilbert::stdb_vector::int") {
     SUBCASE("init with size and value") {
         stdb_vector<int> vec(10, 1);
         CHECK_EQ(vec.empty(), false);
-        std::cerr << "maybe assert failure" << std::endl;
         CHECK_EQ(vec.size(), 10);
         CHECK_EQ(vec.capacity(), 10);
         CHECK_NE(vec.data(), nullptr);
@@ -746,6 +745,7 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     }
     SUBCASE("pop_back") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        CHECK_EQ(vec.size(), 3);
         vec.pop_back();
         CHECK_EQ(vec.size(), 2);
         CHECK_EQ(vec[0], "hello");

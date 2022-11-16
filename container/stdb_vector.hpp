@@ -1245,7 +1245,7 @@ class stdb_vector  : public core<T> {
     }
 
     void pop_back() {
-        destroy_ptr(this->_finish--);
+        destroy_ptr(this->_finish-- - 1);
     }
 
     template<Safety safety = Safety::Safe>

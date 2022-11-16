@@ -103,7 +103,7 @@ if((${CMAKE_BUILD_TYPE} MATCHES Debug) AND STDB_CODE_COVERAGE)
 
   setup_target_for_coverage_gcovr_html(
     NAME coverage
-    EXECUTABLE tests/alltests
+    EXECUTABLE tests/memory_test
   )
 endif()
 
