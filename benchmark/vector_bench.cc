@@ -22,10 +22,10 @@
 #include "container/stdb_vector.hpp"
 #include <benchmark/benchmark.h>
 #include "string/string.hpp"
-
+#include <iostream>
 namespace stdb::container {
 
-constexpr int64_t times = 1024 * 8;
+constexpr int64_t times = 1024 * 64;
 
 template <typename T, template <typename, typename> typename Vec>
 void push_back() {
@@ -420,6 +420,117 @@ BENCHMARK(pushback_stdb_vector_just_move_unsafe);
 BENCHMARK(pushback_std_vector_just_copy);
 BENCHMARK(pushback_stdb_vector_just_copy);
 BENCHMARK(pushback_stdb_vector_just_copy_unsafe);
+
+static void init_std_vector(benchmark::State& state) {
+    stdb::container::stdb_vector<size_t> results;
+    for (auto _ : state) {
+        std::vector<int64_t> vec;
+        vec.reserve(times);
+        for (int64_t i = 0; i < times; ++i) {
+            vec.push_back(i);
+        }
+        results.push_back(vec.size());
+    }
+}
+
+static void init_stdb_vector_with_pushback_unsafe(benchmark::State& state) {
+    stdb::container::stdb_vector<size_t> results;
+    for (auto _ : state) {
+        stdb::container::stdb_vector<int64_t> vec;
+        vec.reserve(times);
+        for (int64_t i = 0; i < times; ++i) {
+            vec.push_back<Safety::Unsafe>(i);
+        }
+        results.push_back(vec.size());
+    }
+}
+
+static void init_stdb_vector_with_resize(benchmark::State& state) {
+    stdb::container::stdb_vector<size_t> results;
+    for (auto _ : state) {
+        stdb::container::stdb_vector<int64_t> vec;
+        vec.resize(times);
+        for (int64_t i = 0; i < times; ++i) {
+            vec.at(static_cast<size_t>(i)) = i;
+        }
+        results.push_back(vec.size());
+    }
+}
+
+static void init_stdb_vector_with_resize_unsafe(benchmark::State& state) {
+    stdb::container::stdb_vector<size_t> results;
+    for (auto _ : state) {
+        stdb::container::stdb_vector<int64_t> vec;
+        vec.resize<Safety::Unsafe>(times);
+        for (int64_t i = 0; i < times; ++i) {
+            vec[static_cast<size_t>(i)] = i;
+        }
+        results.push_back(vec.size());
+    }
+}
+
+static void init_stdb_vector_with_get_buffer(benchmark::State& state) {
+    stdb::container::stdb_vector<size_t> results;
+    for (auto _ : state) {
+        stdb::container::stdb_vector<int64_t> vec;
+        vec.reserve(times);
+        auto buffer = vec.get_buffer(times);
+        for (int64_t i = 0; i < times; ++i) {
+            buffer[static_cast<size_t>(i)] = i;
+        }
+        results.push_back(vec.size());
+    }
+}
+
+static void init_stdb_vector_with_get_buffer_unsafe(benchmark::State& state) {
+    stdb::container::stdb_vector<size_t> results;
+    for (auto _ : state) {
+        stdb::container::stdb_vector<int64_t> vec;
+        vec.reserve(times);
+        auto buffer = vec.get_buffer<Safety::Unsafe>(times);
+        for (int64_t i = 0; i < times; ++i) {
+            buffer[static_cast<size_t>(i)] = i;
+        }
+        results.push_back(vec.size());
+    }
+}
+
+static auto filler(int64_t* buffer) -> size_t {
+    if (buffer)  {
+        for (int64_t i = 0; i < times; ++i) {
+            buffer[static_cast<size_t>(i)] = i;
+        }
+    }
+    return times;
+}
+
+static void init_stdb_vector_with_fill(benchmark::State& state) {
+    stdb::container::stdb_vector<size_t> results;
+    for (auto _ : state) {
+        stdb::container::stdb_vector<int64_t> vec;
+        vec.resize(times);
+        vec.fill(&filler);
+        results.push_back(vec.size());
+    }
+}
+
+static void init_stdb_vector_with_fill_unsafe(benchmark::State& state) {
+    stdb::container::stdb_vector<size_t> results;
+    for (auto _ : state) {
+        stdb::container::stdb_vector<int64_t> vec;
+        vec.resize(times);
+        vec.fill<Safety::Unsafe>(&filler);
+        results.push_back(vec.size());
+    }
+}
+BENCHMARK(init_std_vector);
+BENCHMARK(init_stdb_vector_with_pushback_unsafe);
+BENCHMARK(init_stdb_vector_with_resize);
+BENCHMARK(init_stdb_vector_with_resize_unsafe);
+BENCHMARK(init_stdb_vector_with_get_buffer);
+BENCHMARK(init_stdb_vector_with_get_buffer_unsafe);
+BENCHMARK(init_stdb_vector_with_fill);
+BENCHMARK(init_stdb_vector_with_fill_unsafe);
 
 BENCHMARK_MAIN();
 
