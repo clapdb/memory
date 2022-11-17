@@ -695,79 +695,79 @@ class stdb_vector  : public core<T> {
         }
         Iterator& operator = (const Iterator&) noexcept = default;
 
-        constexpr auto operator ++ () noexcept -> Iterator& {
+        [[gnu::always_inline]]constexpr inline auto operator ++ () noexcept -> Iterator& {
             ++_ptr;
             return *this;
         }
 
-        constexpr auto operator ++ (int) noexcept -> Iterator {
+        [[gnu::always_inline, nodiscard]] constexpr inline auto operator ++ (int) noexcept -> Iterator {
             auto tmp = *this;
             ++_ptr;
             return tmp;
         }
 
-        constexpr auto operator -- () noexcept -> Iterator& {
+        [[gnu::always_inline]] constexpr inline auto operator -- () noexcept -> Iterator& {
             --_ptr;
             return *this;
         }
 
-        constexpr auto operator -- (int) noexcept -> Iterator {
+        [[gnu::always_inline, nodiscard]] constexpr inline auto operator -- (int) noexcept -> Iterator {
             auto tmp = *this;
             --_ptr;
             return tmp;
         }
 
-        constexpr auto operator + (deference_type n) const noexcept -> Iterator {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator + (deference_type n) const noexcept -> Iterator {
             return Iterator(_ptr + n);
         }
 
-        constexpr auto operator - (deference_type n) const noexcept -> Iterator {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator - (deference_type n) const noexcept -> Iterator {
             return Iterator(_ptr - n);
         }
 
-        constexpr auto operator += (deference_type n) noexcept -> Iterator& {
+        [[gnu::always_inline]] constexpr inline auto operator += (deference_type n) noexcept -> Iterator& {
             _ptr += n;
             return *this;
         }
 
-        constexpr auto operator -= (deference_type n) noexcept -> Iterator& {
+        [[gnu::always_inline]] constexpr inline auto operator -= (deference_type n) noexcept -> Iterator& {
             _ptr -= n;
             return *this;
         }
 
-        constexpr auto operator - (const Iterator& other) const noexcept -> deference_type {
+        [[gnu::always_inline, nodiscard]] constexpr inline auto operator - (const Iterator& other) const noexcept -> deference_type {
             return _ptr - other._ptr;
         }
 
-        constexpr auto operator == (const Iterator& other) const noexcept -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator == (const Iterator& other) const noexcept -> bool {
             return _ptr == other._ptr;
         }
 
-        constexpr auto operator != (const Iterator& other) const noexcept -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator != (const Iterator& other) const noexcept -> bool {
             return _ptr != other._ptr;
         }
 
-        constexpr auto operator < (const Iterator& other) const noexcept -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator < (const Iterator& other) const noexcept -> bool {
             return _ptr < other._ptr;
         }
 
-        constexpr auto operator > (const Iterator& other) const noexcept -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator > (const Iterator& other) const noexcept -> bool {
             return _ptr > other._ptr;
         }
 
-        constexpr auto operator <= (const Iterator& other) const noexcept -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator <= (const Iterator& other) const noexcept -> bool {
             return _ptr <= other._ptr;
         }
 
-        constexpr auto operator >= (const Iterator& other) const noexcept -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator >= (const Iterator& other) const noexcept -> bool {
             return _ptr >= other._ptr;
         }
 
-        constexpr auto operator * () const noexcept -> reference {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator * () const noexcept -> reference {
             return *_ptr;
         }
 
-        constexpr auto operator -> () const noexcept -> pointer {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator -> () const noexcept -> pointer {
             return _ptr;
         }
 
@@ -795,79 +795,79 @@ class stdb_vector  : public core<T> {
           }
           ConstIterator& operator = (const ConstIterator&) noexcept = default;
 
-          constexpr auto operator ++ () noexcept -> ConstIterator& {
+          [[gnu::always_inline]] constexpr inline auto operator ++ () noexcept -> ConstIterator& {
               ++_ptr;
               return *this;
           }
 
-          constexpr auto operator ++ (int) noexcept -> ConstIterator {
+          [[nodiscard, gnu::always_inline]] constexpr inline auto operator ++ (int) noexcept -> ConstIterator {
               auto tmp = *this;
               ++_ptr;
               return tmp;
           }
 
-          constexpr auto operator -- () noexcept -> ConstIterator& {
+          [[gnu::always_inline]] constexpr inline auto operator -- () noexcept -> ConstIterator& {
               --_ptr;
               return *this;
           }
 
-          constexpr auto operator -- (int) noexcept -> ConstIterator {
+          [[gnu::always_inline, nodiscard]] constexpr inline auto operator -- (int) noexcept -> ConstIterator {
               auto tmp = *this;
               --_ptr;
               return tmp;
           }
 
-          constexpr auto operator + (deference_type n) const noexcept -> ConstIterator {
+          [[gnu::always_inline, nodiscard]] constexpr inline auto operator + (deference_type n) const noexcept -> ConstIterator {
               return ConstIterator(_ptr + n);
           }
 
-          constexpr auto operator - (deference_type n) const noexcept -> ConstIterator {
+          [[gnu::always_inline, nodiscard]] constexpr inline auto operator - (deference_type n) const noexcept -> ConstIterator {
               return ConstIterator(_ptr - n);
           }
 
-          constexpr auto operator += (deference_type n) noexcept -> ConstIterator& {
+          [[gnu::always_inline]] constexpr inline auto operator += (deference_type n) noexcept -> ConstIterator& {
               _ptr += n;
               return *this;
           }
 
-          constexpr auto operator -= (deference_type n) noexcept -> ConstIterator& {
+          [[gnu::always_inline]] constexpr inline auto operator -= (deference_type n) noexcept -> ConstIterator& {
               _ptr -= n;
               return *this;
           }
 
-          constexpr auto operator - (const ConstIterator& other) const noexcept -> deference_type {
+          [[gnu::always_inline, nodiscard]] constexpr inline auto operator - (const ConstIterator& other) const noexcept -> deference_type {
               return _ptr - other._ptr;
           }
 
-          constexpr auto operator == (const ConstIterator& other) const noexcept -> bool {
+          [[gnu::always_inline, nodiscard]] constexpr inline auto operator == (const ConstIterator& other) const noexcept -> bool {
               return _ptr == other._ptr;
           }
 
-          constexpr auto operator != (const ConstIterator& other) const noexcept -> bool {
+          [[gnu::always_inline, nodiscard]] constexpr inline auto operator != (const ConstIterator& other) const noexcept -> bool {
               return _ptr != other._ptr;
           }
 
-          constexpr auto operator < (const ConstIterator& other) const noexcept -> bool {
+          [[gnu::always_inline, nodiscard]] constexpr inline auto operator < (const ConstIterator& other) const noexcept -> bool {
               return _ptr < other._ptr;
           }
 
-          constexpr auto operator > (const ConstIterator& other) const noexcept -> bool {
+          [[nodiscard, gnu::always_inline]] constexpr inline auto operator > (const ConstIterator& other) const noexcept -> bool {
               return _ptr > other._ptr;
           }
 
-          constexpr auto operator <= (const ConstIterator& other) const noexcept -> bool {
+          [[gnu::always_inline, nodiscard]] constexpr inline auto operator <= (const ConstIterator& other) const noexcept -> bool {
               return _ptr <= other._ptr;
           }
 
-          constexpr auto operator >= (const ConstIterator& other) const noexcept -> bool {
+          [[gnu::always_inline, nodiscard]] constexpr inline auto operator >= (const ConstIterator& other) const noexcept -> bool {
               return _ptr >= other._ptr;
           }
 
-          constexpr auto operator * () const noexcept -> const_reference {
+          [[gnu::always_inline, nodiscard]] constexpr inline auto operator * () const noexcept -> const_reference {
               return *_ptr;
           }
 
-          constexpr auto operator -> () const noexcept -> const_pointer { return _ptr; }
+          [[nodiscard, gnu::always_inline]] constexpr inline auto operator -> () const noexcept -> const_pointer { return _ptr; }
 
     }; // class ConstIterator
 
@@ -896,79 +896,79 @@ class stdb_vector  : public core<T> {
         }
         ReverseIterator& operator = (const ReverseIterator&) noexcept = default;
 
-        auto operator++() -> ReverseIterator& {
+        [[gnu::always_inline]] constexpr inline auto operator++() -> ReverseIterator& {
             --_ptr;
             return *this;
         }
 
-        auto operator++(int) -> ReverseIterator {
+        [[gnu::always_inline, nodiscard]] constexpr inline auto operator++(int) -> ReverseIterator {
             auto tmp = *this;
             --_ptr;
             return tmp;
         }
 
-        auto operator--() -> ReverseIterator& {
+        [[gnu::always_inline]] constexpr inline auto operator--() -> ReverseIterator& {
             ++_ptr;
             return *this;
         }
 
-        auto operator--(int) -> ReverseIterator {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator--(int) -> ReverseIterator {
             auto tmp = *this;
             ++_ptr;
             return tmp;
         }
 
-        auto operator+=(deference_type n) -> ReverseIterator& {
+        [[gnu::always_inline]] constexpr inline auto operator+=(deference_type n) -> ReverseIterator& {
             _ptr -= n;
             return *this;
         }
 
-        auto operator-=(deference_type n) -> ReverseIterator& {
+        [[gnu::always_inline]] constexpr inline auto operator-=(deference_type n) -> ReverseIterator& {
             _ptr += n;
             return *this;
         }
 
-        auto operator+(deference_type n) const -> ReverseIterator {
+        [[gnu::always_inline]] constexpr inline auto operator+(deference_type n) const -> ReverseIterator {
             return ReverseIterator(_ptr - n);
         }
 
-        auto operator-(deference_type n) const -> ReverseIterator {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator-(deference_type n) const -> ReverseIterator {
             return ReverseIterator(_ptr + n);
         }
 
-        auto operator-(const ReverseIterator& other) const -> deference_type {
+        [[gnu::always_inline, nodiscard]] constexpr inline auto operator-(const ReverseIterator& other) const -> deference_type {
             return other._ptr - _ptr;
         }
 
-        auto operator==(const ReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator==(const ReverseIterator& other) const -> bool {
             return _ptr == other._ptr;
         }
 
-        auto operator!=(const ReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator!=(const ReverseIterator& other) const -> bool {
             return _ptr != other._ptr;
         }
 
-        auto operator<(const ReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator<(const ReverseIterator& other) const -> bool {
             return _ptr > other._ptr;
         }
 
-        auto operator>(const ReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator>(const ReverseIterator& other) const -> bool {
             return _ptr < other._ptr;
         }
 
-        auto operator<=(const ReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator<=(const ReverseIterator& other) const -> bool {
             return _ptr >= other._ptr;
         }
 
-        auto operator>=(const ReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator>=(const ReverseIterator& other) const -> bool {
             return _ptr <= other._ptr;
         }
 
-        auto operator*() const -> reference {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator*() const -> reference {
             return *_ptr;
         }
 
-        auto operator->() const -> pointer {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator->() const -> pointer {
             return _ptr;
         }
 
@@ -998,129 +998,129 @@ class stdb_vector  : public core<T> {
         }
         ConstReverseIterator& operator = (const ConstReverseIterator&) noexcept = default;
 
-        auto operator++() -> ConstReverseIterator& {
+        [[gnu::always_inline]] constexpr inline auto operator++() -> ConstReverseIterator& {
             --_ptr;
             return *this;
         }
 
-        auto operator++(int) -> ConstReverseIterator {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator++(int) -> ConstReverseIterator {
             auto tmp = *this;
             --_ptr;
             return tmp;
         }
 
-        auto operator--() -> ConstReverseIterator& {
+        [[gnu::always_inline]] constexpr inline auto operator--() -> ConstReverseIterator& {
             ++_ptr;
             return *this;
         }
 
-        auto operator--(int) -> ConstReverseIterator {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator--(int) -> ConstReverseIterator {
             auto tmp = *this;
             ++_ptr;
             return tmp;
         }
 
-        auto operator+=(deference_type n) -> ConstReverseIterator& {
+        [[gnu::always_inline]] constexpr inline auto operator+=(deference_type n) -> ConstReverseIterator& {
             _ptr -= n;
             return *this;
         }
 
-        auto operator-=(deference_type n) -> ConstReverseIterator& {
+        [[gnu::always_inline]] constexpr inline  auto operator-=(deference_type n) -> ConstReverseIterator& {
             _ptr += n;
             return *this;
         }
 
-        auto operator+(deference_type n) const -> ConstReverseIterator {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator+(deference_type n) const -> ConstReverseIterator {
             return ConstReverseIterator(_ptr - n);
         }
 
-        auto operator-(deference_type n) const -> ConstReverseIterator {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator-(deference_type n) const -> ConstReverseIterator {
             return ConstReverseIterator(_ptr + n);
         }
 
-        auto operator-(const ConstReverseIterator& other) const -> deference_type {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator-(const ConstReverseIterator& other) const -> deference_type {
             return other._ptr - _ptr;
         }
 
-        auto operator==(const ConstReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator==(const ConstReverseIterator& other) const -> bool {
             return _ptr == other._ptr;
         }
 
-        auto operator!=(const ConstReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator!=(const ConstReverseIterator& other) const -> bool {
             return _ptr != other._ptr;
         }
 
-        auto operator<(const ConstReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator<(const ConstReverseIterator& other) const -> bool {
             return _ptr > other._ptr;
         }
 
-        auto operator>(const ConstReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator>(const ConstReverseIterator& other) const -> bool {
             return _ptr < other._ptr;
         }
 
-        auto operator<=(const ConstReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator<=(const ConstReverseIterator& other) const -> bool {
             return _ptr >= other._ptr;
         }
 
-        auto operator>=(const ConstReverseIterator& other) const -> bool {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator>=(const ConstReverseIterator& other) const -> bool {
             return _ptr <= other._ptr;
         }
 
-        auto operator*() const -> const_reference {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator*() const -> const_reference {
             return *_ptr;
         }
 
-        auto operator->() const -> const_pointer {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator->() const -> const_pointer {
             return _ptr;
         }
 
     };  // class ConstReverseIterator
 
-    auto begin() noexcept -> Iterator {
+    [[nodiscard, gnu::always_inline]] inline auto begin() noexcept -> Iterator {
         return Iterator(this->_start);
     }
 
-    auto begin() const noexcept -> ConstIterator {
+    [[nodiscard, gnu::always_inline]] inline auto begin() const noexcept -> ConstIterator {
         return ConstIterator(this->_start);
     }
 
-    auto cbegin() const noexcept -> ConstIterator {
+    [[nodiscard, gnu::always_inline]] auto cbegin() const noexcept -> ConstIterator {
         return ConstIterator(this->_start);
     }
 
-    auto end() noexcept -> Iterator {
+    [[nodiscard, gnu::always_inline]] inline auto end() noexcept -> Iterator {
         return Iterator(this->_finish);
     }
 
-    auto end() const noexcept -> ConstIterator {
+    [[nodiscard, gnu::always_inline]] inline auto end() const noexcept -> ConstIterator {
         return ConstIterator(this->_finish);
     }
 
-    auto cend() const noexcept -> ConstIterator {
+    [[nodiscard, gnu::always_inline]] inline auto cend() const noexcept -> ConstIterator {
         return ConstIterator(this->_finish);
     }
 
-    auto rbegin() noexcept -> ReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto rbegin() noexcept -> ReverseIterator {
         return ReverseIterator(this->_finish - 1);
     }
 
-    auto rbegin() const noexcept -> ConstReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto rbegin() const noexcept -> ConstReverseIterator {
         return ConstReverseIterator(this->_finish - 1);
     }
 
-    auto crbegin() const noexcept -> ConstReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto crbegin() const noexcept -> ConstReverseIterator {
         return ConstReverseIterator(this->_finish - 1);
     }
 
-    auto rend() noexcept -> ReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto rend() noexcept -> ReverseIterator {
         return ReverseIterator(this->_start - 1);
     }
 
-    auto rend() const noexcept -> ConstReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto rend() const noexcept -> ConstReverseIterator {
         return ConstReverseIterator(this->_start - 1);
     }
 
-    auto crend() const noexcept -> ConstReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto crend() const noexcept -> ConstReverseIterator {
         return ConstReverseIterator(this->_start - 1);
     }
 
@@ -1142,8 +1142,10 @@ class stdb_vector  : public core<T> {
      */
     template<Safety safety = Safety::Safe>
     [[nodiscard, gnu::always_inline]] auto get_buffer(size_type buf_size) -> std::span<T> {
-        if (buf_size + this->_finish > this->_edge) {
-            this->realloc_with_old_data(compute_new_capacity(buf_size));
+        if constexpr (safety == Safety::Safe) {
+            if (buf_size + this->_finish > this->_edge) {
+                this->realloc_with_old_data(compute_new_capacity(buf_size));
+            }
         }
         auto buf = std::span<T>(this->_finish, buf_size);
         this->_finish += buf_size;
@@ -1154,7 +1156,7 @@ class stdb_vector  : public core<T> {
      * Modifiers sections
      */
     template<Safety safety = Safety::Safe, typename U = T> requires std::is_object_v<U>
-    void push_back(const value_type& value) {
+    [[gnu::always_inline]] inline void push_back(const value_type& value) {
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
                 copy_cref(this->_finish++, std::forward<const value_type&>(value));
@@ -1168,7 +1170,7 @@ class stdb_vector  : public core<T> {
     }
 
     template<Safety safety = Safety::Safe, typename U = T> requires std::is_trivial_v<U> || std::is_move_constructible_v<U>
-    void push_back(value_type&& value) {
+    [[gnu::always_inline]] inline void push_back(value_type&& value) {
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
                 copy_value(this->_finish++, std::forward<value_type &&>(value));
@@ -1182,7 +1184,7 @@ class stdb_vector  : public core<T> {
     }
 
     template<Safety safety = Safety::Safe, typename ...Args>
-    auto emplace_back(Args&&... args) -> Iterator {
+    [[gnu::always_inline]] inline auto emplace_back(Args&&... args) -> Iterator {
         static_assert(not std::is_trivial_v<T>, "Use push_back() instead of emplace_back() with trivial types");
         if constexpr(safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
@@ -1199,7 +1201,7 @@ class stdb_vector  : public core<T> {
 
     }
 
-    void clear() noexcept {
+    [[gnu::always_inline]] inline void clear() noexcept {
         this->destroy();
         this->_finish = this->_start;
     }
@@ -1240,7 +1242,7 @@ class stdb_vector  : public core<T> {
         this->_finish -= (last_ptr - first_ptr);
     }
 
-    void pop_back() {
+    [[gnu::always_inline]] inline void pop_back() {
         destroy_ptr(this->_finish-- - 1);
     }
 
@@ -1285,7 +1287,7 @@ class stdb_vector  : public core<T> {
         }
     }
 
-    constexpr void swap(stdb_vector& other) noexcept {
+    [[gnu::always_inline]] constexpr inline void swap(stdb_vector& other) noexcept {
         core<T>::swap(other);
     }
 
@@ -1400,7 +1402,7 @@ class stdb_vector  : public core<T> {
     }
 
     template<Safety safety = Safety::Safe>
-    constexpr auto insert(Iterator pos, std::initializer_list<T> ilist) -> Iterator {
+    [[gnu::always_inline]] constexpr inline auto insert(Iterator pos, std::initializer_list<T> ilist) -> Iterator {
         return insert<safety>(pos, ilist.begin(), ilist.end());
     }
 
@@ -1429,6 +1431,7 @@ class stdb_vector  : public core<T> {
         ++this->_finish;
         return Iterator(pos_ptr);
     }
+
     template<Safety safety = Safety::Safe, typename... Args>
     constexpr auto emplace(size_type pos, Args&&... args) -> Iterator {
         if constexpr(safety == Safety::Safe)  {
@@ -1454,7 +1457,7 @@ class stdb_vector  : public core<T> {
     }
 
    private:
-    [[nodiscard]] auto compute_new_capacity(size_type new_size) const -> size_type {
+    [[nodiscard, gnu::always_inline]] inline auto compute_new_capacity(size_type new_size) const -> size_type {
         assert(new_size > capacity());
         if (auto next_capacity = compute_next_capacity(); next_capacity > new_size) {
             return next_capacity;
