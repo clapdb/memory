@@ -49,6 +49,28 @@ void push_back_stdb() {
     benchmark::DoNotOptimize(vec);
 }
 
+template<typename T>
+void init_vector() {
+    std::vector<T> vec(times, std::numeric_limits<T>::max());
+}
+
+template<typename T>
+void init_vector_stdb() {
+    stdb::container::stdb_vector<T> vec(times, std::numeric_limits<T>::max());
+}
+
+template<typename T>
+void assign() {
+    std::vector<T> vec;
+    vec.assign(times, std::numeric_limits<T>::max());
+}
+
+template<typename T>
+void assign_stdb() {
+    stdb::container::stdb_vector<T> vec;
+    vec.assign(times, std::numeric_limits<T>::max());
+}
+
 template <typename T>
 void push_back_unsafe() {
     stdb_vector<T> vec;
@@ -61,7 +83,7 @@ void push_back_unsafe() {
 
 template<typename T>
 void for_loop(const std::vector<T>& vec) {
-    int64_t sum = 0;
+    T sum = 0;
     for (T i : vec) {
         sum += i;
     }
@@ -70,7 +92,7 @@ void for_loop(const std::vector<T>& vec) {
 
 template<typename T>
 void for_loop(const stdb::container::stdb_vector<T>& vec) {
-    int64_t sum = 0;
+    T sum = 0;
     for (T i : vec) {
         sum += i;
     }
@@ -259,6 +281,54 @@ static void pushback_stdb_vector_64(benchmark::State& state) {
 static void pushback_stdb_vector_64_unsafe(benchmark::State& state) {
     for (auto _ : state) {
         push_back_unsafe<size_t>();
+    }
+}
+
+static void init_std_vector_64(benchmark::State& state) {
+    for (auto _ : state) {
+        init_vector<int64_t>();
+    }
+}
+
+static void init_std_vector_32(benchmark::State& state) {
+    for (auto _ : state) {
+        init_vector<int32_t>();
+    }
+}
+
+static void init_std_vector_16(benchmark::State& state) {
+    for (auto _ : state) {
+        init_vector<int16_t>();
+    }
+}
+
+static void init_std_vector_8(benchmark::State& state) {
+    for (auto _ : state) {
+        init_vector<int8_t>();
+    }
+}
+
+static void init_stdb_vector_64(benchmark::State& state) {
+    for (auto _ : state) {
+        init_vector_stdb<int64_t>();
+    }
+}
+
+static void init_stdb_vector_32(benchmark::State& state) {
+    for (auto _ : state) {
+        init_vector_stdb<int32_t>();
+    }
+}
+
+static void init_stdb_vector_16(benchmark::State& state) {
+    for (auto _ : state) {
+        init_vector_stdb<int16_t>();
+    }
+}
+
+static void init_stdb_vector_8(benchmark::State& state) {
+    for (auto _ : state) {
+        init_vector_stdb<int8_t>();
     }
 }
 
@@ -458,6 +528,16 @@ BENCHMARK(pushback_stdb_vector_64);
 BENCHMARK(pushback_stdb_vector_32);
 BENCHMARK(pushback_stdb_vector_16);
 BENCHMARK(pushback_stdb_vector_8);
+
+BENCHMARK(init_std_vector_64);
+BENCHMARK(init_std_vector_32);
+BENCHMARK(init_std_vector_16);
+BENCHMARK(init_std_vector_8);
+BENCHMARK(init_stdb_vector_64);
+BENCHMARK(init_stdb_vector_32);
+BENCHMARK(init_stdb_vector_16);
+BENCHMARK(init_stdb_vector_8);
+
 BENCHMARK(forloop_std_vector_64);
 BENCHMARK(forloop_stdb_vector_64);
 BENCHMARK(forloop_std_vector_32);
