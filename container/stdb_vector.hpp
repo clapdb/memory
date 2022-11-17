@@ -1432,7 +1432,7 @@ class stdb_vector  : public core<T> {
         if (pos_ptr < this->_finish - 1) [[likely]] {
             this->move_backward(pos_ptr + 1, pos_ptr);
         } else {
-            core<T>::move_forward(pos_ptr + 1, pos_ptr);
+            this->move_forward(pos_ptr + 1, pos_ptr);
         }
         new (pos_ptr) T(std::forward<Args>(args)...);
         ++this->_finish;
@@ -1456,7 +1456,7 @@ class stdb_vector  : public core<T> {
         if (pos_ptr < this->_finish - 1) [[likely]] {
             this->move_backward(pos_ptr + 1, pos_ptr);
         } else {
-            core<T>::move_forward(pos_ptr + 1, pos_ptr);
+            this->move_forward(pos_ptr + 1, pos_ptr);
         }
         new (pos_ptr) T(std::forward<Args>(args)...);
         ++this->_finish;
