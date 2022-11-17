@@ -25,14 +25,14 @@
 #include <iostream>
 namespace stdb::container {
 
-constexpr int64_t times = 1024 * 64;
+constexpr size_t times = 1024 * 64;
 
 template <typename T, template <typename, typename> typename Vec>
 void push_back() {
     std::vector<T> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
-        vec.push_back(static_cast<T>(i));
+    for (size_t i = 0; i < times; ++i) {
+        vec.push_back(i);
     }
     benchmark::DoNotOptimize(vec);
 }
@@ -41,8 +41,8 @@ template <typename T, template <typename> typename Vec>
 void push_back() {
     Vec<T> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
-        vec.push_back(static_cast<T>(i));
+    for (size_t i = 0; i < times; ++i) {
+        vec.push_back(i);
     }
     benchmark::DoNotOptimize(vec);
 }
@@ -51,9 +51,8 @@ template <typename T>
 void push_back_unsafe() {
     stdb_vector<T> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
-        T t = static_cast<T>(i);
-        vec.template push_back<Safety::Unsafe>(t);
+    for (size_t i = 0; i < times; ++i) {
+        vec.template push_back<Safety::Unsafe>(i);
     }
     benchmark::DoNotOptimize(vec);
 }
@@ -63,7 +62,7 @@ void push_back_small_str() {
     memory::string input("hello world");
     Vec<memory::string, std::allocator<memory::string>> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
+    for (size_t i = 0; i < times; ++i) {
         vec.push_back(input);
     }
     benchmark::DoNotOptimize(vec);
@@ -74,7 +73,7 @@ void push_back_small_str() {
     memory::string input("hello world");
     Vec<memory::string> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
+    for (size_t i = 0; i < times; ++i) {
         vec.push_back(input);
     }
     benchmark::DoNotOptimize(vec);
@@ -84,7 +83,7 @@ void push_back_small_str_unsafe() {
     memory::string input("hello world");
     stdb_vector<memory::string> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
+    for (size_t i = 0; i < times; ++i) {
         vec.push_back<Safety::Unsafe>(input);
     }
     benchmark::DoNotOptimize(vec);
@@ -96,7 +95,7 @@ void push_back_median_str() {
     assert(input.size() < 250 and input.size() > 30);
     Vec<memory::string, std::allocator<memory::string>> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
+    for (size_t i = 0; i < times; ++i) {
         vec.push_back(input);
     }
     benchmark::DoNotOptimize(vec);
@@ -108,7 +107,7 @@ void push_back_median_str() {
     assert(input.size() < 250 and input.size() > 30);
     Vec<memory::string> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
+    for (size_t i = 0; i < times; ++i) {
         vec.push_back(input);
     }
     benchmark::DoNotOptimize(vec);
@@ -119,7 +118,7 @@ void push_back_median_str_unsafe() {
     assert(input.size() < 250 and input.size() > 30);
     stdb_vector<memory::string> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
+    for (size_t i = 0; i < times; ++i) {
         vec.push_back<Safety::Unsafe>(input);
     }
     benchmark::DoNotOptimize(vec);
@@ -141,7 +140,7 @@ void push_back_large_str() {
     assert(input.size() > 400);
     Vec<memory::string, std::allocator<memory::string>> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
+    for (size_t i = 0; i < times; ++i) {
         vec.push_back(input);
     }
     benchmark::DoNotOptimize(vec);
@@ -163,7 +162,7 @@ void push_back_large_str() {
     assert(input.size() > 400);
     Vec<memory::string> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
+    for (size_t i = 0; i < times; ++i) {
         vec.push_back(input);
     }
     benchmark::DoNotOptimize(vec);
@@ -184,7 +183,7 @@ void push_back_large_str_unsafe() {
     assert(input.size() > 400);
     stdb_vector<memory::string> vec;
     vec.reserve(times);
-    for (int64_t i = 0; i < times; ++i) {
+    for (size_t i = 0; i < times; ++i) {
         vec.push_back<Safety::Unsafe>(input);
     }
     benchmark::DoNotOptimize(vec);
@@ -192,7 +191,7 @@ void push_back_large_str_unsafe() {
 
 static void pushback_std_vector_64(benchmark::State& state) {
     for (auto _ : state) {
-        push_back<int64_t, std::vector>();
+        push_back<size_t, std::vector>();
     }
 }
 
@@ -226,13 +225,13 @@ static void pushback_std_vector_large_str(benchmark::State& state) {
 
 static void pushback_stdb_vector_64(benchmark::State& state) {
     for (auto _ : state) {
-        push_back<int64_t, stdb_vector>();
+        push_back<size_t, stdb_vector>();
     }
 }
 
 static void pushback_stdb_vector_64_unsafe(benchmark::State& state) {
     for (auto _ : state) {
-        push_back_unsafe<int64_t>();
+        push_back_unsafe<size_t>();
     }
 }
 
@@ -265,13 +264,13 @@ static void pushback_stdb_vector_8_unsafe_simulate(benchmark::State& state) {
         stdb_vector<int32_t> vec;
         vec.reserve(times/4);
         int32_t temp = 0;
-        for (int64_t i = 0; i < times; ++i) {
+        for (size_t i = 0; i < times; ++i) {
             if (i % 4 == 3) {
                 vec.push_back<Safety::Unsafe>(temp);
                 temp = 0;
             } else {
                 temp <<= 8;
-                temp |= static_cast<int8_t>(i);
+                temp |= (int8_t)i;
             }
         }
         benchmark::DoNotOptimize(vec);
@@ -383,7 +382,7 @@ static void pushback_std_vector_just_move(benchmark::State& state) {
     for (auto _ : state) {
         std::vector<just_move> vec;
         vec.reserve(times);
-        for (int64_t i = 0; i < times; ++i) {
+        for (size_t i = 0; i < times; ++i) {
             just_move m(i);
             vec.push_back(std::move(m));
         }
@@ -395,7 +394,7 @@ static void pushback_stdb_vector_just_move(benchmark::State& state) {
     for (auto _ : state) {
         stdb::container::stdb_vector<just_move> vec;
         vec.reserve(times);
-        for (int64_t i = 0; i < times; ++i) {
+        for (size_t i = 0; i < times; ++i) {
             just_move m(i);
             vec.push_back(std::move(m));
         }
@@ -407,7 +406,7 @@ static void pushback_stdb_vector_just_move_unsafe(benchmark::State& state) {
     for (auto _ : state) {
         stdb::container::stdb_vector<just_move> vec;
         vec.reserve(times);
-        for (int64_t i = 0; i < times; ++i) {
+        for (size_t i = 0; i < times; ++i) {
             just_move m(i);
             vec.push_back<Safety::Unsafe>(std::move(m));
         }
@@ -419,7 +418,7 @@ static void pushback_std_vector_just_copy(benchmark::State& state) {
     for (auto _ : state) {
         std::vector<just_copy> vec;
         vec.reserve(times);
-        for (int64_t i = 0; i < times; ++i) {
+        for (size_t i = 0; i < times; ++i) {
             stdb::container::just_copy m(i);
             vec.push_back(m);
         }
@@ -431,7 +430,7 @@ static void pushback_stdb_vector_just_copy(benchmark::State& state) {
     for (auto _ : state) {
         stdb::container::stdb_vector<just_copy> vec;
         vec.reserve(times);
-        for (int64_t i = 0; i < times; ++i) {
+        for (size_t i = 0; i < times; ++i) {
             stdb::container::just_copy m(i);
             vec.push_back(m);
         }
@@ -443,7 +442,7 @@ static void pushback_stdb_vector_just_copy_unsafe(benchmark::State& state) {
     for (auto _ : state) {
         stdb::container::stdb_vector<just_copy> vec;
         vec.reserve(times);
-        for (int64_t i = 0; i < times; ++i) {
+        for (size_t i = 0; i < times; ++i) {
             stdb::container::just_copy m(i);
             vec.push_back<Safety::Unsafe>(m);
         }
@@ -460,9 +459,9 @@ BENCHMARK(pushback_stdb_vector_just_copy_unsafe);
 
 static void init_std_vector(benchmark::State& state) {
     for (auto _ : state) {
-        std::vector<int64_t> vec;
+        std::vector<size_t> vec;
         vec.reserve(times);
-        for (int64_t i = 0; i < times; ++i) {
+        for (size_t i = 0; i < times; ++i) {
             vec.push_back(i);
         }
         benchmark::DoNotOptimize(vec);
@@ -473,8 +472,8 @@ static void init_stdb_vector_with_pushback_unsafe(benchmark::State& state) {
     for (auto _ : state) {
         stdb::container::stdb_vector<int64_t> vec;
         vec.reserve(times);
-        for (int64_t i = 0; i < times; ++i) {
-            vec.push_back<Safety::Unsafe>(i);
+        for (size_t i = 0; i < times; ++i) {
+            vec.push_back<Safety::Unsafe>((int64_t)i);
         }
         benchmark::DoNotOptimize(vec);
     }
@@ -482,10 +481,10 @@ static void init_stdb_vector_with_pushback_unsafe(benchmark::State& state) {
 
 static void init_stdb_vector_with_resize(benchmark::State& state) {
     for (auto _ : state) {
-        stdb::container::stdb_vector<int64_t> vec;
+        stdb::container::stdb_vector<size_t> vec;
         vec.resize(times);
-        for (int64_t i = 0; i < times; ++i) {
-            vec.at(static_cast<size_t>(i)) = i;
+        for (size_t i = 0; i < times; ++i) {
+            vec.at(i) = i;
         }
         benchmark::DoNotOptimize(vec);
     }
@@ -493,10 +492,10 @@ static void init_stdb_vector_with_resize(benchmark::State& state) {
 
 static void init_stdb_vector_with_resize_unsafe(benchmark::State& state) {
     for (auto _ : state) {
-        stdb::container::stdb_vector<int64_t> vec;
+        stdb::container::stdb_vector<size_t> vec;
         vec.resize<Safety::Unsafe>(times);
-        for (int64_t i = 0; i < times; ++i) {
-            vec[static_cast<size_t>(i)] = i;
+        for (size_t i = 0; i < times; ++i) {
+            vec[i] = i;
         }
         benchmark::DoNotOptimize(vec);
     }
@@ -504,11 +503,11 @@ static void init_stdb_vector_with_resize_unsafe(benchmark::State& state) {
 
 static void init_stdb_vector_with_get_buffer(benchmark::State& state) {
     for (auto _ : state) {
-        stdb::container::stdb_vector<int64_t> vec;
+        stdb::container::stdb_vector<size_t> vec;
         vec.reserve(times);
         auto buffer = vec.get_buffer(times);
-        for (int64_t i = 0; i < times; ++i) {
-            buffer[static_cast<size_t>(i)] = i;
+        for (size_t i = 0; i < times; ++i) {
+            buffer[i] = i;
         }
         benchmark::DoNotOptimize(vec);
     }
@@ -516,20 +515,20 @@ static void init_stdb_vector_with_get_buffer(benchmark::State& state) {
 
 static void init_stdb_vector_with_get_buffer_unsafe(benchmark::State& state) {
     for (auto _ : state) {
-        stdb::container::stdb_vector<int64_t> vec;
+        stdb::container::stdb_vector<size_t> vec;
         vec.reserve(times);
         auto buffer = vec.get_buffer<Safety::Unsafe>(times);
-        for (int64_t i = 0; i < times; ++i) {
-            buffer[static_cast<size_t>(i)] = i;
+        for (size_t i = 0; i < times; ++i) {
+            buffer[i] = i;
         }
         benchmark::DoNotOptimize(vec);
     }
 }
 
-static auto filler(int64_t* buffer) -> size_t {
+static auto filler(size_t* buffer) -> size_t {
     if (buffer)  {
-        for (int64_t i = 0; i < times; ++i) {
-            buffer[static_cast<size_t>(i)] = i;
+        for (size_t i = 0; i < times; ++i) {
+            buffer[i] = i;
         }
     }
     return times;
@@ -537,7 +536,7 @@ static auto filler(int64_t* buffer) -> size_t {
 
 static void init_stdb_vector_with_fill(benchmark::State& state) {
     for (auto _ : state) {
-        stdb::container::stdb_vector<int64_t> vec;
+        stdb::container::stdb_vector<size_t> vec;
         vec.reserve(times);
         vec.fill(&filler);
         benchmark::DoNotOptimize(vec);
@@ -546,7 +545,7 @@ static void init_stdb_vector_with_fill(benchmark::State& state) {
 
 static void init_stdb_vector_with_fill_unsafe(benchmark::State& state) {
     for (auto _ : state) {
-        stdb::container::stdb_vector<int64_t> vec;
+        stdb::container::stdb_vector<size_t> vec;
         vec.reserve(times);
         vec.fill<Safety::Unsafe>(&filler);
         benchmark::DoNotOptimize(vec);
