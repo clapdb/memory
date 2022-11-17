@@ -44,12 +44,12 @@ constexpr std::size_t kFastVectorDefaultCapacity = 64;
 constexpr std::size_t kFastVectorMaxSize= std::numeric_limits<std::ptrdiff_t>::max();
 
 template<typename Iterator>
-[[nodiscard, gnu::always_inline]] auto get_ptr_from_iter(Iterator& it) -> decltype(auto) {
+[[nodiscard, gnu::always_inline]] inline auto get_ptr_from_iter(Iterator& it) -> decltype(auto) {
     return it.operator->();
 }
 
 template<typename T>
-void construct_range(T* __restrict__ first, T* __restrict__ last) {
+[[gnu::always_inline]] inline void construct_range(T* __restrict__ first, T* __restrict__ last) {
     assert(first != nullptr and last != nullptr);
     assert(first < last);
     if constexpr (std::is_trivially_constructible_v<T> && std::is_standard_layout_v<T>) {
@@ -63,7 +63,7 @@ void construct_range(T* __restrict__ first, T* __restrict__ last) {
 }
 
 template<typename T> requires std::is_object_v<T>
-void construct_range_with_cref(T* __restrict__ first, T* __restrict__ last, const T& value) {
+[[gnu::always_inline]] inline  void construct_range_with_cref(T* __restrict__ first, T* __restrict__ last, const T& value) {
     assert(first != nullptr and last != nullptr);
     assert(first < last);
     static_assert(std::is_copy_constructible_v<T>);
@@ -78,7 +78,7 @@ void construct_range_with_cref(T* __restrict__ first, T* __restrict__ last, cons
 }
 
 template<typename T>
-void copy_range(T* __restrict__ dst, const T* __restrict__ src, std::size_t n)
+[[gnu::always_inline]] inline void copy_range(T* __restrict__ dst, const T* __restrict__ src, std::size_t n)
 {
     assert(dst != nullptr and src != nullptr);
     assert(n > 0);
@@ -94,7 +94,7 @@ void copy_range(T* __restrict__ dst, const T* __restrict__ src, std::size_t n)
 }
 
 template<typename T> requires std::is_trivially_copyable_v<T> or std::is_nothrow_move_constructible_v<T>
-void copy_value(T* __restrict__ dst, T value) {
+[[gnu::always_inline]] inline void copy_value(T* __restrict__ dst, T value) {
     assert(dst != nullptr);
     if constexpr (std::is_trivially_copyable_v<T>) {
         *dst = value;
@@ -105,7 +105,7 @@ void copy_value(T* __restrict__ dst, T value) {
 }
 
 template<typename T> requires std::is_object_v<T>
-void copy_cref(T* __restrict__ dst, const T& value) {
+[[gnu::always_inline]] inline void copy_cref(T* __restrict__ dst, const T& value) {
     assert(dst != nullptr);
     if constexpr (std::is_trivially_copyable_v<T>) {
         *dst = value;
@@ -122,7 +122,7 @@ constexpr auto check_iterator_is_random() -> bool {
 }
 
 template<typename T, typename Iterator>
-void copy_from_iterator(T* __restrict__ dst, Iterator first, Iterator last)
+[[gnu::always_inline]] inline void copy_from_iterator(T* __restrict__ dst, Iterator first, Iterator last)
 {
     assert(dst != nullptr);
     assert(first != last);
@@ -139,7 +139,7 @@ void copy_from_iterator(T* __restrict__ dst, Iterator first, Iterator last)
 }
 
 template<typename T>
-[[gnu::always_inline]] void destroy_ptr(T*  __restrict__ ptr) noexcept {
+[[gnu::always_inline]] inline void destroy_ptr(T*  __restrict__ ptr) noexcept {
     if constexpr (std::is_trivially_destructible_v<T>) {
         // do nothing.
     } else {
@@ -148,7 +148,7 @@ template<typename T>
 }
 
 template<typename T>
-[[gnu::always_inline]] void destroy_range(T* __restrict__ begin, T* __restrict__ end) noexcept
+[[gnu::always_inline]] inline void destroy_range(T* __restrict__ begin, T* __restrict__ end) noexcept
 {
     if constexpr (std::is_trivially_destructible_v<T>) {
         // do nothing
@@ -160,7 +160,7 @@ template<typename T>
 }
 
 template<typename T>
-void move_range_without_overlap(T* __restrict__ dst, T* __restrict__ src, std::size_t n)
+[[gnu::always_inline]] inline void move_range_without_overlap(T* __restrict__ dst, T* __restrict__ src, std::size_t n)
 {
     if (dst == src) [[unlikely]] {
         return;
@@ -183,7 +183,7 @@ void move_range_without_overlap(T* __restrict__ dst, T* __restrict__ src, std::s
 }
 
 template<typename T>
-void move_range_forward(T* __restrict__ dst, T* __restrict__ src, std::size_t n)
+[[gnu::always_inline]] inline void move_range_forward(T* __restrict__ dst, T* __restrict__ src, std::size_t n)
 {
     if (dst == src) [[unlikely]] {
         return;
@@ -210,7 +210,7 @@ void move_range_forward(T* __restrict__ dst, T* __restrict__ src, std::size_t n)
 }
 
 template<typename T>
-void move_range_backward(T* __restrict__ dst, T* __restrict__ src_start, T* __restrict__ src_end)
+[[gnu::always_inline]] inline void move_range_backward(T* __restrict__ dst, T* __restrict__ src_start, T* __restrict__ src_end)
 {
     assert(dst != nullptr and src_start != nullptr and src_end != nullptr);
     if (dst == src_start or src_start == src_end) [[unlikely]] {
