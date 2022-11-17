@@ -332,6 +332,55 @@ static void init_stdb_vector_8(benchmark::State& state) {
     }
 }
 
+static void assign_std_vector_64(benchmark::State& state) {
+    for (auto _ : state) {
+        assign<int64_t>();
+    }
+}
+
+static void assign_std_vector_32(benchmark::State& state) {
+    for (auto _ : state) {
+        assign<int32_t>();
+    }
+}
+
+static void assign_std_vector_16(benchmark::State& state) {
+    for (auto _ : state) {
+        assign<int16_t>();
+    }
+}
+
+static void assign_std_vector_8(benchmark::State& state) {
+    for (auto _ : state) {
+        assign<int8_t>();
+    }
+}
+
+static void assign_stdb_vector_64(benchmark::State& state) {
+    for (auto _ : state) {
+        assign_stdb<int64_t>();
+    }
+}
+
+static void assign_stdb_vector_32(benchmark::State& state) {
+    for (auto _ : state) {
+        assign_stdb<int32_t>();
+    }
+}
+
+static void assign_stdb_vector_16(benchmark::State& state) {
+    for (auto _ : state) {
+        assign_stdb<int16_t>();
+    }
+}
+
+static void assign_stdb_vector_8(benchmark::State& state) {
+    for (auto _ : state) {
+        assign_stdb<int8_t>();
+    }
+}
+
+
 static void forloop_std_vector_64(benchmark::State& state) {
     std::vector<int64_t> data;
     data.reserve(times);
@@ -537,6 +586,15 @@ BENCHMARK(init_stdb_vector_64);
 BENCHMARK(init_stdb_vector_32);
 BENCHMARK(init_stdb_vector_16);
 BENCHMARK(init_stdb_vector_8);
+
+BENCHMARK(assign_std_vector_64);
+BENCHMARK(assign_std_vector_32);
+BENCHMARK(assign_std_vector_16);
+BENCHMARK(assign_std_vector_8);
+BENCHMARK(assign_stdb_vector_64);
+BENCHMARK(assign_stdb_vector_32);
+BENCHMARK(assign_stdb_vector_16);
+BENCHMARK(assign_stdb_vector_8);
 
 BENCHMARK(forloop_std_vector_64);
 BENCHMARK(forloop_stdb_vector_64);
