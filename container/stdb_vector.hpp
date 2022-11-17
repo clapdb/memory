@@ -1473,14 +1473,14 @@ class stdb_vector  : public core<T> {
     }
     [[nodiscard]] auto compute_next_capacity() const -> size_type {
         auto cap = capacity();
-        if (cap < 4096 * 32 / sizeof(T) and cap > 0) [[likely]] {
+        if (cap < 4096 * 32 / sizeof(T) and cap >= core<T>::kFastVectorInitCapacity) [[likely]] {
             // the capacity is smaller than a page,
             // use 1.5 but not 2 to reuse memory objects.
             return (cap * 3 + 1) / 2;
         }
         // the capacity is larger than a page,
         // so we can just double it to use whole pages.
-        if (cap > 4096 * 32 / sizeof(T)) [[likely]] {
+        if (cap >= 4096 * 32 / sizeof(T)) [[likely]] {
             return cap * 2;
         }
         return core<T>::kFastVectorInitCapacity;
