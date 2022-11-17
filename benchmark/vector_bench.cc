@@ -201,6 +201,12 @@ static void pushback_std_vector_32(benchmark::State& state) {
     }
 }
 
+static void pushback_std_vector_16(benchmark::State& state) {
+    for (auto _ : state) {
+        push_back<int16_t, std::vector>();
+    }
+}
+
 static void pushback_std_vector_8(benchmark::State& state) {
     for (auto _ : state) {
         push_back<int8_t , std::vector>();
@@ -244,6 +250,18 @@ static void pushback_stdb_vector_32(benchmark::State& state) {
 static void pushback_stdb_vector_32_unsafe(benchmark::State& state) {
     for (auto _ : state) {
         push_back_unsafe<int32_t>();
+    }
+}
+
+static void pushback_stdb_vector_16(benchmark::State& state) {
+    for (auto _ : state) {
+        push_back<int16_t, stdb_vector>();
+    }
+}
+
+static void pushback_stdb_vector_16_unsafe(benchmark::State& state) {
+    for (auto _ : state) {
+        push_back_unsafe<int16_t>();
     }
 }
 
@@ -315,13 +333,16 @@ static void pushback_stdb_vector_large_str_unsafe(benchmark::State& state) {
 
 BENCHMARK(pushback_std_vector_64);
 BENCHMARK(pushback_std_vector_32);
+BENCHMARK(pushback_std_vector_16);
 BENCHMARK(pushback_std_vector_8);
 BENCHMARK(pushback_stdb_vector_64);
 BENCHMARK(pushback_stdb_vector_32);
+BENCHMARK(pushback_stdb_vector_16);
 BENCHMARK(pushback_stdb_vector_8);
 
 BENCHMARK(pushback_stdb_vector_64_unsafe);
 BENCHMARK(pushback_stdb_vector_32_unsafe);
+BENCHMARK(pushback_stdb_vector_16_unsafe);
 BENCHMARK(pushback_stdb_vector_8_unsafe);
 BENCHMARK(pushback_stdb_vector_8_unsafe_simulate);
 
