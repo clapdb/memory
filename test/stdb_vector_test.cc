@@ -431,6 +431,11 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         vec.reserve(1000);
         CHECK_EQ(vec.size(), 0);
         CHECK_EQ(vec.capacity(), 1000);
+        vec.push_back(1);
+        vec.push_back(2);
+        vec.shrink_to_fit();
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec.capacity(), 2);
     }
     SUBCASE("swap") {
         stdb_vector<int> vec1;

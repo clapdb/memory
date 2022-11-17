@@ -401,7 +401,7 @@ class core {
     [[gnu::always_inline]] void realloc_with_old_data(size_type new_cap) {
         // no check new_cap because it will be checked in caller.
         auto old_size = size();
-        assert(new_cap > old_size);
+        assert(new_cap >= old_size);
         _start = realloc_with_move(_start, old_size, new_cap);
         _finish = _start + old_size;
         _edge = _start + new_cap;
