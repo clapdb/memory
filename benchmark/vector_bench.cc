@@ -295,6 +295,16 @@ static void pushback_stdb_vector_8_unsafe_simulate(benchmark::State& state) {
     }
 }
 
+static void pushback_stdb_str(benchmark::State& state) {
+    for (auto _ : state) {
+        stdb::memory::string str;
+        str.reserve(times);
+        for (size_t  i = 0; i < times; ++i) {
+            str.push_back((char)i);
+        }
+    }
+}
+
 static void pushback_stdb_vector_small_str(benchmark::State& state) {
     for (auto _ : state) {
         push_back_small_str<stdb_vector>();
@@ -339,6 +349,7 @@ BENCHMARK(pushback_stdb_vector_64);
 BENCHMARK(pushback_stdb_vector_32);
 BENCHMARK(pushback_stdb_vector_16);
 BENCHMARK(pushback_stdb_vector_8);
+BENCHMARK(pushback_stdb_str);
 
 BENCHMARK(pushback_stdb_vector_64_unsafe);
 BENCHMARK(pushback_stdb_vector_32_unsafe);
