@@ -421,7 +421,7 @@ class core {
         return;
      }
 
-    [[gnu::always_inline]] auto realloc_without_old_data(size_type new_cap) -> T* {
+    [[gnu::always_inline]] auto realloc_drop_old_data(size_type new_cap) -> T* {
         this->~core();
         allocate(new_cap);
         return _start;
@@ -503,7 +503,7 @@ class stdb_vector  : public core<T> {
         long size = last - first;
         // if size == 0, then do nothing.and just for caller convenience.
         assert(size >= 0);
-        this->realloc_without_old_data(static_cast<size_type>(size));
+        this->realloc_drop_old_data(static_cast<size_type>(size));
         copy_from_iterator(this->_start, first, last);
         this->_finish = this->_start + size;
     }
@@ -511,7 +511,7 @@ class stdb_vector  : public core<T> {
     constexpr stdb_vector(std::initializer_list<T> init) : core<T>() {
         assert((init.size()) > 0 and (init.size() <= this->max_size()));
         auto size = init.size();
-        this->realloc_without_old_data(size);
+        this->realloc_drop_old_data(size);
         copy_range(this->_start, init.begin(), size);
         this->_finish = this->_start + size;
     }
@@ -542,7 +542,7 @@ class stdb_vector  : public core<T> {
         // cleanup old data
         if (count > this->capacity()) {
             // if count is larger than current capacity, we need to reallocate memory
-            this->realloc_without_old_data(count);
+            this->realloc_drop_old_data(count);
         }
         else {
             // if count is smaller than current capacity, we can just copy data
@@ -561,7 +561,7 @@ class stdb_vector  : public core<T> {
         size_type count = static_cast<size_type>(size_to_assign);
         if (count > this->capacity()) {
             // if count is larger than current capacity, we need to reallocate memory
-            this->realloc_without_old_data(count);
+            this->realloc_drop_old_data(count);
         }
         else {
             // if count is smaller than current capacity, we can just copy data
