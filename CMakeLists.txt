@@ -76,14 +76,9 @@ set(MEMORY_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
 include_directories(SYSTEM ${MEMORY_SOURCE_DIR}/doctest/)
 include_directories(${MEMORY_SOURCE_DIR}/)
 
-### build arena
-add_subdirectory(arena)
-
-add_subdirectory(doctest EXCLUE_FROM_ALL)
-add_subdirectory(test EXCLUDE_FROM_ALL)
-add_subdirectory(benchmark EXCLUDE_FROM_ALL)
 ## code coverage
 
+# code coverage section **must** place before all subdirectories to test coverage.
 if((${CMAKE_BUILD_TYPE} MATCHES Debug) AND CODE_COVERAGE)
   include(CodeCoverage)
   append_coverage_compiler_flags()
@@ -107,4 +102,10 @@ if((${CMAKE_BUILD_TYPE} MATCHES Debug) AND CODE_COVERAGE)
   )
 endif()
 
+### build arena
+add_subdirectory(arena)
+
+add_subdirectory(doctest EXCLUE_FROM_ALL)
+add_subdirectory(test EXCLUDE_FROM_ALL)
+add_subdirectory(benchmark EXCLUDE_FROM_ALL)
 
