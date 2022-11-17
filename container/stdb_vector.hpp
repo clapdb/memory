@@ -68,7 +68,7 @@ template<typename T> requires std::is_object_v<T>
     assert(first < last);
     static_assert(std::is_copy_constructible_v<T>);
     if constexpr (sizeof (T) == sizeof (char)) {
-        std::memset(first, static_cast<int>(value), (last - first) * sizeof(T));
+        std::memset(first, static_cast<int>(value), static_cast<size_t>(last - first) * sizeof(T));
     } else {
         for (; first != last; ++first) {
             new (first) T(value);
