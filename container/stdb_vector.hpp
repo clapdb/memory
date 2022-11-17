@@ -570,26 +570,26 @@ class stdb_vector  : public core<T> {
     /*
      * assign from initializer list
      */
-    constexpr void assign(std::initializer_list<T> list) {
+    [[gnu::always_inline]] constexpr inline void assign(std::initializer_list<T> list) {
         assign(list.begin(), list.end());
     }
 
     /*
      * Capacity section
      */
-    [[nodiscard]] constexpr auto size() const noexcept -> size_type {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto size() const noexcept -> size_type {
         return core<T>::size();
     }
 
-    [[nodiscard]] constexpr auto capacity() const noexcept -> size_type {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto capacity() const noexcept -> size_type {
         return core<T>::capacity();
     }
 
-    [[nodiscard]] constexpr auto empty() const noexcept -> bool {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto empty() const noexcept -> bool {
         return this->size() == 0;
     }
 
-    [[nodiscard]] constexpr auto max_size() const noexcept -> size_type {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto max_size() const noexcept -> size_type {
         return core<T>::max_size();
     }
 
@@ -623,7 +623,7 @@ class stdb_vector  : public core<T> {
      * reserve is not noexcept, because it may throw std::bad_alloc
      * reserve has no computing for new capacity, just do reallocation and data move.
      */
-    constexpr void reserve(size_type new_capacity) {
+    [[gnu::always_inline]] constexpr inline void reserve(size_type new_capacity) {
         if (new_capacity > capacity()) [[likely]] {
             this->realloc_with_old_data(new_capacity);
         }
@@ -633,46 +633,46 @@ class stdb_vector  : public core<T> {
     /*
      * Element access section
      */
-    [[nodiscard]] constexpr auto operator [] (size_type index) noexcept -> reference {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto operator [] (size_type index) noexcept -> reference {
         return this->at(index);
     }
 
-    [[nodiscard]] constexpr auto operator [] (size_type index) const noexcept -> const_reference {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto operator [] (size_type index) const noexcept -> const_reference {
         return this->at(index);
     }
 
-    constexpr auto at(std::size_t index) -> reference {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto at(std::size_t index) -> reference {
         return core<T>::at(index);
     }
 
-    constexpr auto at(size_type index) const-> const_reference {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto at(size_type index) const-> const_reference {
         return core<T>::at(index);
     }
 
-    [[nodiscard]] constexpr auto data() noexcept -> pointer {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto data() noexcept -> pointer {
         return this->_start;
     }
 
-    [[nodiscard]] constexpr auto data() const noexcept -> const_pointer {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto data() const noexcept -> const_pointer {
         return this->_start;
     }
 
-    [[nodiscard]] constexpr auto front() const noexcept -> const_reference {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto front() const noexcept -> const_reference {
         assert(size() > 0);
         return *this->_start;
     }
 
-    [[nodiscard]] constexpr auto front() noexcept -> reference {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto front() noexcept -> reference {
         assert(size() > 0);
         return *this->_start;
     }
 
-    [[nodiscard]] constexpr auto back() const noexcept -> const_reference {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto back() const noexcept -> const_reference {
         assert(size() > 0);
         return *(this->_finish - 1);
     }
 
-    [[nodiscard]] constexpr auto back() noexcept -> reference {
+    [[nodiscard, gnu::always_inline]] constexpr inline auto back() noexcept -> reference {
         assert(size() > 0);
         return *(this->_finish - 1);
     }
@@ -1163,7 +1163,7 @@ class stdb_vector  : public core<T> {
      * Modifiers sections
      */
     template<Safety safety = Safety::Safe, typename U = T> requires std::is_object_v<U>
-    [[gnu::always_inline]] inline void push_back(const value_type& value) {
+    void push_back(const value_type& value) {
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
                 copy_cref(this->_finish++, std::forward<const value_type&>(value));
@@ -1177,7 +1177,7 @@ class stdb_vector  : public core<T> {
     }
 
     template<Safety safety = Safety::Safe, typename U = T> requires std::is_trivial_v<U> || std::is_move_constructible_v<U>
-    [[gnu::always_inline]] inline void push_back(value_type&& value) {
+    void push_back(value_type&& value) {
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
                 copy_value(this->_finish++, std::forward<value_type &&>(value));
@@ -1191,7 +1191,7 @@ class stdb_vector  : public core<T> {
     }
 
     template<Safety safety = Safety::Safe, typename ...Args>
-    [[gnu::always_inline]] inline auto emplace_back(Args&&... args) -> Iterator {
+    auto emplace_back(Args&&... args) -> Iterator {
         static_assert(not std::is_trivial_v<T>, "Use push_back() instead of emplace_back() with trivial types");
         if constexpr(safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
