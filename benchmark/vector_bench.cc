@@ -284,6 +284,7 @@ static void pushback_stdb_vector_64_unsafe(benchmark::State& state) {
     }
 }
 
+/*
 static void init_std_vector_64(benchmark::State& state) {
     for (auto _ : state) {
         init_vector<int64_t>();
@@ -469,6 +470,7 @@ static void forloop_stdb_vector_8(benchmark::State& state) {
     }
 }
 
+*/
 static void pushback_stdb_vector_32(benchmark::State& state) {
     for (auto _ : state) {
         push_back_stdb<int32_t>();
@@ -578,32 +580,32 @@ BENCHMARK(pushback_stdb_vector_32);
 BENCHMARK(pushback_stdb_vector_16);
 BENCHMARK(pushback_stdb_vector_8);
 
-BENCHMARK(init_std_vector_64);
-BENCHMARK(init_std_vector_32);
-BENCHMARK(init_std_vector_16);
-BENCHMARK(init_std_vector_8);
-BENCHMARK(init_stdb_vector_64);
-BENCHMARK(init_stdb_vector_32);
-BENCHMARK(init_stdb_vector_16);
-BENCHMARK(init_stdb_vector_8);
+//BENCHMARK(init_std_vector_64);
+//BENCHMARK(init_std_vector_32);
+//BENCHMARK(init_std_vector_16);
+//BENCHMARK(init_std_vector_8);
+//BENCHMARK(init_stdb_vector_64);
+//BENCHMARK(init_stdb_vector_32);
+//BENCHMARK(init_stdb_vector_16);
+//BENCHMARK(init_stdb_vector_8);
 
-BENCHMARK(assign_std_vector_64);
-BENCHMARK(assign_std_vector_32);
-BENCHMARK(assign_std_vector_16);
-BENCHMARK(assign_std_vector_8);
-BENCHMARK(assign_stdb_vector_64);
-BENCHMARK(assign_stdb_vector_32);
-BENCHMARK(assign_stdb_vector_16);
-BENCHMARK(assign_stdb_vector_8);
+//BENCHMARK(assign_std_vector_64);
+//BENCHMARK(assign_std_vector_32);
+//BENCHMARK(assign_std_vector_16);
+//BENCHMARK(assign_std_vector_8);
+//BENCHMARK(assign_stdb_vector_64);
+//BENCHMARK(assign_stdb_vector_32);
+//BENCHMARK(assign_stdb_vector_16);
+//BENCHMARK(assign_stdb_vector_8);
 
-BENCHMARK(forloop_std_vector_64);
-BENCHMARK(forloop_stdb_vector_64);
-BENCHMARK(forloop_std_vector_32);
-BENCHMARK(forloop_stdb_vector_32);
-BENCHMARK(forloop_std_vector_16);
-BENCHMARK(forloop_stdb_vector_16);
-BENCHMARK(forloop_std_vector_8);
-BENCHMARK(forloop_stdb_vector_8);
+//BENCHMARK(forloop_std_vector_64);
+//BENCHMARK(forloop_stdb_vector_64);
+//BENCHMARK(forloop_std_vector_32);
+//BENCHMARK(forloop_stdb_vector_32);
+//BENCHMARK(forloop_std_vector_16);
+//BENCHMARK(forloop_stdb_vector_16);
+//BENCHMARK(forloop_std_vector_8);
+//BENCHMARK(forloop_stdb_vector_8);
 
 BENCHMARK(pushback_stdb_str);
 
