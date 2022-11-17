@@ -1193,10 +1193,10 @@ TEST_CASE("Hilbert::stdb_vector::fill") {
     }
 }
 
-TEST_CASE("Hilbert::stdb_vector::get_buffer") {
+TEST_CASE("Hilbert::stdb_vector::get_writebuffer") {
     stdb_vector<int> vec;
     vec.reserve(1000);
-    auto buffer = vec.get_buffer(40);
+    auto buffer = vec.get_writebuffer(40);
     CHECK_EQ(buffer.size(), 40);
     CHECK_EQ(vec.size(), 40);
     CHECK_EQ(vec.capacity(), 1000);

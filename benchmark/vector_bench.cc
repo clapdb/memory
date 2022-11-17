@@ -537,7 +537,7 @@ static void init_stdb_vector_with_get_buffer(benchmark::State& state) {
     for (auto _ : state) {
         stdb::container::stdb_vector<size_t> vec;
         vec.reserve(times);
-        auto buffer = vec.get_buffer(times);
+        auto buffer = vec.get_writebuffer(times);
         for (size_t i = 0; i < times; ++i) {
             buffer[i] = i;
         }
@@ -549,7 +549,7 @@ static void init_stdb_vector_with_get_buffer_unsafe(benchmark::State& state) {
     for (auto _ : state) {
         stdb::container::stdb_vector<size_t> vec;
         vec.reserve(times);
-        auto buffer = vec.get_buffer<Safety::Unsafe>(times);
+        auto buffer = vec.get_writebuffer<Safety::Unsafe>(times);
         for (size_t i = 0; i < times; ++i) {
             buffer[i] = i;
         }

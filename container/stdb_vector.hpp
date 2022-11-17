@@ -1153,7 +1153,7 @@ class stdb_vector  : public core<T> {
      * get an alloced buffer for writing.
      */
     template<Safety safety = Safety::Safe>
-    [[nodiscard, gnu::always_inline]] auto get_buffer(size_type buf_size) -> std::span<T> {
+    [[nodiscard, gnu::always_inline]] auto get_writebuffer(size_type buf_size) -> std::span<T> {
         if constexpr (safety == Safety::Safe) {
             if (buf_size + this->_finish > this->_edge) {
                 this->realloc_with_old_data(compute_new_capacity(buf_size));
