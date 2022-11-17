@@ -27,7 +27,9 @@ namespace stdb::container {
 
 constexpr size_t times = 1024 * 64;
 
-template <typename T, template <typename, typename> typename Vec>
+
+
+template <typename T>
 void push_back() {
     std::vector<T> vec;
     vec.reserve(times);
@@ -37,9 +39,9 @@ void push_back() {
     benchmark::DoNotOptimize(vec);
 }
 
-template <typename T, template <typename> typename Vec>
-void push_back() {
-    Vec<T> vec;
+template <typename T>
+void push_back_stdb() {
+    stdb::container::stdb_vector<T> vec;
     vec.reserve(times);
     for (size_t i = 0; i < times; ++i) {
         vec.push_back(i);
@@ -210,25 +212,25 @@ void push_back_large_str_unsafe() {
 
 static void pushback_std_vector_64(benchmark::State& state) {
     for (auto _ : state) {
-        push_back<size_t, std::vector>();
+        push_back<size_t>();
     }
 }
 
 static void pushback_std_vector_32(benchmark::State& state) {
     for (auto _ : state) {
-        push_back<int32_t, std::vector>();
+        push_back<int32_t>();
     }
 }
 
 static void pushback_std_vector_16(benchmark::State& state) {
     for (auto _ : state) {
-        push_back<int16_t, std::vector>();
+        push_back<int16_t>();
     }
 }
 
 static void pushback_std_vector_8(benchmark::State& state) {
     for (auto _ : state) {
-        push_back<int8_t , std::vector>();
+        push_back<int8_t>();
     }
 }
 
@@ -250,7 +252,7 @@ static void pushback_std_vector_large_str(benchmark::State& state) {
 
 static void pushback_stdb_vector_64(benchmark::State& state) {
     for (auto _ : state) {
-        push_back<size_t, stdb_vector>();
+        push_back_stdb<size_t>();
     }
 }
 
@@ -350,7 +352,7 @@ static void forloop_stdb_vector_8(benchmark::State& state) {
 
 static void pushback_stdb_vector_32(benchmark::State& state) {
     for (auto _ : state) {
-        push_back<int32_t, stdb_vector>();
+        push_back_stdb<int32_t>();
     }
 }
 
@@ -362,7 +364,7 @@ static void pushback_stdb_vector_32_unsafe(benchmark::State& state) {
 
 static void pushback_stdb_vector_16(benchmark::State& state) {
     for (auto _ : state) {
-        push_back<int16_t, stdb_vector>();
+        push_back_stdb<int16_t>();
     }
 }
 
@@ -374,7 +376,7 @@ static void pushback_stdb_vector_16_unsafe(benchmark::State& state) {
 
 static void pushback_stdb_vector_8(benchmark::State& state) {
     for (auto _ : state) {
-        push_back<int8_t, stdb_vector>();
+        push_back_stdb<int8_t>();
     }
 }
 
