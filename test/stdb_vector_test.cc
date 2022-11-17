@@ -96,8 +96,8 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         auto input_iter = input.begin();
         while (vec_iter != vec.end()) {
             CHECK_EQ(*vec_iter, *input_iter);
-            vec_iter++;
-            input_iter++;
+            ++vec_iter;
+            ++input_iter;
         }
         CHECK_EQ(input_iter, input.end());
 
@@ -157,8 +157,8 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         auto input_iter = input.begin();
         while (vec_iter != vec.end()) {
             CHECK_EQ(*vec_iter, *input_iter);
-            vec_iter++;
-            input_iter++;
+            ++vec_iter;
+            ++input_iter;
         }
     }
 
@@ -175,11 +175,44 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         auto vec_iter = vec.begin();
         for (std::size_t i = 0; i < vec.size(); i++) {
             CHECK_EQ(*vec_iter, i + 1);
-            vec_iter++;
+            ++vec_iter;
         }
         CHECK_EQ(vec_iter, vec.end());
         CHECK_EQ(vec.front(), 1);
         CHECK_EQ(vec.back(), 20);
+    }
+    SUBCASE("copy_vector") {
+        stdb_vector<int> vec;
+        auto vec_copy(vec);
+        auto vec_copy_2 = vec;
+
+        CHECK_EQ(vec, vec_copy);
+        CHECK_EQ(vec, vec_copy_2);
+        stdb_vector<int> vec_full = {12, 3, 4, 14};
+        auto vec_full_copy(vec_full);
+        auto vec_full_copy_2 = vec_full;
+        CHECK_EQ(vec_full, vec_full_copy);
+        CHECK_EQ(vec_full, vec_full_copy_2);
+    }
+
+    SUBCASE("move_vector") {
+        stdb_vector<int> vec;
+        stdb_vector<int> vec2;
+        auto vec_move(std::move(vec));
+        auto vec_move_2 = std::move(vec2);
+        CHECK_EQ(vec.empty(), true);
+        CHECK_EQ(vec_move.empty(), true);
+        CHECK_EQ(vec_move_2.empty(), true);
+        CHECK_EQ(vec, vec_move);
+        CHECK_EQ(vec, vec_move_2);
+
+        stdb_vector<int> vec_full = {12, 3, 4, 14};
+        stdb_vector<int> vec_full2 = {12, 3, 4, 14};
+        auto vec_full_move(std::move(vec_full));
+        auto vec_full_move_2 = std::move(vec_full2);
+        CHECK_EQ(vec_full.empty(), true);
+        CHECK_EQ(vec_full2.empty(), true);
+        CHECK_EQ(vec_full_move, vec_full_move_2);
     }
 
     SUBCASE("push_back") {

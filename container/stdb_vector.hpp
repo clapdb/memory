@@ -301,10 +301,17 @@ class core {
     }
 
     core(const core& rhs) {
-        allocate(rhs.capacity());
-        auto size = rhs.size();
-        copy_range(_start, rhs._start, size);
-        _finish = _start + size;
+        if (rhs.size() > 0) [[likely]] {
+            allocate(rhs.size());
+            auto size = rhs.size();
+            copy_range(_start, rhs._start, size);
+            _finish = _start + size;
+
+        } else {
+            _start = nullptr;
+            _finish = nullptr;
+            _edge = nullptr;
+        }
     }
 
     core(core&& rhs): _start(rhs._start), _finish(rhs._finish), _edge(rhs._edge) {
@@ -349,7 +356,7 @@ class core {
         // free old memory
         std::free(_start);
         // move data
-        _start = std::exchange(other._data, nullptr);
+        _start = std::exchange(other._start, nullptr);
         _finish = std::exchange(other._finish, nullptr);
         _edge = std::exchange(other._edge, nullptr);
         return *this;
