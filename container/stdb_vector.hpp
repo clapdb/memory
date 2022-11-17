@@ -447,6 +447,11 @@ class core {
         move_range_forward(dst, src, static_cast<size_type >(size_to_move));
     }
 
+    // move [src, end()) to dst start range from front to end
+    [[gnu::always_inline]] void move_forward(const T* dst, const T* src) {
+        auto size_to_move = _finish - src;
+        move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), static_cast<size_type >(size_to_move));
+    }
     // move [src, end()) to dst start range from end to front
     [[gnu::always_inline]] void move_backward(T* dst, T* src) {
         move_range_backward(dst, src, _finish - 1);
@@ -1231,16 +1236,17 @@ class stdb_vector  : public core<T> {
     }
 
     void erase(ConstIterator first, ConstIterator last) {
-        assert(first >= begin() and last < end());
+        assert(first >= cbegin() and last <= cend());
         assert(last > first);
         auto first_ptr = get_ptr_from_iter(first);
         auto last_ptr = get_ptr_from_iter(last);
-        destroy_range(first_ptr, last_ptr - first_ptr);
+        destroy_range(first_ptr, last_ptr);
         this->move_forward(first_ptr, last_ptr);
-        --this->_finish;
+        this->_finish -= (last_ptr - first_ptr);
     }
 
     void erase(Iterator first, Iterator last) {
+        assert(first >= begin() and last <= end());
         assert(last > first);
         T* first_ptr = get_ptr_from_iter(first);
         T* last_ptr = get_ptr_from_iter(last);

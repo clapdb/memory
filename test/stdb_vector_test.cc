@@ -317,6 +317,8 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_GE(vec.capacity(), 20);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 20);
+        vec.erase(vec.cbegin(), vec.cend());
+        CHECK_EQ(vec.size(), 0);
     }
 
     SUBCASE("pop_back") {
