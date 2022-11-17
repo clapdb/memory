@@ -314,7 +314,7 @@ class core {
         }
     }
 
-    core(core&& rhs): _start(rhs._start), _finish(rhs._finish), _edge(rhs._edge) {
+    core(core&& rhs) noexcept: _start(rhs._start), _finish(rhs._finish), _edge(rhs._edge) {
         rhs._start = nullptr;
         rhs._finish = nullptr;
         rhs._edge = nullptr;
@@ -347,7 +347,7 @@ class core {
         }
         return *this;
     }
-    auto operator=(core&& other) -> core& {
+    auto operator=(core&& other) noexcept -> core& {
         if (this == &other) [[unlikely]] {
             return *this;
         }
