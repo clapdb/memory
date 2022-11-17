@@ -57,6 +57,25 @@ void push_back_unsafe() {
     benchmark::DoNotOptimize(vec);
 }
 
+template<typename T>
+void for_loop(const std::vector<T>& vec) {
+    int64_t sum = 0;
+    for (T i : vec) {
+        sum += i;
+    }
+    benchmark::DoNotOptimize(sum);
+}
+
+template<typename T>
+void for_loop(const stdb::container::stdb_vector<T>& vec) {
+    int64_t sum = 0;
+    for (T i : vec) {
+        sum += i;
+    }
+    benchmark::DoNotOptimize(sum);
+}
+
+
 template <template <typename, typename> typename Vec>
 void push_back_small_str() {
     memory::string input("hello world");
@@ -241,6 +260,94 @@ static void pushback_stdb_vector_64_unsafe(benchmark::State& state) {
     }
 }
 
+static void forloop_std_vector_64(benchmark::State& state) {
+    std::vector<int64_t> data;
+    data.reserve(times);
+    for (size_t i = 0; i < times; ++i) {
+        data.push_back((int64_t)i);
+    }
+    for (auto _ : state) {
+        for_loop(data);
+    }
+}
+
+static void forloop_stdb_vector_64(benchmark::State& state) {
+    stdb::container::stdb_vector<int64_t> data;
+    data.reserve(times);
+    for (size_t i = 0; i < times; ++i) {
+        data.push_back((int64_t)i);
+    }
+    for (auto _ : state) {
+        for_loop(data);
+    }
+}
+
+static void forloop_std_vector_32(benchmark::State& state) {
+    std::vector<int32_t> data;
+    data.reserve(times);
+    for (size_t i = 0; i < times; ++i) {
+        data.push_back((int32_t)i);
+    }
+    for (auto _ : state) {
+        for_loop(data);
+    }
+}
+
+static void forloop_stdb_vector_32(benchmark::State& state) {
+    stdb::container::stdb_vector<int32_t> data;
+    data.reserve(times);
+    for (size_t i = 0; i < times; ++i) {
+        data.push_back((int32_t)i);
+    }
+    for (auto _ : state) {
+        for_loop(data);
+    }
+}
+
+static void forloop_std_vector_16(benchmark::State& state) {
+    std::vector<int16_t> data;
+    data.reserve(times);
+    for (size_t i = 0; i < times; ++i) {
+        data.push_back((int16_t)i);
+    }
+    for (auto _ : state) {
+        for_loop(data);
+    }
+}
+
+static void forloop_stdb_vector_16(benchmark::State& state) {
+    stdb::container::stdb_vector<int16_t> data;
+    data.reserve(times);
+    for (size_t i = 0; i < times; ++i) {
+        data.push_back((int16_t)i);
+    }
+    for (auto _ : state) {
+        for_loop(data);
+    }
+}
+
+static void forloop_std_vector_8(benchmark::State& state) {
+    std::vector<int8_t> data;
+    data.reserve(times);
+    for (size_t i = 0; i < times; ++i) {
+        data.push_back((int8_t)i);
+    }
+    for (auto _ : state) {
+        for_loop(data);
+    }
+}
+
+static void forloop_stdb_vector_8(benchmark::State& state) {
+    stdb::container::stdb_vector<int8_t> data;
+    data.reserve(times);
+    for (size_t i = 0; i < times; ++i) {
+        data.push_back((int16_t)i);
+    }
+    for (auto _ : state) {
+        for_loop(data);
+    }
+}
+
 static void pushback_stdb_vector_32(benchmark::State& state) {
     for (auto _ : state) {
         push_back<int32_t, stdb_vector>();
@@ -349,6 +456,15 @@ BENCHMARK(pushback_stdb_vector_64);
 BENCHMARK(pushback_stdb_vector_32);
 BENCHMARK(pushback_stdb_vector_16);
 BENCHMARK(pushback_stdb_vector_8);
+BENCHMARK(forloop_std_vector_64);
+BENCHMARK(forloop_stdb_vector_64);
+BENCHMARK(forloop_std_vector_32);
+BENCHMARK(forloop_stdb_vector_32);
+BENCHMARK(forloop_std_vector_16);
+BENCHMARK(forloop_stdb_vector_16);
+BENCHMARK(forloop_std_vector_8);
+BENCHMARK(forloop_stdb_vector_8);
+
 BENCHMARK(pushback_stdb_str);
 
 BENCHMARK(pushback_stdb_vector_64_unsafe);
