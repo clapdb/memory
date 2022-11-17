@@ -260,6 +260,24 @@ static void pushback_stdb_vector_8_unsafe(benchmark::State& state) {
     }
 }
 
+static void pushback_stdb_vector_8_unsafe_simulate(benchmark::State& state) {
+    for (auto _ : state) {
+        stdb_vector<int32_t> vec;
+        vec.reserve(times/4);
+        int32_t temp = 0;
+        for (int64_t i = 0; i < times; ++i) {
+            if (i % 4 == 3) {
+                vec.push_back<Safety::Unsafe>(temp);
+                temp = 0;
+            } else {
+                temp <<= 8;
+                temp |= static_cast<int8_t>(i);
+            }
+        }
+        benchmark::DoNotOptimize(vec);
+    }
+}
+
 static void pushback_stdb_vector_small_str(benchmark::State& state) {
     for (auto _ : state) {
         push_back_small_str<stdb_vector>();
@@ -306,6 +324,7 @@ BENCHMARK(pushback_stdb_vector_8);
 BENCHMARK(pushback_stdb_vector_64_unsafe);
 BENCHMARK(pushback_stdb_vector_32_unsafe);
 BENCHMARK(pushback_stdb_vector_8_unsafe);
+BENCHMARK(pushback_stdb_vector_8_unsafe_simulate);
 
 BENCHMARK(pushback_std_vector_small_str);
 BENCHMARK(pushback_stdb_vector_small_str);
