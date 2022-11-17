@@ -1202,5 +1202,62 @@ TEST_CASE("Hilbert::stdb_vector::get_writebuffer") {
     CHECK_EQ(vec.capacity(), 1000);
 }
 
+struct relocate {
+    int x;
+    int y;
+};
 
+class normal_class {
+   private:
+    [[maybe_unused]] int x;
+    [[maybe_unused]] int* ptr;
+   public:
+    normal_class() : x(0), ptr(new int(5)) {
+        std::cout << "normal_class constructor default" << std::endl;
+    }
+    normal_class(const normal_class&) = delete;
+    ~normal_class() {
+        std::cout << "normal_class destructor" << std::endl;
+        delete ptr;
+    }
+};
+
+class normal_class_with_traits {
+   private:
+    [[maybe_unused]] int x;
+    [[maybe_unused]] int* ptr;
+   public:
+    normal_class_with_traits() : x(0), ptr(new int(5)) {
+        std::cout << "normal_class constructor default" << std::endl;
+    }
+    normal_class_with_traits(const normal_class&) = delete;
+};
+
+
+static_assert(IsRelocatable<int>, "int should be relocatable");
+static_assert(IsRelocatable<double>, "double should be relocatable");
+static_assert(IsRelocatable<relocate>, "relocate should be relocatable");
+static_assert(!IsRelocatable<std::string>, "std::string should not be relocatable");
+static_assert(!IsRelocatable<stdb::memory::string>, "stdb::memory::string should not be relocatable");
+static_assert(!IsRelocatable<normal_class>, "normal_class should not be relocatable");
+
+
+static_assert(IsZeroInitable<int>, "int should be zero copyable");
+static_assert(IsZeroInitable<double>, "double should be zero copyable");
+static_assert(IsZeroInitable<relocate>, "relocate should be zero copyable");
+static_assert(!IsZeroInitable<std::string>, "std::string should not be zero copyable");
+static_assert(!IsZeroInitable<stdb::memory::string>, "stdb::memory::string should not be zero copyable");
 } // namespace stdb::container
+
+namespace stdb {
+    template<>
+    struct Relocatable<container::normal_class_with_traits> : std::true_type { };
+    template<>
+    struct ZeroInitable<container::normal_class_with_traits> : std::true_type { };
+
+    namespace container {
+    static_assert(IsRelocatable<normal_class_with_traits>, "normal_class_with_traits should be relocatable");
+    static_assert(IsZeroInitable<normal_class_with_traits>, "normal_class_with_traits should be zero copyable");
+    }
+}
+

@@ -32,7 +32,23 @@
 #include <utility>
 #include <cassert>
 
+namespace stdb {
+
+template<typename T>
+struct Relocatable : std::false_type {};
+
+template<typename T>
+struct ZeroInitable : std::false_type {};
+
+} // namespace stdb
+
 namespace stdb::container {
+
+template<typename T>
+concept IsRelocatable = std::is_trivially_copyable_v<T> || std::is_trivially_move_constructible_v<T> || Relocatable<T>::value;
+
+template<typename T>
+concept IsZeroInitable = std::is_trivially_default_constructible_v<T> || not std::is_class<T>::value || ZeroInitable<T>::value;
 
 enum class Safety : bool{
     Safe = false,
@@ -45,14 +61,18 @@ constexpr std::size_t kFastVectorMaxSize= std::numeric_limits<std::ptrdiff_t>::m
 
 template<typename Iterator>
 [[nodiscard, gnu::always_inline]] inline auto get_ptr_from_iter(Iterator& it) -> decltype(auto) {
-    return it.operator->();
+    if constexpr (std::is_pointer_v<Iterator>) {
+        return it;
+    } else {
+        return it.operator->();
+    }
 }
 
 template<typename T>
 [[gnu::always_inline]] inline void construct_range(T* __restrict__ first, T* __restrict__ last) {
     assert(first != nullptr and last != nullptr);
     assert(first < last);
-    if constexpr (std::is_trivially_constructible_v<T> && std::is_standard_layout_v<T>) {
+    if constexpr (IsRelocatable<T>) {
         // set zero to all bytes.
         std::memset(first, 0, static_cast<size_t>(last - first) * sizeof(T));
     } else {
@@ -84,7 +104,7 @@ template<typename T>
     assert(n > 0);
     assert(dst != src);
     // if is trivial_copyable, use memcpy is faster.
-    if constexpr (std::is_trivially_copyable_v<T>) {
+    if constexpr (IsRelocatable<T>) {
         std::memcpy(dst, src, n * sizeof(T));
     } else {
         for (std::size_t i = 0; i < n; ++i) {
@@ -96,7 +116,7 @@ template<typename T>
 template<typename T> requires std::is_trivially_copyable_v<T> or std::is_nothrow_move_constructible_v<T>
 [[gnu::always_inline]] inline void copy_value(T* __restrict__ dst, T value) {
     assert(dst != nullptr);
-    if constexpr (std::is_trivially_copyable_v<T>) {
+    if constexpr (IsRelocatable<T>) {
         *dst = value;
     } else {
         static_assert(std::is_nothrow_move_constructible_v<T>);
@@ -107,7 +127,7 @@ template<typename T> requires std::is_trivially_copyable_v<T> or std::is_nothrow
 template<typename T> requires std::is_object_v<T>
 [[gnu::always_inline]] inline void copy_cref(T* __restrict__ dst, const T& value) {
     assert(dst != nullptr);
-    if constexpr (std::is_trivially_copyable_v<T>) {
+    if constexpr (IsRelocatable<T>) {
         *dst = value;
     } else {
         static_assert(std::is_copy_constructible_v<T>);
@@ -115,11 +135,8 @@ template<typename T> requires std::is_object_v<T>
     }
 }
 
-template <typename It>
-constexpr auto check_iterator_is_random() -> bool {
-    // check the It is not ptr, and is a random access iterator
-    return !std::is_pointer_v<It> and std::random_access_iterator<It>;
-}
+template<typename It>
+concept PointerCompatibleIterator = std::is_pointer_v<It> or std::random_access_iterator<It>;
 
 template<typename T, typename Iterator>
 [[gnu::always_inline]] inline void copy_from_iterator(T* __restrict__ dst, Iterator first, Iterator last)
@@ -127,7 +144,7 @@ template<typename T, typename Iterator>
     assert(dst != nullptr);
     assert(first != last);
 
-    if constexpr (std::is_trivially_copyable_v<T> and check_iterator_is_random<Iterator>()) {
+    if constexpr (IsRelocatable<T> and PointerCompatibleIterator<Iterator>) {
         if (get_ptr_from_iter(first) < get_ptr_from_iter(last)) [[likely]] {
             std::memcpy(dst, get_ptr_from_iter(first), static_cast<size_t>(last - first) * sizeof(T));
         }
@@ -167,7 +184,7 @@ template<typename T>
     }
     assert(dst != nullptr and src != nullptr);
     assert(dst != src);
-    if constexpr (std::is_trivial_v<T> and std::is_standard_layout_v<T>) {
+    if constexpr (IsRelocatable<T>) {
         std::memcpy(dst, src, n * sizeof(T));
     } else if constexpr (std::is_move_constructible_v<T>) {
         for (std::size_t i = 0; i < n; ++i) {
@@ -190,7 +207,7 @@ template<typename T>
     }
     assert(src != nullptr and dst != nullptr);
     assert(dst < src or dst >= src + n);
-    if constexpr (std::is_trivial_v<T> and std::is_standard_layout_v<T>) {
+    if constexpr (IsRelocatable<T>) {
         std::memmove(dst, src, n * sizeof(T));
     } else if constexpr (std::is_move_constructible_v<T>) {
         // do not support throwable move constructor.
@@ -218,7 +235,7 @@ template<typename T>
     }
     T* dst_end = dst + (src_end - src_start);
     assert(dst > src_start and dst <= src_end);
-    if constexpr (std::is_trivially_move_constructible_v<T>) {
+    if constexpr (IsRelocatable<T>) {
         // backward move
         for (T* pilot = src_end; pilot >= src_start ; ) {
             *(dst_end--) = *(pilot--);
@@ -247,7 +264,8 @@ template<typename T>
  */
 template<typename T>
 auto realloc_with_move(T* __restrict__ ptr, std::size_t old_size, std::size_t new_size) -> T* {
-    // just after shrink_to_fit with zero size, the ptr may be nullptr.
+    // default init vector or
+    // after shrink_to_fit with zero size, the ptr may be nullptr.
     if (ptr == nullptr) {
         assert(old_size == 0);
         return static_cast<T*>(std::malloc(new_size * sizeof(T)));
