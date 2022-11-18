@@ -1334,7 +1334,7 @@ static_assert(!IsZeroInitable<std::string>, "std::string should not be zero copy
 static_assert(!IsZeroInitable<stdb::memory::string>, "stdb::memory::string should not be zero copyable");
 
 TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb_vector<int>::ConstIterator) {
-    T it = T();
+    T it;
     T it2 = T();
     CHECK_EQ(it, it2);
     CHECK_EQ(it == it2, true);
@@ -1400,7 +1400,7 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
 }
 
 TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator, stdb_vector<int>::ConstReverseIterator) {
-    T it = T();
+    T it;
     T it2 = T();
     CHECK_EQ(it, it2);
     CHECK_EQ(it == it2, true);
@@ -1447,7 +1447,7 @@ TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::Revers
     CHECK_EQ(it2.operator->(), buf + 2);
     CHECK_EQ(it2.operator*(), 3);
 
-    auto it4 = it3++;
+    auto it4(it3++);
     CHECK_EQ(it4.operator->(), buf + 1);
     CHECK_EQ(it4.operator*(), 2);
 
