@@ -219,6 +219,12 @@ TEST_CASE("Hilbert::stdb_vector::int") {
 
         CHECK_EQ(vec, vec_copy);
         CHECK_EQ(vec, vec_copy_2);
+
+        auto* ptr_vec_copy_2 = &vec_copy_2;
+        vec_copy_2 = *ptr_vec_copy_2;
+        CHECK_EQ(vec, vec_copy_2);
+        CHECK_EQ(&vec_copy_2, ptr_vec_copy_2);
+
         stdb_vector<int> vec_full = {12, 3, 4, 14};
         auto vec_full_copy(vec_full);
         auto vec_full_copy_2 = vec_full;
@@ -229,6 +235,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec_full, small_vec);
         vec_full = vec;
         CHECK_EQ(vec_full, vec);
+
     }
 
     SUBCASE("move_vector") {
