@@ -178,26 +178,33 @@ template<typename T>
     }
 }
 
+/*
+ * move range [first, last) to [dst, dst + (last - first))
+ * and return new_finish ptr
+ */
 template<typename T>
-[[gnu::always_inline]] inline void move_range_without_overlap(T* __restrict__ dst, T* __restrict__ src, std::size_t n)
+[[gnu::always_inline, nodiscard]] inline auto move_range_without_overlap(T* __restrict__ dst, T* __restrict__ src, T* __restrict__ src_end) noexcept -> T*
 {
     if (dst == src) [[unlikely]] {
-        return;
+        assert(false);
     }
     assert(dst != nullptr and src != nullptr);
     assert(dst != src);
     if constexpr (IsRelocatable<T>) {
-        std::memcpy(dst, src, n * sizeof(T));
+        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));
+        return dst + (src_end - src);
     } else if constexpr (std::is_move_constructible_v<T>) {
-        for (std::size_t i = 0; i < n; ++i) {
-            new (dst + i) T(std::move(src[i]));
+        for (; src != src_end; ++src, ++dst) {
+            new (dst) T(std::move(*src));
         }
+        return dst;
     } else {
         static_assert(std::is_copy_constructible_v<T>);
-        for (std::size_t i = 0; i < n; ++i) {
-            new (dst + i) T(src[i]);
-            src[i].~T();
+        for (; src != src_end; ++src, ++dst) {
+            new (dst) T(*src);
+            src->~T();
         }
+        return dst;
     }
 }
 
@@ -265,12 +272,12 @@ template<typename T>
  * not use default realloc because seastar's memory allocator does not support realloc really.
  */
 template<typename T>
-auto realloc_with_move(T* __restrict__ ptr, std::size_t old_size, std::size_t new_size) -> T* {
+auto realloc_with_move(T*& __restrict__ ptr, std::size_t old_size, std::size_t new_size) -> T* {
     // default init vector or
     // after shrink_to_fit with zero size, the ptr may be nullptr.
     if (ptr == nullptr) {
         assert(old_size == 0);
-        return static_cast<T*>(std::malloc(new_size * sizeof(T)));
+        return ptr = static_cast<T*>(std::malloc(new_size * sizeof(T)));
     }
     assert(new_size > 0);
     auto new_ptr = static_cast<T*>(std::malloc(new_size * sizeof(T)));
@@ -279,9 +286,10 @@ auto realloc_with_move(T* __restrict__ ptr, std::size_t old_size, std::size_t ne
     }
     // TODO: handle exceptions, if move_range_forward throws exception, memory leak.
     // and should undo the move_range_forward and free new_ptr.
-    move_range_without_overlap(new_ptr, ptr, std::min(old_size, new_size));
+    T* new_finish = move_range_without_overlap(new_ptr, ptr, ptr + std::min(old_size, new_size));
     std::free(ptr);
-    return new_ptr;
+    ptr = new_ptr;
+    return new_finish;
 }
 
 
@@ -420,8 +428,7 @@ class core {
         // no check new_cap because it will be checked in caller.
         auto old_size = size();
         assert(new_cap >= old_size);
-        _start = realloc_with_move(_start, old_size, new_cap);
-        _finish = _start + old_size;
+        _finish = realloc_with_move(_start, old_size, new_cap);
         _edge = _start + new_cap;
         return;
      }
@@ -431,11 +438,9 @@ class core {
         // no check new_cap because it will be checked in caller.
         auto old_size = size();
         assert(new_cap > old_size);
-        _start = realloc_with_move(_start, old_size, new_cap);
-        _finish = _start + old_size;
+        _finish = realloc_with_move(_start, old_size, new_cap);
         _edge = _start + new_cap;
-        new (_finish) T(std::forward<Args>(args)...);
-        _finish++;
+        new (_finish++) T(std::forward<Args>(args)...);
         return;
      }
 
