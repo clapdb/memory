@@ -473,25 +473,25 @@ class core
     [[gnu::always_inline, nodiscard]] auto max_size() const -> size_type { return kFastVectorMaxSize / sizeof(T); }
 
     // move [src, end()) to dst start range from front to end
-    [[gnu::always_inline]] void move_forward(T* dst, T* src) {
+    [[gnu::always_inline]] void move_forward(T* __restrict__ dst, T* __restrict__ src) {
         assert(dst != src);
         move_range_forward(dst, src, _finish);
     }
 
     // move [src, end()) to dst start range from front to end
-    [[gnu::always_inline]] void move_forward(const T* dst, const T* src) {
+    [[gnu::always_inline]] void move_forward(const T* __restrict__ dst, const T* __restrict__ src) {
         assert(dst != src);
         move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish);  // NOLINT
     }
 
     // move [src, end()) to dst start range from end to front
-    [[gnu::always_inline]] void move_backward(T* dst, T* src) {
+    [[gnu::always_inline]] void move_backward(T* __restrict__ dst, T* __restrict__ src) {
         assert(dst != src);
         move_range_backward(dst, src, _finish - 1);
     }
 
     template <typename... Args>
-    [[gnu::always_inline]] void construct_at(T* ptr, Args&&... args) {
+    [[gnu::always_inline]] void construct_at(T* __restrict__ ptr, Args&&... args) {
         new ((void*)ptr) T(std::forward<Args>(args)...);  // NOLINT
     }
 };
