@@ -88,7 +88,7 @@ inline constexpr uint64_t kMegaByte = 1024 * 1024;
 
 template <typename T>
 concept VariantWithString =
-  requires(T a) { std::holds_alternative<string>(a) || std::holds_alternative<arena_string>(a); };
+  requires(T a) { std::holds_alternative<string>(a) || std::holds_alternative<arena_string>(a); }; // NOLINT
 
 /*
  * Creatable concept requires the T is simple enough, or has Tags

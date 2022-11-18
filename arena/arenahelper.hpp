@@ -25,6 +25,7 @@
 #include <type_traits>
 #include <utility>
 
+// NOLINTBEGIN
 #include "align/align.hpp"
 #define ArenaFullManagedTag using ArenaManaged_ = void;                    // NOLINT
 #define ArenaManagedCreateOnlyTag using ArenaManagedSkipDestruct_ = void;  // NOLINT
@@ -39,6 +40,8 @@ namespace pmr = ::std::experimental::pmr;
 #else
 #error "no support for other compiler"
 #endif
+
+// NOLINTEND
 
 namespace stdb::memory {
 /*

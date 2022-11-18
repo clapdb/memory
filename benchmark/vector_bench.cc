@@ -27,6 +27,7 @@
 #include "string/string.hpp"
 namespace stdb::container {
 
+// NOLINTBEGIN
 constexpr size_t times = 1024 * 64;
 
 template <typename T>
@@ -888,5 +889,7 @@ BENCHMARK(reserve_std_vector<non_trivially_copyable>);
 BENCHMARK(reserve_stdb_vector<trivially_copyable>);
 BENCHMARK(reserve_stdb_vector<non_trivially_copyable>);
 BENCHMARK_MAIN();
+
+// NOLINTEND
 
 }  // namespace stdb::container

@@ -27,6 +27,7 @@
 #include "string/string.hpp"
 
 namespace stdb::container {
+// NOLINTBEGIN
 
 TEST_CASE("Hilbert::stdb_vector::int") {
     SUBCASE("zero init") {
@@ -54,6 +55,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.size(), 10);
         CHECK_EQ(vec.capacity(), 10);
         CHECK_NE(vec.begin(), vec.end());
+        // NOLINTNEXTLINE
         for (auto it = vec.begin(); it != vec.end(); ++it) {
             CHECK_EQ(*it, 0);
         }
@@ -67,6 +69,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.size(), 10);
         CHECK_EQ(vec.capacity(), 10);
         CHECK_NE(vec.data(), nullptr);
+        // NOLINTNEXTLINE
         for (int v : vec) {
             CHECK_EQ(v, 1);
         }
@@ -1242,5 +1245,7 @@ struct ZeroInitable<container::normal_class_with_traits> : std::true_type
 namespace container {
 static_assert(IsRelocatable<normal_class_with_traits>, "normal_class_with_traits should be relocatable");
 static_assert(IsZeroInitable<normal_class_with_traits>, "normal_class_with_traits should be zero copyable");
+
+// NOLINTEND
 }  // namespace container
 }  // namespace stdb

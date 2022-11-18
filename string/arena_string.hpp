@@ -237,10 +237,10 @@ class arena_string_core
                 // free(ml_.data_);  // NOLINT
                 //  calc the medium size, and deallocate it.
                 //  detail: reverse the allocation calculating
-                allocator_.deallocate(ml_.data_, (capacity() + 1) * sizeof(Char));
+                allocator_.deallocate(ml_.data_, (capacity() + 1) * sizeof(Char));  // NOLINT
             } else {
                 // detail: reverse the allocation calculating
-                RefCounted::decrementRefs(ml_.data_, (ml_.capacity() + 1) * sizeof(Char) + RefCounted::getDataOffset(),
+                RefCounted::decrementRefs(ml_.data_, (ml_.capacity() + 1) * sizeof(Char) + RefCounted::getDataOffset(),  // NOLINT
                                           allocator_);  // NOLINT
             }
         }

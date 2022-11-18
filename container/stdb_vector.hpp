@@ -65,7 +65,7 @@ constexpr std::size_t kFastVectorDefaultCapacity = 64;
 constexpr std::size_t kFastVectorMaxSize = std::numeric_limits<std::ptrdiff_t>::max();
 
 template <typename Iterator>
-[[nodiscard, gnu::always_inline]] inline auto get_ptr_from_iter(Iterator& it) -> decltype(auto) {
+[[nodiscard, gnu::always_inline]] inline auto get_ptr_from_iter(Iterator& it) -> decltype(auto) { // NOLINT
     if constexpr (std::is_pointer_v<Iterator>) {
         return it;
     } else {
@@ -111,7 +111,7 @@ template <typename T>
     assert(src < src_end);
     // if is trivial_copyable, use memcpy is faster.
     if constexpr (IsRelocatable<T>) {
-        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));
+        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T)); // NOLINT
         return dst + (src_end - src);
     } else {
         for (; src != src_end; ++src, ++dst) {
@@ -197,7 +197,7 @@ template <typename T>
     assert(dst != nullptr and src != nullptr);
     assert(dst != src);
     if constexpr (IsRelocatable<T>) {
-        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));
+        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T)); // NOLINT
         return dst + (src_end - src);
     } else if constexpr (std::is_move_constructible_v<T>) {
         for (; src != src_end; ++src, ++dst) {
@@ -223,7 +223,7 @@ template <typename T>
     assert(src != nullptr and dst != nullptr);
     assert(dst < src or dst >= src_end);
     if constexpr (IsRelocatable<T>) {
-        std::memmove(dst, src, (size_t)(src_end - src) * sizeof(T));
+        std::memmove(dst, src, (size_t)(src_end - src) * sizeof(T)); // NOLINT
     } else if constexpr (std::is_move_constructible_v<T>) {
         // do not support throwable move constructor.
         static_assert(std::is_nothrow_move_constructible_v<T>);
@@ -291,7 +291,6 @@ auto realloc_with_move(T*& __restrict__ ptr, std::size_t old_size, std::size_t n
     if (new_ptr == nullptr) [[unlikely]] {
         throw std::bad_alloc();
     }
-    // TODO: handle exceptions, if move_range_forward throws exception, memory leak.
     // and should undo the move_range_forward and free new_ptr.
     T* new_finish = move_range_without_overlap(new_ptr, ptr, ptr + std::min(old_size, new_size));
     std::free(ptr);
@@ -314,9 +313,9 @@ class core
    protected:
     static constexpr std::size_t kFastVectorInitCapacity =
       sizeof(T) >= kFastVectorDefaultCapacity ? 1 : kFastVectorDefaultCapacity / sizeof(T);
-    T* _start;   // buffer start
-    T* _finish;  // valid end
-    T* _edge;    // buffer end
+    T* _start;   // buffer start // NOLINT
+    T* _finish;  // valid end    // NOLINT
+    T* _edge;    // buffer end   // NOLINT
 
    private:
     [[gnu::always_inline]] void allocate(size_type cap) {
@@ -426,11 +425,11 @@ class core
     // data access section
     [[nodiscard, gnu::always_inline]] auto at(size_type index) const -> const_reference {
         assert(index < size());
-        return _start[index];
+        return _start[index]; // NOLINT
     }
     [[nodiscard, gnu::always_inline]] auto at(size_type index) -> reference {
         assert(index < size());
-        return _start[index];
+        return _start[index]; // NOLINT
     }
 
     [[gnu::always_inline]] void realloc_with_old_data(size_type new_cap) {
@@ -476,14 +475,14 @@ class core
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(const T* dst, const T* src) {
-        move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish);
+        move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish); // NOLINT
     }
     // move [src, end()) to dst start range from end to front
     [[gnu::always_inline]] void move_backward(T* dst, T* src) { move_range_backward(dst, src, _finish - 1); }
 
     template <typename... Args>
     [[gnu::always_inline]] void construct_at(T* ptr, Args&&... args) {
-        ::new ((void*)ptr) T(std::forward<Args>(args)...);
+        new ((void*)ptr) T(std::forward<Args>(args)...); // NOLINT
     }
 };
 
@@ -525,10 +524,10 @@ class stdb_vector : public core<T>
 
     template <std::forward_iterator InputIt>
     constexpr stdb_vector(InputIt first, InputIt last) : core<T>() {
-        long size = last - first;
+        int64_t size = last - first;
         // if size == 0, then do nothing.and just for caller convenience.
         assert(size >= 0);
-        this->realloc_drop_old_data(static_cast<size_type>(size));
+        this->realloc_drop_old_data((size_type)size); // NOLINT
         copy_from_iterator(this->_start, first, last);
         this->_finish = this->_start + size;
     }
@@ -580,9 +579,9 @@ class stdb_vector : public core<T>
 
     template <std::forward_iterator Iterator>
     constexpr void assign(Iterator first, Iterator last) {
-        long size_to_assign = last - first;
+        int64_t size_to_assign = last - first;
         assert(size_to_assign >= 0);
-        size_type count = static_cast<size_type>(size_to_assign);
+        auto count = (size_type)size_to_assign; // NOLINT
         if (count > this->capacity()) {
             // if count is larger than current capacity, we need to reallocate memory
             this->realloc_drop_old_data(count);
@@ -719,15 +718,16 @@ class stdb_vector : public core<T>
         using reference = T&;
 
         Iterator() : _ptr(nullptr) {}
-        Iterator(pointer ptr) : _ptr(ptr) {}
+        ~Iterator() = default;
+        explicit Iterator(pointer ptr) : _ptr(ptr) {}
         Iterator(Iterator&& rhs) noexcept : _ptr(std::exchange(rhs._ptr, nullptr)) {}
         Iterator(const Iterator&) noexcept = default;
         // assignment operators
-        Iterator& operator=(Iterator&& rhs) noexcept {
+        auto operator=(Iterator&& rhs) noexcept -> Iterator&{
             _ptr = std::exchange(rhs._ptr, nullptr);
             return *this;
         }
-        Iterator& operator=(const Iterator&) noexcept = default;
+        auto operator=(const Iterator&) noexcept -> Iterator& = default;
 
         [[gnu::always_inline]] constexpr inline auto operator++() noexcept -> Iterator& {
             ++_ptr;
@@ -825,16 +825,17 @@ class stdb_vector : public core<T>
         using reference = const T&;
 
         ConstIterator() : _ptr(nullptr) {}
-        ConstIterator(pointer ptr) : _ptr(ptr) {}
+        ~ConstIterator() = default;
+        explicit ConstIterator(pointer ptr) : _ptr(ptr) {}
         // copy and move constructor
         ConstIterator(ConstIterator&& rhs) noexcept : _ptr(std::exchange(rhs._ptr, nullptr)) {}
         ConstIterator(const ConstIterator&) noexcept = default;
         // assignment operators
-        ConstIterator& operator=(ConstIterator&& rhs) noexcept {
+        auto operator=(ConstIterator&& rhs) noexcept -> ConstIterator& {
             _ptr = std::exchange(rhs._ptr, nullptr);
             return *this;
         }
-        ConstIterator& operator=(const ConstIterator&) noexcept = default;
+        auto operator=(const ConstIterator&) noexcept -> ConstIterator& = default;
 
         [[gnu::always_inline]] constexpr inline auto operator++() noexcept -> ConstIterator& {
             ++_ptr;
@@ -938,15 +939,16 @@ class stdb_vector : public core<T>
 
         ReverseIterator() : _ptr(nullptr) {}
         explicit ReverseIterator(pointer ptr) : _ptr(ptr) {}
+        ~ReverseIterator() = default;
         // copy and move constructor
         ReverseIterator(ReverseIterator&& rhs) noexcept : _ptr(std::exchange(rhs._ptr, nullptr)) {}
         ReverseIterator(const ReverseIterator&) noexcept = default;
         // assignment operators
-        ReverseIterator& operator=(ReverseIterator&& rhs) noexcept {
+        auto operator=(ReverseIterator&& rhs) noexcept -> ReverseIterator& {
             _ptr = std::exchange(rhs._ptr, nullptr);
             return *this;
         }
-        ReverseIterator& operator=(const ReverseIterator&) noexcept = default;
+        auto operator=(const ReverseIterator&) noexcept -> ReverseIterator& = default;
 
         [[gnu::always_inline]] constexpr inline auto operator++() -> ReverseIterator& {
             --_ptr;
@@ -1036,16 +1038,17 @@ class stdb_vector : public core<T>
         using reference = const T&;
 
         ConstReverseIterator() : _ptr(nullptr) {}
+        ~ConstReverseIterator() = default;
         explicit ConstReverseIterator(const_pointer ptr) : _ptr(ptr) {}
         // copy and move constructor
         ConstReverseIterator(ConstReverseIterator&& rhs) noexcept : _ptr(std::exchange(rhs._ptr, nullptr)) {}
         ConstReverseIterator(const ConstReverseIterator&) noexcept = default;
         // assignment operators
-        ConstReverseIterator& operator=(ConstReverseIterator&& rhs) noexcept {
+        auto operator=(ConstReverseIterator&& rhs) noexcept -> ConstReverseIterator& {
             _ptr = std::exchange(rhs._ptr, nullptr);
             return *this;
         }
-        ConstReverseIterator& operator=(const ConstReverseIterator&) noexcept = default;
+        auto operator=(const ConstReverseIterator&) noexcept -> ConstReverseIterator& = default;
 
         [[gnu::always_inline]] constexpr inline auto operator++() -> ConstReverseIterator& {
             --_ptr;
@@ -1422,11 +1425,11 @@ class stdb_vector : public core<T>
     template <Safety safety = Safety::Safe, class InputIt>
         requires std::input_iterator<InputIt>
     constexpr auto insert(Iterator pos, InputIt first, InputIt last) -> Iterator {
-        long count = last - first;
+        int64_t count = last - first;
         if (count == 0) [[unlikely]] {
             return pos;
         }
-        size_type size_to_insert = static_cast<size_type>(count);
+        auto size_to_insert = (size_type)count;  // NOLINT
         T* pos_ptr = get_ptr_from_iter(pos);
 
         if constexpr (safety == Safety::Safe) {
@@ -1515,6 +1518,7 @@ class stdb_vector : public core<T>
     }
     [[nodiscard]] auto compute_next_capacity() const -> size_type {
         auto cap = capacity();
+        // NOLINTNEXTLINE
         if (cap < 4096 * 32 / sizeof(T) and cap >= core<T>::kFastVectorInitCapacity) [[likely]] {
             // the capacity is smaller than a page,
             // use 1.5 but not 2 to reuse memory objects.
@@ -1522,6 +1526,7 @@ class stdb_vector : public core<T>
         }
         // the capacity is larger than a page,
         // so we can just double it to use whole pages.
+        // NOLINTNEXTLINE
         if (cap >= 4096 * 32 / sizeof(T)) [[likely]] {
             return cap * 2;
         }
