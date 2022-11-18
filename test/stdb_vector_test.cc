@@ -1334,24 +1334,29 @@ TEST_CASE("Hilbert::stdb_vector::std_vector_push") {
 }
 TEST_CASE("Hilbert::stdb_vector::fill") {
     stdb_vector<int> vec;
-    vec.reserve(1000);
+    vec.reserve(200);
     auto fill = [](int* ptr) -> std::size_t {
         if (ptr != nullptr) {
-            for (int i = 0; i < 700; ++i) {
+            for (int i = 0; i < 70; ++i) {
                 ptr[i] = i;
             }
         }
-        return 700;
+        return 70;
     };
-    vec.fill(fill);
-    CHECK_EQ(vec.size(), 700);
-    for (int i = 0; i < 700; ++i) {
+    vec.fill<Safety::Unsafe>(fill);
+    CHECK_EQ(vec.size(), 70);
+    for (int i = 0; i < 70; ++i) {
         CHECK_EQ(vec[static_cast<size_t>(i)], i);
     }
     vec.fill(fill);
-    CHECK_EQ(vec.size(), 1400);
-    for (int i = 0; i < 1400; ++i) {
-        CHECK_EQ(vec[static_cast<size_t>(i)], i % 700);
+    CHECK_EQ(vec.size(), 140);
+    for (int i = 0; i < 140; ++i) {
+        CHECK_EQ(vec[static_cast<size_t>(i)], i % 70);
+    }
+    vec.fill(fill);
+    CHECK_EQ(vec.size(), 210);
+    for (int i = 0; i < 210; ++i) {
+        CHECK_EQ(vec[static_cast<size_t>(i)], i % 70);
     }
 
 }
@@ -1359,13 +1364,17 @@ TEST_CASE("Hilbert::stdb_vector::fill") {
 TEST_CASE("Hilbert::stdb_vector::get_writebuffer") {
     stdb_vector<int> vec;
     vec.reserve(1000);
-    auto buffer = vec.get_writebuffer(40);
+    auto buffer = vec.get_writebuffer<Safety::Unsafe>(40);
     CHECK_EQ(buffer.size(), 40);
     CHECK_EQ(vec.size(), 40);
     CHECK_EQ(vec.capacity(), 1000);
+    auto buffer1 = vec.get_writebuffer(100);
+    CHECK_EQ(buffer1.size(), 100);
+    CHECK_EQ(vec.size(), 140);
+    CHECK_EQ(vec.capacity(), 1000);
     auto buffer2 = vec.get_writebuffer(2000);
     CHECK_EQ(buffer2.size(), 2000);
-    CHECK_EQ(vec.size(), 2040);
+    CHECK_EQ(vec.size(), 2140);
 
 }
 
