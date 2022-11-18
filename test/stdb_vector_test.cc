@@ -1333,7 +1333,7 @@ static_assert(IsZeroInitable<relocate>, "relocate should be zero copyable");
 static_assert(!IsZeroInitable<std::string>, "std::string should not be zero copyable");
 static_assert(!IsZeroInitable<stdb::memory::string>, "stdb::memory::string should not be zero copyable");
 
-TEST_CASE_TEMPLATE("iterator test", T, stdb_vector<int>::Iterator, stdb_vector<int>::ConstIterator) {
+TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb_vector<int>::ConstIterator) {
     T it = T();
     T it2 = T();
     CHECK_EQ(it, it2);
@@ -1382,13 +1382,13 @@ TEST_CASE_TEMPLATE("iterator test", T, stdb_vector<int>::Iterator, stdb_vector<i
     CHECK_EQ(it2.operator*(), 1);
 
     auto it4 = it3++;
-    CHECK_EQ(it4.operator->(), buf);
-    CHECK_EQ(it4.operator*(), 1);
-    CHECK_EQ(it3.operator->(), buf + 1);
-    CHECK_EQ(it3.operator*(), 2);
+    CHECK_EQ(it4.operator->(), buf + 1);
+    CHECK_EQ(it4.operator*(), 2);
+    CHECK_EQ(it3.operator->(), buf + 2);
+    CHECK_EQ(it3.operator*(), 3);
 }
 
-TEST_CASE_TEMPLATE("reverse iterator test", T, stdb_vector<int>::ReverseIterator, stdb_vector<int>::ConstReverseIterator) {
+TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator, stdb_vector<int>::ConstReverseIterator) {
     T it = T();
     T it2 = T();
     CHECK_EQ(it, it2);
@@ -1437,8 +1437,8 @@ TEST_CASE_TEMPLATE("reverse iterator test", T, stdb_vector<int>::ReverseIterator
     CHECK_EQ(it2.operator*(), 3);
 
     auto it4 = it3++;
-    CHECK_EQ(it4.operator->(), buf + 2);
-    CHECK_EQ(it4.operator*(), 3);
+    CHECK_EQ(it4.operator->(), buf + 1);
+    CHECK_EQ(it4.operator*(), 2);
 }
 
 }  // namespace stdb::container
