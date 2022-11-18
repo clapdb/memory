@@ -1243,7 +1243,6 @@ class stdb_vector : public core<T>
 
     template <Safety safety = Safety::Safe, typename... Args>
     auto emplace_back(Args&&... args) -> Iterator {
-        static_assert(not std::is_trivial_v<T>, "Use push_back() instead of emplace_back() with trivial types");
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
                 this->construct_at(this->_finish++, args...);
