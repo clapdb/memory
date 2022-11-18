@@ -160,7 +160,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
     include(CheckCXXCompilerFlag)
     check_cxx_compiler_flag(-fprofile-abs-path HAVE_fprofile_abs_path)
     if(HAVE_fprofile_abs_path)
-        set(COVERAGE_COMPILER_FLAGS "${COVERAGE_COMPILER_FLAGS} -fprofile-abs-path")
+        # unknown argument -fprofile-abs-path for clang-tidy. FIXED by longqimin
+        # set(COVERAGE_COMPILER_FLAGS "${COVERAGE_COMPILER_FLAGS} -fprofile-abs-path")
     endif()
 endif()
 
@@ -512,7 +513,7 @@ function(setup_target_for_coverage_gcovr_html)
     # Running gcovr
     set(GCOVR_HTML_CMD
         ${GCOVR_PATH} --html --html-details -r ${BASEDIR} ${GCOVR_ADDITIONAL_ARGS}
-        ${GCOVR_EXCLUDE_ARGS} --object-directory=${PROJECT_BINARY_DIR} 
+        ${GCOVR_EXCLUDE_ARGS} --object-directory=${PROJECT_BINARY_DIR} --gcov-executable "llvm-cov gcov"
         -o ${Coverage_NAME}/index.html
     )
 

@@ -17,25 +17,25 @@
 
 cmake_minimum_required(VERSION 3.10)
 # position matters, must define before project
-#if(DEFINED ENV{CC})
-  #set(CMAKE_C_COMPILER $ENV{CC})
-#else()
-    #if (APPLE)
-        ##set(CMAKE_C_COMPILER "/opt/homebrew/opt/llvm/bin/clang")
-    #elseif (UNIX)
-        #set(CMAKE_C_COMPILER "/usr/bin/clang")
-    #endif()
-#endif()
+if(DEFINED ENV{CC})
+  set(CMAKE_C_COMPILER $ENV{CC})
+else()
+    if (APPLE)
+        #set(CMAKE_C_COMPILER "/opt/homebrew/opt/llvm/bin/clang")
+    elseif (UNIX)
+        set(CMAKE_C_COMPILER "/usr/bin/clang")
+    endif()
+endif()
 
-#if(DEFINED ENV{CXX})
-  #set(CMAKE_CXX_COMPILER $ENV{CXX})
-#else()
-    #if (APPLE)
-        ##set(CMAKE_CXX_COMPILER "/opt/homebrew/opt/llvm/bin/clang++")
-    #elseif (UNIX)
-        #set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
-    #endif()
-#endif()
+if(DEFINED ENV{CXX})
+  set(CMAKE_CXX_COMPILER $ENV{CXX})
+else()
+    if (APPLE)
+        #set(CMAKE_CXX_COMPILER "/opt/homebrew/opt/llvm/bin/clang++")
+    elseif (UNIX)
+        set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+    endif()
+endif()
 
 
 project(memory)
@@ -57,6 +57,11 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${SANITIZE_PARAM}")
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${SANITIZE_PARAM}")
 set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_MODULE_LINKER_FLAGS_DEBUG} ${SANITIZE_PARAM}")
 
+
+OPTION(CODE_COVERAGE
+       "build with code coverage, only work in DEBUG"
+        OFF
+        )
 # fmt
 find_package(fmt REQUIRED)
 find_package(xxHash REQUIRED)
@@ -71,8 +76,36 @@ set(MEMORY_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
 include_directories(SYSTEM ${MEMORY_SOURCE_DIR}/doctest/)
 include_directories(${MEMORY_SOURCE_DIR}/)
 
+## code coverage
+
+# code coverage section **must** place before all subdirectories to test coverage.
+if((${CMAKE_BUILD_TYPE} MATCHES Debug) AND CODE_COVERAGE)
+  include(CodeCoverage)
+  append_coverage_compiler_flags()
+
+  set(COVERAGE_EXCLUDES
+    "doctest/*"
+    "test/*"
+    "build/*"
+    "build.debug/*"
+    "build_debug/*"
+    "cmake-build-*"
+    "/usr/*")
+
+  set(GCOVR_ADDITIONAL_ARGS
+    "--print-summary"
+  )
+
+  setup_target_for_coverage_gcovr_html(
+    NAME coverage
+    EXECUTABLE test/memory_test
+  )
+endif()
+
 ### build arena
 add_subdirectory(arena)
 
 add_subdirectory(doctest EXCLUE_FROM_ALL)
 add_subdirectory(test EXCLUDE_FROM_ALL)
+add_subdirectory(benchmark EXCLUDE_FROM_ALL)
+
