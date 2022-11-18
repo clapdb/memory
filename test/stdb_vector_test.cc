@@ -1098,6 +1098,22 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec.size(), 1);
         CHECK_EQ(vec[0], "hello");
     }
+
+    SUBCASE("push_back_unsafe") {
+        stdb_vector<memory::string> vec;
+        vec.reserve(5);
+        vec.push_back<Safety::Unsafe>({"hello"});
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec[0], "hello");
+    }
+
+    SUBCASE("emplace_back_unsafe") {
+        stdb_vector<memory::string> vec;
+        vec.reserve(5);
+        vec.emplace_back<Safety::Unsafe>("hello");
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec[0], "hello");
+    }
     SUBCASE("pop_back") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(vec.size(), 3);
