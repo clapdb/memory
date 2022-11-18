@@ -771,10 +771,8 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec1 == vec2, false);
         CHECK_EQ(vec1 != vec2, true);
         CHECK_EQ(vec1 < vec2, false);
-        // vec2 is empty
-        CHECK_EQ(vec1 <= vec2, true);
-        // vec2 is empty
-        CHECK_EQ(vec1 > vec2, false);
+        CHECK_EQ(vec1 <= vec2, false);
+        CHECK_EQ(vec1 > vec2, true);
         CHECK_EQ(vec1 >= vec2, true);
         CHECK_EQ(vec1 <=> vec2, std::strong_ordering::greater);
         CHECK_EQ(vec2 <=> vec1, std::strong_ordering::less);
@@ -786,6 +784,30 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec1 > vec2, false);
         CHECK_EQ(vec1 >= vec2, true);
 
+        stdb_vector<int> vec3 = {1, 2, 3, 4, 5};
+        stdb_vector<int> vec4 = {1, 2, 3, 4, 5};
+        CHECK_EQ(vec3 == vec4, true);
+        CHECK_EQ(vec3 != vec4, false);
+        CHECK_EQ(vec3 < vec4, false);
+        CHECK_EQ(vec3 <= vec4, true);
+        CHECK_EQ(vec3 > vec4, false);
+        CHECK_EQ(vec3 >= vec4, true);
+        CHECK_EQ(vec3 <=> vec4, std::strong_ordering::equal);
+        CHECK_EQ(vec4 <=> vec3, std::strong_ordering::equal);
+
+        vec4[2] = 8;
+        CHECK_EQ(vec3 == vec4, false);
+        CHECK_EQ(vec3 != vec4, true);
+        CHECK_EQ(vec3 >= vec4, false);
+        CHECK_EQ(vec3 > vec4, false);
+        CHECK_EQ(vec3 <= vec4, true);
+        CHECK_EQ(vec3 < vec4, true);
+        CHECK_EQ(vec3 <=> vec4, std::strong_ordering::less);
+        CHECK_EQ(vec4 <=> vec3, std::strong_ordering::greater);
+        CHECK_EQ(vec4 > vec3, true);
+        CHECK_EQ(vec4 >= vec3, true);
+        CHECK_EQ(vec4 < vec3, false);
+        CHECK_EQ(vec4 <= vec3, false);
     }
 }
 

@@ -1553,57 +1553,6 @@ auto operator==(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
 }
 
 template <typename T>
-auto operator!=(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
-    return !(lhs == rhs);
-}
-
-template <typename T>
-auto operator>=(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
-    for (std::size_t i = 0; i < std::min(lhs.size(), rhs.size()); ++i) {
-        if (lhs[i] < rhs[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <typename T>
-auto operator<=(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
-    for (std::size_t i = 0; i < std::min(lhs.size(), rhs.size()); ++i) {
-        if (lhs[i] > rhs[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <typename T>
-auto operator>(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
-    if (lhs.empty() or rhs.empty()) {
-        return false;
-    }
-    for (std::size_t i = 0; i < std::min(lhs.size(), rhs.size()); ++i) {
-        if (lhs[i] <= rhs[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <typename T>
-auto operator<(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
-    if (lhs.empty() or rhs.empty()) {
-        return false;
-    }
-    for (std::size_t i = 0; i < std::min(lhs.size(), rhs.size()); ++i) {
-        if (lhs[i] >= rhs[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <typename T>
 auto operator<=>(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> std::strong_ordering {
     for (std::size_t i = 0; i < std::min(lhs.size(), rhs.size()); ++i) {
         if (lhs[i] < rhs[i]) {
