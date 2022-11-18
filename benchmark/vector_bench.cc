@@ -839,6 +839,43 @@ static void init_stdb_vector_with_fill_unsafe(benchmark::State& state) {
         benchmark::DoNotOptimize(vec);
     }
 }
+
+struct trivially_copyable {
+    int x;
+    double y;
+    int z;
+    void * ptr;
+};
+
+struct non_trivially_copyable {
+    int x;
+    double y;
+    int z;
+    void * ptr;
+    ~non_trivially_copyable() {}
+};
+
+static_assert(IsRelocatable<trivially_copyable>, "trivially_copyable is not relocatable");
+static_assert(!IsRelocatable<non_trivially_copyable>, "non_trivially_copyable is relocatable");
+
+template<typename T>
+static void reserve_std_vector(benchmark::State& state) {
+    std::vector<T> vec(times);
+    for (auto _ : state) {
+        vec.reserve(times * 2);
+        benchmark::DoNotOptimize(vec);
+    }
+}
+
+template<typename T>
+static void reserve_stdb_vector(benchmark::State& state) {
+    stdb::container::stdb_vector<T> vec(times);
+    for (auto _ : state) {
+        vec.reserve(times * 2);
+        benchmark::DoNotOptimize(vec);
+    }
+}
+
 BENCHMARK(init_std_vector);
 BENCHMARK(init_stdb_vector_with_pushback_unsafe);
 BENCHMARK(init_stdb_vector_with_resize);
@@ -848,6 +885,10 @@ BENCHMARK(init_stdb_vector_with_get_buffer_unsafe);
 BENCHMARK(init_stdb_vector_with_fill);
 BENCHMARK(init_stdb_vector_with_fill_unsafe);
 
+BENCHMARK(reserve_std_vector<trivially_copyable>);
+BENCHMARK(reserve_std_vector<non_trivially_copyable>);
+BENCHMARK(reserve_stdb_vector<trivially_copyable>);
+BENCHMARK(reserve_stdb_vector<non_trivially_copyable>);
 BENCHMARK_MAIN();
 
 } // namespace stdb::container
