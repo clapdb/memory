@@ -2224,8 +2224,6 @@ TEST_CASE("string::testAllClauses") {
 
     uint count = 0;
 
-    uint large_count = 0;
-
     auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_fbstring)(string&),
                  void (*f_arena_string)(arena_string&)) {
         do {
@@ -2235,9 +2233,6 @@ TEST_CASE("string::testAllClauses") {
                 std::cout << "Testing clause " << clause << std::endl;
             }
             randomString(&r);
-            if (r.size() > 255) {
-                ++large_count;
-            }
             c = r;
             a = r;
             CHECK_EQ(c, r);
@@ -2251,7 +2246,6 @@ TEST_CASE("string::testAllClauses") {
             rng = RandomT(localSeed);
             f_arena_string(a);
         } while (++count % 100 != 0);
-        std::cerr << "large count  : " << large_count << std::endl;
     };
 
 #define TEST_CLAUSE(x) l(#x, clause11_##x<std::string>, clause11_##x<string>, clause11_##x<arena_string>);

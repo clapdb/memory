@@ -1545,7 +1545,7 @@ TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::Revers
 TEST_CASE("vector of char") {
     stdb_vector<char> v(10, 'a');
     CHECK_EQ(v.size(), 10);
-    CHECK_EQ(v.capacity(), 64);
+    CHECK_EQ(v.capacity(), 10);
     CHECK_EQ(v[0], 'a');
     CHECK_EQ(v[9], 'a');
     v.push_back('b');
