@@ -128,6 +128,18 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec, another_vec);
     }
 
+    SUBCASE("element access") {
+        const std::vector<int> input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        stdb_vector<int> vec(input.begin(), input.end());
+        CHECK_EQ(*input.data(), 1);
+        CHECK_EQ(*vec.data(), 1);
+        CHECK_EQ(input.front(), 1);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(input.back(), 20);
+        CHECK_EQ(vec.back(), 20);
+
+    }
+
     SUBCASE("assign vector with single value") {
         stdb_vector<int> vec;
         vec.assign(10, 1);
@@ -962,6 +974,8 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     SUBCASE("cbegin") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*vec.cbegin(), "hello");
+        const stdb_vector<memory::string>& cvec = vec;
+        CHECK_EQ(*cvec.begin(), "hello");
     }
     SUBCASE("end") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
@@ -970,6 +984,8 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     SUBCASE("cend") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*(vec.cend() - 1), "!");
+        const stdb_vector<memory::string> vec2 = {"hello", "world", "!"};
+        CHECK_EQ(*(vec2.end() - 1), "!");
     }
     SUBCASE("rbegin") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
@@ -978,6 +994,8 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     SUBCASE("crbegin") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*vec.crbegin(), "!");
+        const stdb_vector<memory::string> vec2 = {"hello", "world", "!"};
+        CHECK_EQ(*vec2.rbegin(), "!");
     }
     SUBCASE("rend") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
@@ -986,6 +1004,8 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     SUBCASE("crend") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*(vec.crend() - 1), "hello");
+        const stdb_vector<memory::string> vec2 = {"hello", "world", "!"};
+        CHECK_EQ(*(vec2.rend() - 1), "hello");
     }
     SUBCASE("empty") {
         stdb_vector<memory::string> vec;
@@ -1445,6 +1465,7 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
     CHECK_EQ(it5.operator->(), buf + 2);
     CHECK_EQ(it5.operator*(), 3);
     it5 = it4 - 1;
+    CHECK_EQ(it4 - it5, 1);
     CHECK_EQ(it5.operator->(), buf);
     CHECK_EQ(it5.operator*(), 1);
     auto it6(it5);
@@ -1506,6 +1527,7 @@ TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::Revers
     CHECK_EQ(it4.operator*(), 2);
 
     auto it5 = it4 + 1;
+    CHECK_EQ(it5 - it4, 1);
     CHECK_EQ(it5.operator->(), buf);
     CHECK_EQ(it5.operator*(), 1);
     it5 = it4 - 1;
