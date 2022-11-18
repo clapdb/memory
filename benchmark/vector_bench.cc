@@ -18,16 +18,16 @@
 +------------------------------------------------------------------------------+
 */
 
-#include <vector>
-#include "container/stdb_vector.hpp"
 #include <benchmark/benchmark.h>
-#include "string/string.hpp"
+
 #include <iostream>
+#include <vector>
+
+#include "container/stdb_vector.hpp"
+#include "string/string.hpp"
 namespace stdb::container {
 
 constexpr size_t times = 1024 * 64;
-
-
 
 template <typename T>
 void push_back() {
@@ -49,23 +49,23 @@ void push_back_stdb() {
     benchmark::DoNotOptimize(vec);
 }
 
-template<typename T>
+template <typename T>
 void init_vector() {
     std::vector<T> vec(times, std::numeric_limits<T>::max());
 }
 
-template<typename T>
+template <typename T>
 void init_vector_stdb() {
     stdb::container::stdb_vector<T> vec(times, std::numeric_limits<T>::max());
 }
 
-template<typename T>
+template <typename T>
 void assign() {
     std::vector<T> vec;
     vec.assign(times, std::numeric_limits<T>::max());
 }
 
-template<typename T>
+template <typename T>
 void assign_stdb() {
     stdb::container::stdb_vector<T> vec;
     vec.assign(times, std::numeric_limits<T>::max());
@@ -81,7 +81,7 @@ void push_back_unsafe() {
     benchmark::DoNotOptimize(vec);
 }
 
-template<typename T>
+template <typename T>
 void for_loop(const std::vector<T>& vec) {
     T sum = 0;
     for (T i : vec) {
@@ -90,7 +90,7 @@ void for_loop(const std::vector<T>& vec) {
     benchmark::DoNotOptimize(sum);
 }
 
-template<typename T>
+template <typename T>
 void for_loop(const stdb::container::stdb_vector<T>& vec) {
     T sum = 0;
     for (T i : vec) {
@@ -98,7 +98,6 @@ void for_loop(const stdb::container::stdb_vector<T>& vec) {
     }
     benchmark::DoNotOptimize(sum);
 }
-
 
 template <template <typename, typename> typename Vec>
 void push_back_small_str() {
@@ -134,7 +133,9 @@ void push_back_small_str_unsafe() {
 
 template <template <typename, typename> typename Vec>
 void push_back_median_str() {
-    memory::string input("hello world! for testing! 1223141234123453214132142314123421421412sdfsadbbagasdfgasfsdfasfasfdsafasfasfsadfasbaabasabababbaabaabab");
+    memory::string input(
+      "hello world! for testing! "
+      "1223141234123453214132142314123421421412sdfsadbbagasdfgasfsdfasfasfdsafasfasfsadfasbaabasabababbaabaabab");
     assert(input.size() < 250 and input.size() > 30);
     Vec<memory::string, std::allocator<memory::string>> vec;
     vec.reserve(times);
@@ -146,7 +147,9 @@ void push_back_median_str() {
 
 template <template <typename> typename Vec>
 void push_back_median_str() {
-    memory::string input("hello world! for testing! 1223141234123453214132142314123421421412sdfsadbbagasdfgasfsdfasfasfdsafasfasfsadfasbaabasabababbaabaabab");
+    memory::string input(
+      "hello world! for testing! "
+      "1223141234123453214132142314123421421412sdfsadbbagasdfgasfsdfasfasfdsafasfasfsadfasbaabasabababbaabaabab");
     assert(input.size() < 250 and input.size() > 30);
     Vec<memory::string> vec;
     vec.reserve(times);
@@ -157,7 +160,9 @@ void push_back_median_str() {
 }
 
 void push_back_median_str_unsafe() {
-    memory::string input("hello world! for testing! 1223141234123453214132142314123421421412sdfsadbbagasdfgasfsdfasfasfdsafasfasfsadfasbaabasabababbaabaabab");
+    memory::string input(
+      "hello world! for testing! "
+      "1223141234123453214132142314123421421412sdfsadbbagasdfgasfsdfasfasfdsafasfasfsadfasbaabasabababbaabaabab");
     assert(input.size() < 250 and input.size() > 30);
     stdb_vector<memory::string> vec;
     vec.reserve(times);
@@ -169,17 +174,17 @@ void push_back_median_str_unsafe() {
 
 template <template <typename, typename> typename Vec>
 void push_back_large_str() {
-    memory::string input("123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-      );
+    memory::string input(
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890");
     assert(input.size() > 400);
     Vec<memory::string, std::allocator<memory::string>> vec;
     vec.reserve(times);
@@ -191,17 +196,17 @@ void push_back_large_str() {
 
 template <template <typename> typename Vec>
 void push_back_large_str() {
-    memory::string input("123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-      );
+    memory::string input(
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890");
     assert(input.size() > 400);
     Vec<memory::string> vec;
     vec.reserve(times);
@@ -212,17 +217,17 @@ void push_back_large_str() {
 }
 
 void push_back_large_str_unsafe() {
-    memory::string input("123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-                         "123456789012345678901234567890123456789012345678901234567890"
-      );
+    memory::string input(
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890"
+      "123456789012345678901234567890123456789012345678901234567890");
     assert(input.size() > 400);
     stdb_vector<memory::string> vec;
     vec.reserve(times);
@@ -380,7 +385,6 @@ static void assign_stdb_vector_8(benchmark::State& state) {
     }
 }
 
-
 static void forloop_std_vector_64(benchmark::State& state) {
     std::vector<int64_t> data;
     data.reserve(times);
@@ -508,7 +512,7 @@ static void pushback_stdb_vector_8_unsafe(benchmark::State& state) {
 static void pushback_stdb_vector_8_unsafe_simulate(benchmark::State& state) {
     for (auto _ : state) {
         stdb_vector<int32_t> vec;
-        vec.reserve(times/4);
+        vec.reserve(times / 4);
         int32_t temp = 0;
         for (size_t i = 0; i < times; ++i) {
             if (i % 4 == 3) {
@@ -527,7 +531,7 @@ static void pushback_stdb_str(benchmark::State& state) {
     for (auto _ : state) {
         stdb::memory::string str;
         str.reserve(times);
-        for (size_t  i = 0; i < times; ++i) {
+        for (size_t i = 0; i < times; ++i) {
             str.push_back((char)i);
         }
     }
@@ -623,14 +627,13 @@ BENCHMARK(pushback_std_vector_large_str);
 BENCHMARK(pushback_stdb_vector_large_str);
 BENCHMARK(pushback_stdb_vector_large_str_unsafe);
 
-class just_move {
+class just_move
+{
    public:
     int value;
     void* buf = nullptr;
-    just_move(int v) : value(v), buf (malloc(1024)) {
-        memset(buf, value, 1024);
-    }
-    just_move(just_move&& other) noexcept: value(other.value), buf(other.buf) {
+    just_move(int v) : value(v), buf(malloc(1024)) { memset(buf, value, 1024); }
+    just_move(just_move&& other) noexcept : value(other.value), buf(other.buf) {
         other.buf = nullptr;
         value = 0;
     }
@@ -640,31 +643,24 @@ class just_move {
         return *this;
     }
     just_move(const just_move&) = delete;
-    ~just_move() {
-        free(buf);
-    }
+    ~just_move() { free(buf); }
 };
 
-class just_copy {
-    public:
-      int value;
-      void* buf = nullptr;
-      just_copy(int v) : value(v), buf (malloc(1024)) {
-          memset(buf, value, 1024);
-      }
-      just_copy(const just_copy& other) noexcept: value(other.value), buf(malloc(1024)) {
-          memcpy(buf, other.buf, 1024);
-      }
-      just_copy& operator=(const just_copy& other) noexcept {
-          value = other.value;
-          memcpy(buf, other.buf, 1024);
-          return *this;
-      }
-      just_copy(just_copy&&) = delete;
-      ~just_copy() {
-          free(buf);
-      }
-  };
+class just_copy
+{
+   public:
+    int value;
+    void* buf = nullptr;
+    just_copy(int v) : value(v), buf(malloc(1024)) { memset(buf, value, 1024); }
+    just_copy(const just_copy& other) noexcept : value(other.value), buf(malloc(1024)) { memcpy(buf, other.buf, 1024); }
+    just_copy& operator=(const just_copy& other) noexcept {
+        value = other.value;
+        memcpy(buf, other.buf, 1024);
+        return *this;
+    }
+    just_copy(just_copy&&) = delete;
+    ~just_copy() { free(buf); }
+};
 
 static void pushback_std_vector_just_move(benchmark::State& state) {
     for (auto _ : state) {
@@ -814,7 +810,7 @@ static void init_stdb_vector_with_get_buffer_unsafe(benchmark::State& state) {
 }
 
 static auto filler(size_t* buffer) -> size_t {
-    if (buffer)  {
+    if (buffer) {
         for (size_t i = 0; i < times; ++i) {
             buffer[i] = i;
         }
@@ -840,25 +836,27 @@ static void init_stdb_vector_with_fill_unsafe(benchmark::State& state) {
     }
 }
 
-struct trivially_copyable {
+struct trivially_copyable
+{
     int x;
     double y;
     int z;
-    void * ptr;
+    void* ptr;
 };
 
-struct non_trivially_copyable {
+struct non_trivially_copyable
+{
     int x;
     double y;
     int z;
-    void * ptr;
+    void* ptr;
     ~non_trivially_copyable() {}
 };
 
 static_assert(IsRelocatable<trivially_copyable>, "trivially_copyable is not relocatable");
 static_assert(!IsRelocatable<non_trivially_copyable>, "non_trivially_copyable is relocatable");
 
-template<typename T>
+template <typename T>
 static void reserve_std_vector(benchmark::State& state) {
     std::vector<T> vec(times);
     for (auto _ : state) {
@@ -867,7 +865,7 @@ static void reserve_std_vector(benchmark::State& state) {
     }
 }
 
-template<typename T>
+template <typename T>
 static void reserve_stdb_vector(benchmark::State& state) {
     stdb::container::stdb_vector<T> vec(times);
     for (auto _ : state) {
@@ -891,4 +889,4 @@ BENCHMARK(reserve_stdb_vector<trivially_copyable>);
 BENCHMARK(reserve_stdb_vector<non_trivially_copyable>);
 BENCHMARK_MAIN();
 
-} // namespace stdb::container
+}  // namespace stdb::container

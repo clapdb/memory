@@ -22,11 +22,11 @@
 
 #include <doctest/doctest.h>
 
-#include "string/string.hpp"
 #include <iostream>
 
-namespace stdb::container {
+#include "string/string.hpp"
 
+namespace stdb::container {
 
 TEST_CASE("Hilbert::stdb_vector::int") {
     SUBCASE("zero init") {
@@ -58,7 +58,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
             CHECK_EQ(*it, 0);
         }
         CHECK_NE(vec.data(), nullptr);
-        CHECK_EQ(vec.max_size(), kFastVectorMaxSize/ sizeof(int));
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof(int));
     }
 
     SUBCASE("init with size and value") {
@@ -71,7 +71,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
             CHECK_EQ(v, 1);
         }
 
-        CHECK_EQ(vec.max_size(), kFastVectorMaxSize/ sizeof (int));
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof(int));
         stdb_vector<int> another_vec({1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
         CHECK_EQ(vec, another_vec);
         CHECK_EQ(vec != another_vec, false);
@@ -101,7 +101,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         }
         CHECK_EQ(input_iter, input.end());
 
-        CHECK_EQ(vec.max_size(), kFastVectorMaxSize/sizeof(int));
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof(int));
         CHECK_EQ(vec.front(), input.front());
         CHECK_EQ(vec.back(), input.back());
 
@@ -560,7 +560,6 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec[13], 5);
     }
 
-
     SUBCASE("insert_with_initializer_list") {
         stdb_vector<int> vec;
         vec.insert(vec.begin(), {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
@@ -580,7 +579,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.front(), 11);
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[10], 31);
-        vec.insert(vec.end() - 1, {12,44});
+        vec.insert(vec.end() - 1, {12, 44});
         CHECK_EQ(vec.size(), 42);
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[40], 44);
@@ -606,7 +605,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.front(), 11);
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[10], 31);
-        vec.insert<Safety::Unsafe>(vec.end() - 1, {12,44});
+        vec.insert<Safety::Unsafe>(vec.end() - 1, {12, 44});
         CHECK_EQ(vec.size(), 42);
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[40], 44);
@@ -615,7 +614,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
     SUBCASE("insert_from_another_vector") {
         stdb_vector<int> vec1;
         stdb_vector<int> vec2;
-        std::vector<int> vec3 = {11,22,33,44,55,66,77,88,99,100};
+        std::vector<int> vec3 = {11, 22, 33, 44, 55, 66, 77, 88, 99, 100};
         vec1.insert(vec1.begin(), vec2.begin(), vec2.end());
         CHECK_EQ(vec1.size(), 0);
         vec1.insert(vec1.begin(), vec3.begin(), vec3.end());
@@ -638,7 +637,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         vec1.reserve(100);
         stdb_vector<int> vec2;
         vec2.reserve(100);
-        std::vector<int> vec3 = {11,22,33,44,55,66,77,88,99,100};
+        std::vector<int> vec3 = {11, 22, 33, 44, 55, 66, 77, 88, 99, 100};
         vec1.insert<Safety::Unsafe>(vec1.begin(), vec2.begin(), vec2.end());
         CHECK_EQ(vec1.size(), 0);
         vec1.insert<Safety::Unsafe>(vec1.begin(), vec3.begin(), vec3.end());
@@ -697,7 +696,6 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[1], 4);
     }
-
 }
 
 TEST_CASE("Hilbert::stdb_vector::memory::string") {
@@ -887,17 +885,17 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     }
     SUBCASE("max_size") {
         stdb_vector<memory::string> vec;
-        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof (memory::string));
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof(memory::string));
     }
     SUBCASE("capacity") {
         stdb_vector<memory::string> vec;
         CHECK_EQ(vec.capacity(), 0);
         vec.push_back("hello");
-        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof (memory::string));
+        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof(memory::string));
         vec.push_back("world");
-        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof (memory::string));
+        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof(memory::string));
         vec.push_back("!");
-        CHECK_GT(vec.capacity(), kFastVectorDefaultCapacity / sizeof (memory::string));
+        CHECK_GT(vec.capacity(), kFastVectorDefaultCapacity / sizeof(memory::string));
     }
     SUBCASE("reserve") {
         stdb_vector<memory::string> vec;
@@ -928,7 +926,7 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     }
     SUBCASE("insert_with_multiple_elements") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
-        vec.insert(vec.begin() + 1, 2, memory::string ("inserted"));
+        vec.insert(vec.begin() + 1, 2, memory::string("inserted"));
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "inserted");
@@ -990,7 +988,6 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         vec.push_back({"hello"});
         CHECK_EQ(vec.size(), 1);
         CHECK_EQ(vec[0], "hello");
-
     }
     SUBCASE("emplace_back") {
         stdb_vector<memory::string> vec;
@@ -1049,66 +1046,52 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         vec.emplace(vec.end(), "end");
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec.back(), "end");
-
     }
 }
 
-class non_movable {
+class non_movable
+{
    private:
     int* ptr;
+
    public:
-    non_movable() : ptr(new int(0)) {
-        std::cout << "non_movable constructor default" << std::endl;
-    }
-    non_movable(int i) : ptr(new int(i)) {
-        std::cout << "non_movable constructor with : " << i << std::endl;
-    }
-    non_movable(const non_movable& rhs): ptr(new int(*rhs.ptr)) {
+    non_movable() : ptr(new int(0)) { std::cout << "non_movable constructor default" << std::endl; }
+    non_movable(int i) : ptr(new int(i)) { std::cout << "non_movable constructor with : " << i << std::endl; }
+    non_movable(const non_movable& rhs) : ptr(new int(*rhs.ptr)) {
         std::cout << "copy non_movable with : " << *ptr << std::endl;
     }
     non_movable(non_movable&&) = delete;
     non_movable& operator=(const non_movable&) = delete;
     non_movable& operator=(non_movable&&) = delete;
-    auto operator == (const int rhs) const -> bool {
-        return *ptr == rhs;
-    }
-    void print() const {
-        std::cout << *ptr << std::endl;
-    }
+    auto operator==(const int rhs) const -> bool { return *ptr == rhs; }
+    void print() const { std::cout << *ptr << std::endl; }
     ~non_movable() {
         std::cout << "non_movable destructor with : " << *ptr << std::endl;
         delete ptr;
     }
 };
 
-class non_copyable {
+class non_copyable
+{
    private:
     int* ptr;
+
    public:
-    non_copyable() : ptr(new int(0)) {
-        std::cout << "non_copyable constructor default" << std::endl;
-    }
-    non_copyable(int i) : ptr(new int(i)) {
-        std::cout << "non_copyable constructor with : " << i << std::endl;
-    }
+    non_copyable() : ptr(new int(0)) { std::cout << "non_copyable constructor default" << std::endl; }
+    non_copyable(int i) : ptr(new int(i)) { std::cout << "non_copyable constructor with : " << i << std::endl; }
     non_copyable(const non_copyable&) = delete;
-    non_copyable(non_copyable&& rhs) noexcept: ptr(rhs.ptr) {
+    non_copyable(non_copyable&& rhs) noexcept : ptr(rhs.ptr) {
         std::cout << "move non_copyable with : " << *ptr << std::endl;
         rhs.ptr = nullptr;
     }
     non_copyable& operator=(const non_copyable&) = delete;
     non_copyable& operator=(non_copyable&&) = delete;
-    auto operator == (const int rhs) const -> bool {
-        return *ptr == rhs;
-    }
-    void print() const {
-        std::cout << *ptr << std::endl;
-    }
+    auto operator==(const int rhs) const -> bool { return *ptr == rhs; }
+    void print() const { std::cout << *ptr << std::endl; }
     ~non_copyable() {
         if (ptr) {
             std::cout << "non_copyable destructor with : " << *ptr << std::endl;
-        }
-        else {
+        } else {
             std::cout << "non_copyable destructor with : nullptr" << std::endl;
         }
 
@@ -1133,10 +1116,10 @@ TEST_CASE("Hilbert::stdb_vector::non_movable") {
         non.print();
     }
     */
-    CHECK_EQ(vec[0]== 1000, true);
-    CHECK_EQ(vec[11]== 1000, true);
+    CHECK_EQ(vec[0] == 1000, true);
+    CHECK_EQ(vec[11] == 1000, true);
     for (int i = 1; i < 11; ++i) {
-        CHECK_EQ(vec[static_cast<std::size_t>(i)] == i -1, true);
+        CHECK_EQ(vec[static_cast<std::size_t>(i)] == i - 1, true);
     }
 }
 
@@ -1157,10 +1140,10 @@ TEST_CASE("Hilbert::stdb_vector::non_copyable") {
         non.print();
     }
     */
-    CHECK_EQ(vec[0]== 1000, true);
-    CHECK_EQ(vec[11]== 1000, true);
+    CHECK_EQ(vec[0] == 1000, true);
+    CHECK_EQ(vec[11] == 1000, true);
     for (int i = 1; i < 11; ++i) {
-        CHECK_EQ(vec[static_cast<size_t>(i)] == i -1, true);
+        CHECK_EQ(vec[static_cast<size_t>(i)] == i - 1, true);
     }
 }
 
@@ -1178,13 +1161,13 @@ TEST_CASE("Hilbert::stdb_vector::std_vector_push") {
 TEST_CASE("Hilbert::stdb_vector::fill") {
     stdb_vector<int> vec;
     vec.reserve(1000);
-    auto fill = [](int* ptr) -> std::size_t{
-      if (ptr != nullptr) {
-          for (int i = 0; i < 700; ++i) {
-              ptr[i] = i;
-          }
-      }
-      return 700;
+    auto fill = [](int* ptr) -> std::size_t {
+        if (ptr != nullptr) {
+            for (int i = 0; i < 700; ++i) {
+                ptr[i] = i;
+            }
+        }
+        return 700;
     };
     vec.fill(fill);
     CHECK_EQ(vec.size(), 700);
@@ -1202,19 +1185,20 @@ TEST_CASE("Hilbert::stdb_vector::get_writebuffer") {
     CHECK_EQ(vec.capacity(), 1000);
 }
 
-struct relocate {
+struct relocate
+{
     int x;
     int y;
 };
 
-class normal_class {
+class normal_class
+{
    private:
     [[maybe_unused]] int x;
     [[maybe_unused]] int* ptr;
+
    public:
-    normal_class() : x(0), ptr(new int(5)) {
-        std::cout << "normal_class constructor default" << std::endl;
-    }
+    normal_class() : x(0), ptr(new int(5)) { std::cout << "normal_class constructor default" << std::endl; }
     normal_class(const normal_class&) = delete;
     ~normal_class() {
         std::cout << "normal_class destructor" << std::endl;
@@ -1222,17 +1206,16 @@ class normal_class {
     }
 };
 
-class normal_class_with_traits {
+class normal_class_with_traits
+{
    private:
     [[maybe_unused]] int x;
     [[maybe_unused]] int* ptr;
+
    public:
-    normal_class_with_traits() : x(0), ptr(new int(5)) {
-        std::cout << "normal_class constructor default" << std::endl;
-    }
+    normal_class_with_traits() : x(0), ptr(new int(5)) { std::cout << "normal_class constructor default" << std::endl; }
     normal_class_with_traits(const normal_class&) = delete;
 };
-
 
 static_assert(IsRelocatable<int>, "int should be relocatable");
 static_assert(IsRelocatable<double>, "double should be relocatable");
@@ -1241,23 +1224,23 @@ static_assert(!IsRelocatable<std::string>, "std::string should not be relocatabl
 static_assert(!IsRelocatable<stdb::memory::string>, "stdb::memory::string should not be relocatable");
 static_assert(!IsRelocatable<normal_class>, "normal_class should not be relocatable");
 
-
 static_assert(IsZeroInitable<int>, "int should be zero copyable");
 static_assert(IsZeroInitable<double>, "double should be zero copyable");
 static_assert(IsZeroInitable<relocate>, "relocate should be zero copyable");
 static_assert(!IsZeroInitable<std::string>, "std::string should not be zero copyable");
 static_assert(!IsZeroInitable<stdb::memory::string>, "stdb::memory::string should not be zero copyable");
-} // namespace stdb::container
+}  // namespace stdb::container
 
 namespace stdb {
-    template<>
-    struct Relocatable<container::normal_class_with_traits> : std::true_type { };
-    template<>
-    struct ZeroInitable<container::normal_class_with_traits> : std::true_type { };
+template <>
+struct Relocatable<container::normal_class_with_traits> : std::true_type
+{};
+template <>
+struct ZeroInitable<container::normal_class_with_traits> : std::true_type
+{};
 
-    namespace container {
-    static_assert(IsRelocatable<normal_class_with_traits>, "normal_class_with_traits should be relocatable");
-    static_assert(IsZeroInitable<normal_class_with_traits>, "normal_class_with_traits should be zero copyable");
-    }
-}
-
+namespace container {
+static_assert(IsRelocatable<normal_class_with_traits>, "normal_class_with_traits should be relocatable");
+static_assert(IsZeroInitable<normal_class_with_traits>, "normal_class_with_traits should be zero copyable");
+}  // namespace container
+}  // namespace stdb

@@ -28,8 +28,8 @@
 #include <type_traits>       // for integral_constant, true_type, is_same
 #include <utility>           // for move, make_pair, pair
 
-#include "xxhash.h"  // for XXH32
 #include "arena/arenahelper.hpp"
+#include "xxhash.h"  // for XXH32
 
 namespace stdb::memory {
 

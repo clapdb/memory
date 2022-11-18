@@ -21,8 +21,8 @@
 
 #include <iostream>
 
-#include "string.hpp"
 #include "arena/arenahelper.hpp"
+#include "string.hpp"
 
 namespace stdb::memory {
 
@@ -231,8 +231,8 @@ class arena_string_core
         if (allocator_ == pmr::polymorphic_allocator<Char>()) [[unlikely]] {
             auto const c = category();  // NOLINT
             assert(c != Category::isSmall);
-            std::cerr << "Warning: arena_string with default polymorphic_allocator, content : \""
-                      << c_str() << "\"" << std::endl;
+            std::cerr << "Warning: arena_string with default polymorphic_allocator, content : \"" << c_str() << "\""
+                      << std::endl;
             if (c == Category::isMedium) {
                 // free(ml_.data_);  // NOLINT
                 //  calc the medium size, and deallocate it.

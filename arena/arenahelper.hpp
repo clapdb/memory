@@ -94,7 +94,8 @@ template <typename T>
 concept Constructable = is_arena_full_managable<T>::value || is_destructor_skippable<T>::value;
 
 template <typename T>
-concept NonConstructable = !is_arena_full_managable<T>::value;
+concept NonConstructable = !
+is_arena_full_managable<T>::value;
 
 template <typename T>
 concept DestructorSkippable = is_destructor_skippable<T>::value;

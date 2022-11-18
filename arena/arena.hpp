@@ -87,16 +87,15 @@ inline constexpr uint64_t kKiloByte = 1024;
 inline constexpr uint64_t kMegaByte = 1024 * 1024;
 
 template <typename T>
-concept VariantWithString = requires(T a) {
-    std::holds_alternative<string>(a) || std::holds_alternative<arena_string>(a);
-};
+concept VariantWithString =
+  requires(T a) { std::holds_alternative<string>(a) || std::holds_alternative<arena_string>(a); };
 
 /*
  * Creatable concept requires the T is simple enough, or has Tags
  * otherwise it is a pmr container.
  */
 template <typename T>
-concept Creatable = Constructable<T> ||(std::is_standard_layout<T>::value&& std::is_trivial<T>::value) ||
+concept Creatable = Constructable<T> || (std::is_standard_layout<T>::value && std::is_trivial<T>::value) ||
                     std::is_constructible_v<T, pmr::polymorphic_allocator<T>> || VariantWithString<T>;
 
 /*
@@ -415,7 +414,9 @@ class Arena
      * because CreateArray do not RegisterDestructor.
      */
     template <Creatable T>
-    [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T* requires TriviallyDestructible<T> {
+    [[nodiscard]] auto CreateArray(uint64_t num) noexcept -> T*
+        requires TriviallyDestructible<T>
+    {
         if (num > std::numeric_limits<uint64_t>::max() / sizeof(T)) {
             auto output_message = fmt::format(
               "CreateArray need too many memory, that more than max of uint64_t, the num of array is {}, and the Type "
