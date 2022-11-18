@@ -1321,6 +1321,12 @@ TEST_CASE("Hilbert::stdb_vector::fill") {
     for (int i = 0; i < 700; ++i) {
         CHECK_EQ(vec[static_cast<size_t>(i)], i);
     }
+    vec.fill(fill);
+    CHECK_EQ(vec.size(), 1400);
+    for (int i = 0; i < 1400; ++i) {
+        CHECK_EQ(vec[static_cast<size_t>(i)], i % 700);
+    }
+
 }
 
 TEST_CASE("Hilbert::stdb_vector::get_writebuffer") {
@@ -1330,6 +1336,10 @@ TEST_CASE("Hilbert::stdb_vector::get_writebuffer") {
     CHECK_EQ(buffer.size(), 40);
     CHECK_EQ(vec.size(), 40);
     CHECK_EQ(vec.capacity(), 1000);
+    auto buffer2 = vec.get_writebuffer(2000);
+    CHECK_EQ(buffer2.size(), 2000);
+    CHECK_EQ(vec.size(), 2040);
+
 }
 
 struct relocate
