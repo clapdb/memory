@@ -98,18 +98,20 @@ template<typename T> requires std::is_object_v<T>
 }
 
 template<typename T>
-[[gnu::always_inline]] inline void copy_range(T* __restrict__ dst, const T* __restrict__ src, std::size_t n)
+[[gnu::always_inline]] inline auto copy_range(T* __restrict__ dst, const T* __restrict__ src, const T* __restrict__ src_end) -> T*
 {
     assert(dst != nullptr and src != nullptr);
-    assert(n > 0);
     assert(dst != src);
+    assert(src < src_end);
     // if is trivial_copyable, use memcpy is faster.
     if constexpr (IsRelocatable<T>) {
-        std::memcpy(dst, src, n * sizeof(T));
+        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));
+        return dst + (src_end - src);
     } else {
-        for (std::size_t i = 0; i < n; ++i) {
-            new (dst + i) T(src[i]);
+        for (; src != src_end; ++src, ++dst) {
+            new (dst) T(*src);
         }
+        return dst;
     }
 }
 
@@ -322,7 +324,7 @@ class core {
         if (rhs.size() > 0) [[likely]] {
             allocate(rhs.size());
             auto size = rhs.size();
-            copy_range(_start, rhs._start, size);
+            copy_range(_start, rhs._start, rhs._finish);
             _finish = _start + size;
 
         } else {
@@ -352,16 +354,14 @@ class core {
             // allocate new memory
             allocate(new_size);
             // copy data
-            copy_range(_start, other._start, other.size());
-            _finish = _start + new_size;
+            _finish = copy_range(_start, other._start, other._finish);
         }
         else {
             // if other's size is smaller than current capacity, we can just copy data
             // destroy old data
             destroy_range(_start, _finish);
             // copy data
-            copy_range(_start, other._start, new_size);
-            _finish = _start + new_size;
+            _finish = copy_range(_start, other._start, other._finish);
         }
         return *this;
     }
@@ -530,7 +530,7 @@ class stdb_vector  : public core<T> {
         assert((init.size()) > 0 and (init.size() <= this->max_size()));
         auto size = init.size();
         this->realloc_drop_old_data(size);
-        copy_range(this->_start, init.begin(), size);
+        copy_range(this->_start, init.begin(), init.end());
         this->_finish = this->_start + size;
     }
 
