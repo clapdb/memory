@@ -191,9 +191,6 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline, nodiscard]] inline auto move_range_without_overlap(T* __restrict__ dst, T* __restrict__ src,
                                                                          T* __restrict__ src_end) noexcept -> T* {
-    if (dst == src) [[unlikely]] {
-        assert(false);
-    }
     assert(dst != nullptr and src != nullptr);
     assert(dst != src);
     if constexpr (IsRelocatable<T>) {
@@ -217,10 +214,10 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline]] inline void move_range_forward(T* __restrict__ dst, T* __restrict__ src,
                                                       T* __restrict__ src_end) {
-    if (dst == src) [[unlikely]] {
-        return;
-    }
     assert(src != nullptr and dst != nullptr);
+    // src == src_end means no data to move
+    // it will occur in erase the whole vector.
+    assert(src_end >= src);
     assert(dst < src or dst >= src_end);
     if constexpr (IsRelocatable<T>) {
         std::memmove(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
@@ -238,36 +235,6 @@ template <typename T>
         for (; src != src_end; ++src, ++dst) {
             new (dst) T(*src);
             src->~T();
-        }
-    }
-}
-
-template <typename T>
-[[gnu::always_inline]] inline void move_range_backward(T* __restrict__ dst, T* __restrict__ src_start,
-                                                       T* __restrict__ src_end) {
-    assert(dst != nullptr and src_start != nullptr and src_end != nullptr);
-    if (dst == src_start or src_start == src_end) [[unlikely]] {
-        return;
-    }
-    T* dst_end = dst + (src_end - src_start);
-    assert(dst > src_start and dst <= src_end);
-    if constexpr (IsRelocatable<T>) {
-        // backward move
-        for (T* pilot = src_end; pilot >= src_start;) {
-            *(dst_end--) = *(pilot--);
-        }
-    } else if constexpr (std::is_move_constructible_v<T>) {
-        // do not support throwable move constructor.
-        static_assert(std::is_nothrow_move_constructible_v<T>);
-        // call move constructor
-        for (T* pilot = src_end; pilot >= src_start;) {
-            new (dst_end--) T(std::move(*(pilot--)));
-        }
-    } else {
-        // call copy constructor
-        for (T* pilot = src_end; pilot >= src_start; --dst_end, --pilot) {
-            new (dst_end) T(*pilot);
-            pilot->~T();
         }
     }
 }
@@ -291,7 +258,6 @@ auto realloc_with_move(T*& __restrict__ ptr, std::size_t old_size, std::size_t n
     if (new_ptr == nullptr) [[unlikely]] {
         throw std::bad_alloc();
     }
-    // and should undo the move_range_forward and free new_ptr.
     T* new_finish = move_range_without_overlap(new_ptr, ptr, ptr + std::min(old_size, new_size));
     std::free(ptr);
     ptr = new_ptr;
@@ -362,7 +328,7 @@ class core
             return *this;
         }
         auto new_size = other.size();
-        if (other.size() > capacity()) {
+        if (new_size > capacity()) {
             // if other's size is larger than current capacity, we need to reallocate memory
             // destroy old data
             destroy_range(_start, _finish);
@@ -377,7 +343,12 @@ class core
             // destroy old data
             destroy_range(_start, _finish);
             // copy data
-            _finish = copy_range(_start, other._start, other._finish);
+            if (new_size > 0) [[likely]] {
+                _finish = copy_range(_start, other._start, other._finish);
+            } else {
+                _finish = _start;
+            }
+            // _edge is not changed
         }
         return *this;
     }
@@ -471,17 +442,49 @@ class core
     [[gnu::always_inline, nodiscard]] auto max_size() const -> size_type { return kFastVectorMaxSize / sizeof(T); }
 
     // move [src, end()) to dst start range from front to end
-    [[gnu::always_inline]] void move_forward(T* dst, T* src) { move_range_forward(dst, src, _finish); }
+    [[gnu::always_inline]] void move_forward(T* __restrict__ dst, T* __restrict__ src) {
+        assert(dst != src);
+        move_range_forward(dst, src, _finish);
+    }
 
     // move [src, end()) to dst start range from front to end
-    [[gnu::always_inline]] void move_forward(const T* dst, const T* src) {
+    [[gnu::always_inline]] void move_forward(const T* __restrict__ dst, const T* __restrict__ src) {
+        assert(dst != src);
         move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish);  // NOLINT
     }
+
     // move [src, end()) to dst start range from end to front
-    [[gnu::always_inline]] void move_backward(T* dst, T* src) { move_range_backward(dst, src, _finish - 1); }
+    void move_backward(T* __restrict__ dst, T* __restrict__ src) {
+        assert(dst != nullptr && src != nullptr);
+        // if src == _finish or src == _finish -1, just use move_forward
+        assert(src < (_finish - 1));
+        // if dst == src, no need to move
+        assert(dst != src);
+
+        T* dst_end = dst + (_finish - 1 - src);
+        if constexpr (IsRelocatable<T>) {
+            // trivially backward move
+            for (T* src_end = _finish - 1; src_end >= src;) [[likely]] {
+                *(dst_end--) = *(src_end--);
+            }
+        } else if constexpr (std::is_move_constructible_v<T>) {
+            // do not support throwable move constructor.
+            static_assert(std::is_nothrow_move_constructible_v<T>);
+            // backward move
+            for (T* src_end = _finish - 1; src_end >= src;) [[likely]] {
+                new (dst_end--) T(std::move(*(src_end--)));
+            }
+        } else {
+            // backward copy
+            for (T* src_end = _finish - 1; src_end >= src; --dst_end, --src_end) [[likely]] {
+                new (dst_end) T(*src_end);
+                src_end->~T();
+            }
+        }
+    }
 
     template <typename... Args>
-    [[gnu::always_inline]] void construct_at(T* ptr, Args&&... args) {
+    [[gnu::always_inline]] void construct_at(T* __restrict__ ptr, Args&&... args) {
         new ((void*)ptr) T(std::forward<Args>(args)...);  // NOLINT
     }
 };
@@ -1261,7 +1264,7 @@ class stdb_vector : public core<T>
     }
 
     void erase(ConstIterator pos) {
-        assert(pos >= begin() and pos < end());
+        assert(pos >= cbegin() and pos < cend());
 
         auto pos_ptr = get_ptr_from_iter(pos);
         destroy_ptr(pos_ptr);
@@ -1400,6 +1403,7 @@ class stdb_vector : public core<T>
 
     template <Safety safety = Safety::Safe>
     constexpr auto insert(Iterator pos, size_type count, const_reference value) -> Iterator {
+        assert(count > 0);
         assert(pos >= begin() && pos <= end());
         auto size = this->size();
         T* pos_ptr = get_ptr_from_iter(pos);
@@ -1541,57 +1545,6 @@ auto operator==(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
     }
     for (std::size_t i = 0; i < lhs.size(); ++i) {
         if (lhs[i] != rhs[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <typename T>
-auto operator!=(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
-    return !(lhs == rhs);
-}
-
-template <typename T>
-auto operator>=(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
-    for (std::size_t i = 0; i < std::min(lhs.size(), rhs.size()); ++i) {
-        if (lhs[i] < rhs[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <typename T>
-auto operator<=(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
-    for (std::size_t i = 0; i < std::min(lhs.size(), rhs.size()); ++i) {
-        if (lhs[i] > rhs[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <typename T>
-auto operator>(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
-    if (lhs.empty() or rhs.empty()) {
-        return false;
-    }
-    for (std::size_t i = 0; i < std::min(lhs.size(), rhs.size()); ++i) {
-        if (lhs[i] <= rhs[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <typename T>
-auto operator<(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> bool {
-    if (lhs.empty() or rhs.empty()) {
-        return false;
-    }
-    for (std::size_t i = 0; i < std::min(lhs.size(), rhs.size()); ++i) {
-        if (lhs[i] >= rhs[i]) {
             return false;
         }
     }

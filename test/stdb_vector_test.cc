@@ -30,7 +30,7 @@ namespace stdb::container {
 // NOLINTBEGIN
 
 TEST_CASE("Hilbert::stdb_vector::int") {
-    SUBCASE("zero init") {
+    SUBCASE("zero init (copy and move)") {
         stdb_vector<int> vec;
         CHECK_EQ(vec.empty(), true);
         CHECK_EQ(vec.size(), 0);
@@ -47,9 +47,13 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec < another_vec, false);
         CHECK_EQ(vec > another_vec, false);
         CHECK_EQ(vec <=> another_vec, std::strong_ordering::equal);
+        auto moved_vec = std::move(vec);
+        CHECK_EQ(moved_vec.empty(), true);
+        auto another_moved_vec(std::move(another_vec));
+        CHECK_EQ(another_moved_vec.empty(), true);
     }
 
-    SUBCASE("init with size") {
+    SUBCASE("init with size (copy and move)") {
         stdb_vector<int> vec(10);
         CHECK_EQ(vec.empty(), false);
         CHECK_EQ(vec.size(), 10);
@@ -60,7 +64,19 @@ TEST_CASE("Hilbert::stdb_vector::int") {
             CHECK_EQ(*it, 0);
         }
         CHECK_NE(vec.data(), nullptr);
-        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof(int));
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize/ sizeof(int));
+        stdb_vector<int> another_vec(3);
+        CHECK_EQ(vec != another_vec, true);
+        CHECK_EQ(another_vec.size(), 3);
+        another_vec = std::move(vec);
+        CHECK_EQ(another_vec.size(), 10);
+        for (auto i : another_vec) {
+            CHECK_EQ(i, 0);
+        }
+        auto* ptr = &another_vec;
+        // check move assignment to itself
+        another_vec = std::move(*ptr);
+        CHECK_EQ(another_vec.size(), 10);
     }
 
     SUBCASE("init with size and value") {
@@ -110,6 +126,18 @@ TEST_CASE("Hilbert::stdb_vector::int") {
 
         stdb_vector<int> another_vec(vec.cbegin(), vec.cend());
         CHECK_EQ(vec, another_vec);
+    }
+
+    SUBCASE("element access") {
+        const stdb::container::stdb_vector<int> input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        const stdb_vector<int>& vec = input;
+        CHECK_EQ(*input.data(), 1);
+        CHECK_EQ(*vec.data(), 1);
+        CHECK_EQ(input.front(), 1);
+        CHECK_EQ(vec.front(), 1);
+        CHECK_EQ(input.back(), 20);
+        CHECK_EQ(vec.back(), 20);
+
     }
 
     SUBCASE("assign vector with single value") {
@@ -191,11 +219,23 @@ TEST_CASE("Hilbert::stdb_vector::int") {
 
         CHECK_EQ(vec, vec_copy);
         CHECK_EQ(vec, vec_copy_2);
+
+        auto* ptr_vec_copy_2 = &vec_copy_2;
+        vec_copy_2 = *ptr_vec_copy_2;
+        CHECK_EQ(vec, vec_copy_2);
+        CHECK_EQ(&vec_copy_2, ptr_vec_copy_2);
+
         stdb_vector<int> vec_full = {12, 3, 4, 14};
         auto vec_full_copy(vec_full);
         auto vec_full_copy_2 = vec_full;
         CHECK_EQ(vec_full, vec_full_copy);
         CHECK_EQ(vec_full, vec_full_copy_2);
+        stdb_vector<int> small_vec = {1, 2, 3};
+        vec_full = small_vec;
+        CHECK_EQ(vec_full, small_vec);
+        vec_full = vec;
+        CHECK_EQ(vec_full, vec);
+
     }
 
     SUBCASE("move_vector") {
@@ -422,6 +462,30 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_GE(vec.capacity(), 100);
     }
 
+    SUBCASE("growth") {
+        stdb_vector<int> vec;
+        CHECK_EQ(vec.capacity(), 0);
+        vec.push_back(1);
+        // kFastVectorInitialCapacity = 64
+        // sizeof int == 4
+        CHECK_EQ(vec.capacity(), 16);
+        vec.push_back(1);
+        CHECK_EQ(vec.capacity(), 16);
+        for (int i = 0; i < 14; ++i) {
+            vec.push_back(1);
+        }
+        CHECK_EQ(vec.capacity(), 16);
+        vec.push_back(1);
+        CHECK_EQ(vec.capacity(), 24);
+
+        stdb_vector<int> huge(8 * 4096, 3);
+        CHECK_EQ(huge.capacity(), 8 * 4096);
+        huge.push_back(1);
+        CHECK_EQ(huge.capacity(), 16 * 4096);
+
+
+    }
+
     SUBCASE("shrink_to_fit") {
         stdb_vector<int> vec;
         vec.reserve(100);
@@ -461,6 +525,16 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec1.back(), 100);
         CHECK_EQ(vec2.front(), 1);
         CHECK_EQ(vec2.back(), 20);
+
+        stdb_vector<int> vec_full(4, 100);
+        vec_full.shrink_to_fit();
+        CHECK_EQ(vec_full.size(), 4);
+        CHECK_EQ(vec_full.capacity(), 4);
+        CHECK_EQ(vec_full.front(), 100);
+        CHECK_EQ(vec_full.back(), 100);
+        for (int i = 0; i < 4; ++i) {
+            CHECK_EQ(vec_full[static_cast<std::size_t>(i)], 100);
+        }
     }
 
     SUBCASE("insert_with_single_value") {
@@ -699,6 +773,61 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[1], 4);
     }
+
+    SUBCASE("cmp") {
+        // either vec is empty means equal
+        stdb_vector<int> vec1;
+        stdb_vector<int> vec2;
+        CHECK_EQ(vec1 == vec2, true);
+        CHECK_EQ(vec1 != vec2, false);
+        CHECK_EQ(vec1 < vec2, false);
+        CHECK_EQ(vec1 <= vec2, true);
+        CHECK_EQ(vec1 > vec2, false);
+        CHECK_EQ(vec1 >= vec2, true);
+        CHECK_EQ(vec1 <=> vec2, std::strong_ordering::equal);
+        CHECK_EQ(vec2 <=> vec1, std::strong_ordering::equal);
+        vec1.push_back(1);
+        CHECK_EQ(vec1 == vec2, false);
+        CHECK_EQ(vec1 != vec2, true);
+        CHECK_EQ(vec1 < vec2, false);
+        CHECK_EQ(vec1 <= vec2, false);
+        CHECK_EQ(vec1 > vec2, true);
+        CHECK_EQ(vec1 >= vec2, true);
+        CHECK_EQ(vec1 <=> vec2, std::strong_ordering::greater);
+        CHECK_EQ(vec2 <=> vec1, std::strong_ordering::less);
+        vec2.push_back(1);
+        CHECK_EQ(vec1 == vec2, true);
+        CHECK_EQ(vec1 != vec2, false);
+        CHECK_EQ(vec1 < vec2, false);
+        CHECK_EQ(vec1 <= vec2, true);
+        CHECK_EQ(vec1 > vec2, false);
+        CHECK_EQ(vec1 >= vec2, true);
+
+        stdb_vector<int> vec3 = {1, 2, 3, 4, 5};
+        stdb_vector<int> vec4 = {1, 2, 3, 4, 5};
+        CHECK_EQ(vec3 == vec4, true);
+        CHECK_EQ(vec3 != vec4, false);
+        CHECK_EQ(vec3 < vec4, false);
+        CHECK_EQ(vec3 <= vec4, true);
+        CHECK_EQ(vec3 > vec4, false);
+        CHECK_EQ(vec3 >= vec4, true);
+        CHECK_EQ(vec3 <=> vec4, std::strong_ordering::equal);
+        CHECK_EQ(vec4 <=> vec3, std::strong_ordering::equal);
+
+        vec4[2] = 8;
+        CHECK_EQ(vec3 == vec4, false);
+        CHECK_EQ(vec3 != vec4, true);
+        CHECK_EQ(vec3 >= vec4, false);
+        CHECK_EQ(vec3 > vec4, false);
+        CHECK_EQ(vec3 <= vec4, true);
+        CHECK_EQ(vec3 < vec4, true);
+        CHECK_EQ(vec3 <=> vec4, std::strong_ordering::less);
+        CHECK_EQ(vec4 <=> vec3, std::strong_ordering::greater);
+        CHECK_EQ(vec4 > vec3, true);
+        CHECK_EQ(vec4 >= vec3, true);
+        CHECK_EQ(vec4 < vec3, false);
+        CHECK_EQ(vec4 <= vec3, false);
+    }
 }
 
 TEST_CASE("Hilbert::stdb_vector::memory::string") {
@@ -797,6 +926,9 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec2[0], "hello");
         CHECK_EQ(vec2[1], "world");
         CHECK_EQ(vec2[2], "!");
+        stdb_vector<memory::string> vec3 = {"1", "2"};
+        vec2.assign(vec3.cbegin(), vec3.cend());
+        CHECK_EQ(vec3, vec2);
     }
     SUBCASE("assign_with_initializer_list") {
         stdb_vector<memory::string> vec;
@@ -849,6 +981,8 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     SUBCASE("cbegin") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*vec.cbegin(), "hello");
+        const stdb_vector<memory::string>& cvec = vec;
+        CHECK_EQ(*cvec.begin(), "hello");
     }
     SUBCASE("end") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
@@ -857,6 +991,8 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     SUBCASE("cend") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*(vec.cend() - 1), "!");
+        const stdb_vector<memory::string> vec2 = {"hello", "world", "!"};
+        CHECK_EQ(*(vec2.end() - 1), "!");
     }
     SUBCASE("rbegin") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
@@ -865,6 +1001,8 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     SUBCASE("crbegin") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*vec.crbegin(), "!");
+        const stdb_vector<memory::string> vec2 = {"hello", "world", "!"};
+        CHECK_EQ(*vec2.rbegin(), "!");
     }
     SUBCASE("rend") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
@@ -873,6 +1011,8 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     SUBCASE("crend") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         CHECK_EQ(*(vec.crend() - 1), "hello");
+        const stdb_vector<memory::string> vec2 = {"hello", "world", "!"};
+        CHECK_EQ(*(vec2.rend() - 1), "hello");
     }
     SUBCASE("empty") {
         stdb_vector<memory::string> vec;
@@ -926,6 +1066,18 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec[1], "inserted");
         CHECK_EQ(vec[2], "world");
         CHECK_EQ(vec[3], "!");
+        vec.insert(vec.end(), "inserted");
+        CHECK_EQ(vec.size(), 5);
+        CHECK_EQ(vec[4], "inserted");
+        vec.insert(vec.end() - 1, "end-1");
+        CHECK_EQ(vec.size(), 6);
+        CHECK_EQ(vec[4], "end-1");
+
+        stdb::memory::string str = "inserted";
+        vec.insert(vec.end() - 1, str);
+        CHECK_EQ(vec.size(), 7);
+        CHECK_EQ(vec[5], "inserted");
+
     }
     SUBCASE("insert_with_multiple_elements") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
@@ -979,6 +1131,9 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec.size(), 2);
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "!");
+        vec.erase(vec.cbegin());
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec[0], "!");
     }
     SUBCASE("erase_with_range") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
@@ -995,6 +1150,22 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     SUBCASE("emplace_back") {
         stdb_vector<memory::string> vec;
         vec.emplace_back("hello");
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec[0], "hello");
+    }
+
+    SUBCASE("push_back_unsafe") {
+        stdb_vector<memory::string> vec;
+        vec.reserve(5);
+        vec.push_back<Safety::Unsafe>({"hello"});
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec[0], "hello");
+    }
+
+    SUBCASE("emplace_back_unsafe") {
+        stdb_vector<memory::string> vec;
+        vec.reserve(5);
+        vec.emplace_back<Safety::Unsafe>("hello");
         CHECK_EQ(vec.size(), 1);
         CHECK_EQ(vec[0], "hello");
     }
@@ -1114,14 +1285,17 @@ TEST_CASE("Hilbert::stdb_vector::non_movable") {
 
     vec.insert(vec.end(), nm);
     CHECK_EQ(vec.size(), 12);
+    vec.erase(vec.begin());
+    CHECK_EQ(vec.size(), 11);
+    vec.insert(vec.begin(), nm);
     /*
     for (auto& non : vec) {
         non.print();
     }
     */
-    CHECK_EQ(vec[0] == 1000, true);
+    CHECK_EQ(vec[0], 1000);
     CHECK_EQ(vec[11] == 1000, true);
-    for (int i = 1; i < 11; ++i) {
+    for (int i = 1; i < 10; ++i) {
         CHECK_EQ(vec[static_cast<std::size_t>(i)] == i - 1, true);
     }
 }
@@ -1163,29 +1337,48 @@ TEST_CASE("Hilbert::stdb_vector::std_vector_push") {
 }
 TEST_CASE("Hilbert::stdb_vector::fill") {
     stdb_vector<int> vec;
-    vec.reserve(1000);
+    vec.reserve(200);
     auto fill = [](int* ptr) -> std::size_t {
         if (ptr != nullptr) {
-            for (int i = 0; i < 700; ++i) {
+            for (int i = 0; i < 70; ++i) {
                 ptr[i] = i;
             }
         }
-        return 700;
+        return 70;
     };
-    vec.fill(fill);
-    CHECK_EQ(vec.size(), 700);
-    for (int i = 0; i < 700; ++i) {
+    vec.fill<Safety::Unsafe>(fill);
+    CHECK_EQ(vec.size(), 70);
+    for (int i = 0; i < 70; ++i) {
         CHECK_EQ(vec[static_cast<size_t>(i)], i);
     }
+    vec.fill(fill);
+    CHECK_EQ(vec.size(), 140);
+    for (int i = 0; i < 140; ++i) {
+        CHECK_EQ(vec[static_cast<size_t>(i)], i % 70);
+    }
+    vec.fill(fill);
+    CHECK_EQ(vec.size(), 210);
+    for (int i = 0; i < 210; ++i) {
+        CHECK_EQ(vec[static_cast<size_t>(i)], i % 70);
+    }
+
 }
 
 TEST_CASE("Hilbert::stdb_vector::get_writebuffer") {
     stdb_vector<int> vec;
     vec.reserve(1000);
-    auto buffer = vec.get_writebuffer(40);
+    auto buffer = vec.get_writebuffer<Safety::Unsafe>(40);
     CHECK_EQ(buffer.size(), 40);
     CHECK_EQ(vec.size(), 40);
     CHECK_EQ(vec.capacity(), 1000);
+    auto buffer1 = vec.get_writebuffer(100);
+    CHECK_EQ(buffer1.size(), 100);
+    CHECK_EQ(vec.size(), 140);
+    CHECK_EQ(vec.capacity(), 1000);
+    auto buffer2 = vec.get_writebuffer(2000);
+    CHECK_EQ(buffer2.size(), 2000);
+    CHECK_EQ(vec.size(), 2140);
+
 }
 
 struct relocate
@@ -1232,6 +1425,151 @@ static_assert(IsZeroInitable<double>, "double should be zero copyable");
 static_assert(IsZeroInitable<relocate>, "relocate should be zero copyable");
 static_assert(!IsZeroInitable<std::string>, "std::string should not be zero copyable");
 static_assert(!IsZeroInitable<stdb::memory::string>, "stdb::memory::string should not be zero copyable");
+
+TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb_vector<int>::ConstIterator) {
+    T it;
+    it.~T();
+    T it2 = T();
+    CHECK_EQ(it, it2);
+    CHECK_EQ(it == it2, true);
+    CHECK_EQ(it != it2, false);
+    CHECK_EQ(it < it2, false);
+    CHECK_EQ(it <= it2, true);
+    CHECK_EQ(it > it2, false);
+    CHECK_EQ(it >= it2, true);
+    CHECK_EQ(it.operator->(), nullptr);
+    int buf[3] = {1, 2, 3};
+    it = T(buf);
+    CHECK_EQ(it.operator->(), buf);
+    CHECK_EQ(it.operator*(), 1);
+    it2 = it;
+    CHECK_EQ(it2.operator->(), buf);
+    CHECK_EQ(it2.operator*(), 1);
+    ++it2;
+    CHECK_EQ(it2.operator->(), buf + 1);
+    CHECK_EQ(it2.operator*(), 2);
+    --it2;
+    CHECK_EQ(it2.operator->(), buf);
+    CHECK_EQ(it2.operator*(), 1);
+    it2 += 2;
+    CHECK_EQ(it2.operator->(), buf + 2);
+    CHECK_EQ(it2.operator*(), 3);
+    it2 -= 2;
+    CHECK_EQ(it2.operator->(), buf);
+    CHECK_EQ(it2.operator*(), 1);
+    it2 += 1;
+    CHECK_EQ(it2 > it, true);
+    CHECK_EQ(it2 >= it, true);
+    CHECK_EQ(it2 < it, false);
+    CHECK_EQ(it2 <= it, false);
+    it += 1;
+    CHECK_EQ(it2 == it, true);
+    CHECK_EQ(it2 != it, false);
+    CHECK_EQ(it2 > it, false);
+    CHECK_EQ(it2 >= it, true);
+    CHECK_EQ(it2 < it, false);
+    CHECK_EQ(it2 <= it, true);
+    auto it3(it2--);
+    CHECK_EQ(it3.operator->(), buf + 1);
+    CHECK_EQ(it3.operator*(), 2);
+    CHECK_EQ(it2.operator->(), buf);
+    CHECK_EQ(it2.operator*(), 1);
+
+    auto it4 = it3++;
+    CHECK_EQ(it4.operator->(), buf + 1);
+    CHECK_EQ(it4.operator*(), 2);
+    CHECK_EQ(it3.operator->(), buf + 2);
+    CHECK_EQ(it3.operator*(), 3);
+
+    auto it5 = it4 + 1;
+    CHECK_EQ(it5.operator->(), buf + 2);
+    CHECK_EQ(it5.operator*(), 3);
+    it5 = it4 - 1;
+    CHECK_EQ(it4 - it5, 1);
+    CHECK_EQ(it5.operator->(), buf);
+    CHECK_EQ(it5.operator*(), 1);
+    auto it6(it5);
+    CHECK_EQ(it5, it6);
+    auto it7 = it6;
+    CHECK_EQ(it6, it7);
+}
+
+TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator, stdb_vector<int>::ConstReverseIterator) {
+    T it;
+    it.~T();
+    T it2 = T();
+    CHECK_EQ(it, it2);
+    CHECK_EQ(it == it2, true);
+    CHECK_EQ(it != it2, false);
+    CHECK_EQ(it < it2, false);
+    CHECK_EQ(it <= it2, true);
+    CHECK_EQ(it > it2, false);
+    CHECK_EQ(it >= it2, true);
+    CHECK_EQ(it.operator->(), nullptr);
+    int buf[3] = {1, 2, 3};
+    it = T(buf + 2);
+    CHECK_EQ(it.operator->(), buf + 2);
+    CHECK_EQ(it.operator*(), 3);
+    it2 = it;
+    CHECK_EQ(it2.operator->(), buf + 2);
+    CHECK_EQ(it2.operator*(), 3);
+    ++it2;
+    CHECK_EQ(it2.operator->(), buf + 1);
+    CHECK_EQ(it2.operator*(), 2);
+    --it2;
+    CHECK_EQ(it2.operator->(), buf + 2);
+    CHECK_EQ(it2.operator*(), 3);
+    it2 += 2;
+    CHECK_EQ(it2.operator->(), buf);
+    CHECK_EQ(it2.operator*(), 1);
+    it2 -= 2;
+    CHECK_EQ(it2.operator->(), buf + 2);
+    CHECK_EQ(it2.operator*(), 3);
+    it2 += 1;
+    CHECK_EQ(it2 > it, true);
+    CHECK_EQ(it2 >= it, true);
+    CHECK_EQ(it2 < it, false);
+    CHECK_EQ(it2 <= it, false);
+    it += 1;
+    CHECK_EQ(it2 == it, true);
+    CHECK_EQ(it2 != it, false);
+    CHECK_EQ(it2 > it, false);
+    CHECK_EQ(it2 >= it, true);
+    CHECK_EQ(it2 < it, false);
+    CHECK_EQ(it2 <= it, true);
+    auto it3 = it2--;
+    CHECK_EQ(it3.operator->(), buf + 1);
+    CHECK_EQ(it3.operator*(), 2);
+    CHECK_EQ(it2.operator->(), buf + 2);
+    CHECK_EQ(it2.operator*(), 3);
+
+    auto it4(it3++);
+    CHECK_EQ(it4.operator->(), buf + 1);
+    CHECK_EQ(it4.operator*(), 2);
+
+    auto it5 = it4 + 1;
+    CHECK_EQ(it5 - it4, 1);
+    CHECK_EQ(it5.operator->(), buf);
+    CHECK_EQ(it5.operator*(), 1);
+    it5 = it4 - 1;
+    CHECK_EQ(it5.operator->(), buf + 2);
+    CHECK_EQ(it5.operator*(), 3);
+}
+
+TEST_CASE("vector of char") {
+    stdb_vector<char> v(10, 'a');
+    CHECK_EQ(v.size(), 10);
+    CHECK_EQ(v.capacity(), 10);
+    CHECK_EQ(v[0], 'a');
+    CHECK_EQ(v[9], 'a');
+    v.push_back('b');
+    CHECK_EQ(v.size(), 11);
+    CHECK_EQ(v.capacity(), 64);
+    CHECK_EQ(v[0], 'a');
+    CHECK_EQ(v[9], 'a');
+    CHECK_EQ(v[10], 'b');
+}
+
 }  // namespace stdb::container
 
 namespace stdb {
