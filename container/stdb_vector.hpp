@@ -239,37 +239,6 @@ template <typename T>
     }
 }
 
-template <typename T>
-[[gnu::always_inline]] inline void move_range_backward(T* __restrict__ dst, T* __restrict__ src_start,
-                                                       T* __restrict__ src_end) {
-    assert(dst != nullptr and src_start != nullptr and src_end != nullptr);
-    assert(dst != src_start);
-    // if src_start == src_end, it means no overlap between src range and dst range.
-    // it will never occur.
-    assert(src_start != src_end);
-    T* dst_end = dst + (src_end - src_start);
-    assert(dst > src_start and dst <= src_end);
-    if constexpr (IsRelocatable<T>) {
-        // backward move
-        for (T* pilot = src_end; pilot >= src_start;) {
-            *(dst_end--) = *(pilot--);
-        }
-    } else if constexpr (std::is_move_constructible_v<T>) {
-        // do not support throwable move constructor.
-        static_assert(std::is_nothrow_move_constructible_v<T>);
-        // call move constructor
-        for (T* pilot = src_end; pilot >= src_start;) {
-            new (dst_end--) T(std::move(*(pilot--)));
-        }
-    } else {
-        // call copy constructor
-        for (T* pilot = src_end; pilot >= src_start; --dst_end, --pilot) {
-            new (dst_end) T(*pilot);
-            pilot->~T();
-        }
-    }
-}
-
 /*
  * realloc memory, if failed, throw std::bad_alloc, then move the old memory to new memory.
  * if new_size < old_size, the extra elements will be destroyed.
@@ -485,9 +454,33 @@ class core
     }
 
     // move [src, end()) to dst start range from end to front
-    [[gnu::always_inline]] void move_backward(T* __restrict__ dst, T* __restrict__ src) {
+    void move_backward(T* __restrict__ dst, T* __restrict__ src) {
+        assert(dst != nullptr && src != nullptr);
+        // if src == _finish or src == _finish -1, just use move_forward
+        assert(src < (_finish - 1));
+        // if dst == src, no need to move
         assert(dst != src);
-        move_range_backward(dst, src, _finish - 1);
+
+        T* dst_end = dst + (_finish - 1 - src);
+        if constexpr (IsRelocatable<T>) {
+            // trivially backward move
+            for (T* src_end = _finish - 1; src_end >= src;) [[likely]] {
+                *(dst_end--) = *(src_end--);
+            }
+        } else if constexpr (std::is_move_constructible_v<T>) {
+            // do not support throwable move constructor.
+            static_assert(std::is_nothrow_move_constructible_v<T>);
+            // backward move
+            for (T* src_end = _finish - 1; src_end >= src;) [[likely]] {
+                new (dst_end--) T(std::move(*(src_end--)));
+            }
+        } else {
+            // backward copy
+            for (T* src_end = _finish - 1; src_end >= src; --dst_end, --src_end) [[likely]] {
+                new (dst_end) T(*src_end);
+                src_end->~T();
+            }
+        }
     }
 
     template <typename... Args>
