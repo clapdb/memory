@@ -1285,14 +1285,17 @@ TEST_CASE("Hilbert::stdb_vector::non_movable") {
 
     vec.insert(vec.end(), nm);
     CHECK_EQ(vec.size(), 12);
+    vec.erase(vec.begin());
+    CHECK_EQ(vec.size(), 11);
+    vec.insert(vec.begin(), nm);
     /*
     for (auto& non : vec) {
         non.print();
     }
     */
-    CHECK_EQ(vec[0] == 1000, true);
+    CHECK_EQ(vec[0], 1000);
     CHECK_EQ(vec[11] == 1000, true);
-    for (int i = 1; i < 11; ++i) {
+    for (int i = 1; i < 10; ++i) {
         CHECK_EQ(vec[static_cast<std::size_t>(i)] == i - 1, true);
     }
 }
