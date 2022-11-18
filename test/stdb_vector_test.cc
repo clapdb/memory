@@ -482,6 +482,16 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec1.back(), 100);
         CHECK_EQ(vec2.front(), 1);
         CHECK_EQ(vec2.back(), 20);
+
+        stdb_vector<int> vec_full(4, 100);
+        vec_full.shrink_to_fit();
+        CHECK_EQ(vec_full.size(), 4);
+        CHECK_EQ(vec_full.capacity(), 4);
+        CHECK_EQ(vec_full.front(), 100);
+        CHECK_EQ(vec_full.back(), 100);
+        for (int i = 0; i < 4; ++i) {
+            CHECK_EQ(vec_full[static_cast<std::size_t>(i)], 100);
+        }
     }
 
     SUBCASE("insert_with_single_value") {
