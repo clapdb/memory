@@ -754,6 +754,39 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[1], 4);
     }
+
+    SUBCASE("cmp") {
+        // either vec is empty means equal
+        stdb_vector<int> vec1;
+        stdb_vector<int> vec2;
+        CHECK_EQ(vec1 == vec2, true);
+        CHECK_EQ(vec1 != vec2, false);
+        CHECK_EQ(vec1 < vec2, false);
+        CHECK_EQ(vec1 <= vec2, true);
+        CHECK_EQ(vec1 > vec2, false);
+        CHECK_EQ(vec1 >= vec2, true);
+        CHECK_EQ(vec1 <=> vec2, std::strong_ordering::equal);
+        CHECK_EQ(vec2 <=> vec1, std::strong_ordering::equal);
+        vec1.push_back(1);
+        CHECK_EQ(vec1 == vec2, false);
+        CHECK_EQ(vec1 != vec2, true);
+        CHECK_EQ(vec1 < vec2, false);
+        // vec2 is empty
+        CHECK_EQ(vec1 <= vec2, true);
+        // vec2 is empty
+        CHECK_EQ(vec1 > vec2, false);
+        CHECK_EQ(vec1 >= vec2, true);
+        CHECK_EQ(vec1 <=> vec2, std::strong_ordering::greater);
+        CHECK_EQ(vec2 <=> vec1, std::strong_ordering::less);
+        vec2.push_back(1);
+        CHECK_EQ(vec1 == vec2, true);
+        CHECK_EQ(vec1 != vec2, false);
+        CHECK_EQ(vec1 < vec2, false);
+        CHECK_EQ(vec1 <= vec2, true);
+        CHECK_EQ(vec1 > vec2, false);
+        CHECK_EQ(vec1 >= vec2, true);
+
+    }
 }
 
 TEST_CASE("Hilbert::stdb_vector::memory::string") {
