@@ -828,6 +828,9 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec2[0], "hello");
         CHECK_EQ(vec2[1], "world");
         CHECK_EQ(vec2[2], "!");
+        stdb_vector<memory::string> vec3 = {"1", "2"};
+        vec2.assign(vec3.cbegin(), vec3.cend());
+        CHECK_EQ(vec3, vec2);
     }
     SUBCASE("assign_with_initializer_list") {
         stdb_vector<memory::string> vec;
@@ -1010,6 +1013,9 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec.size(), 2);
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "!");
+        vec.erase(vec.cbegin());
+        CHECK_EQ(vec.size(), 1);
+        CHECK_EQ(vec[0], "!");
     }
     SUBCASE("erase_with_range") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};

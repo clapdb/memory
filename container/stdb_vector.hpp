@@ -1266,7 +1266,7 @@ class stdb_vector : public core<T>
     }
 
     void erase(ConstIterator pos) {
-        assert(pos >= begin() and pos < end());
+        assert(pos >= cbegin() and pos < cend());
 
         auto pos_ptr = get_ptr_from_iter(pos);
         destroy_ptr(pos_ptr);
