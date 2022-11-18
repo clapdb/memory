@@ -443,6 +443,29 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_GE(vec.capacity(), 100);
     }
 
+    SUBCASE("growth") {
+        stdb_vector<int> vec;
+        CHECK_EQ(vec.capacity(), 0);
+        vec.push_back(1);
+        // kFastVectorInitialCapacity = 64
+        CHECK_EQ(vec.capacity(), 16);
+        vec.push_back(1);
+        CHECK_EQ(vec.capacity(), 16);
+        for (int i = 0; i < 14; ++i) {
+            vec.push_back(1);
+        }
+        CHECK_EQ(vec.capacity(), 16);
+        vec.push_back(1);
+        CHECK_EQ(vec.capacity(), 24);
+
+        stdb_vector<int> huge(8 * 4096, 3);
+        CHECK_EQ(huge.capacity(), 8 * 4096);
+        huge.push_back(1);
+        CHECK_EQ(huge.capacity(), 16 * 4096);
+
+
+    }
+
     SUBCASE("shrink_to_fit") {
         stdb_vector<int> vec;
         vec.reserve(100);
