@@ -1375,7 +1375,7 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
     CHECK_EQ(it2 >= it, true);
     CHECK_EQ(it2 < it, false);
     CHECK_EQ(it2 <= it, true);
-    auto it3 = it2--;
+    auto it3(it2--);
     CHECK_EQ(it3.operator->(), buf + 1);
     CHECK_EQ(it3.operator*(), 2);
     CHECK_EQ(it2.operator->(), buf);
@@ -1386,6 +1386,17 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
     CHECK_EQ(it4.operator*(), 2);
     CHECK_EQ(it3.operator->(), buf + 2);
     CHECK_EQ(it3.operator*(), 3);
+
+    auto it5 = it4 + 1;
+    CHECK_EQ(it5.operator->(), buf + 2);
+    CHECK_EQ(it5.operator*(), 3);
+    it5 = it4 - 1;
+    CHECK_EQ(it5.operator->(), buf);
+    CHECK_EQ(it5.operator*(), 1);
+    auto it6(it5);
+    CHECK_EQ(it5, it6);
+    auto it7 = it6;
+    CHECK_EQ(it6, it7);
 }
 
 TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator, stdb_vector<int>::ConstReverseIterator) {
@@ -1439,6 +1450,14 @@ TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::Revers
     auto it4 = it3++;
     CHECK_EQ(it4.operator->(), buf + 1);
     CHECK_EQ(it4.operator*(), 2);
+
+    auto it5 = it4 + 1;
+    CHECK_EQ(it5.operator->(), buf);
+    CHECK_EQ(it5.operator*(), 1);
+    it5 = it4 - 1;
+    CHECK_EQ(it5.operator->(), buf + 2);
+    CHECK_EQ(it5.operator*(), 3);
+
 }
 
 }  // namespace stdb::container
