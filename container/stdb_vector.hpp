@@ -209,28 +209,30 @@ template<typename T>
 }
 
 template<typename T>
-[[gnu::always_inline]] inline void move_range_forward(T* __restrict__ dst, T* __restrict__ src, std::size_t n)
+[[gnu::always_inline]] inline void move_range_forward(T* __restrict__ dst, T* __restrict__ src, T* __restrict__ src_end)
 {
     if (dst == src) [[unlikely]] {
         return;
     }
     assert(src != nullptr and dst != nullptr);
-    assert(dst < src or dst >= src + n);
+    assert(dst < src or dst >= src_end);
     if constexpr (IsRelocatable<T>) {
-        std::memmove(dst, src, n * sizeof(T));
+        std::memmove(dst, src, (size_t)(src_end - src) * sizeof(T));
     } else if constexpr (std::is_move_constructible_v<T>) {
         // do not support throwable move constructor.
         static_assert(std::is_nothrow_move_constructible_v<T>);
         // call move constructor
-        for (std::size_t i = 0; i < n; ++i) {
-            new (dst + i) T(std::move(src[i]));
+        for (; src != src_end; ++src, ++dst) {
+            new (dst) T(std::move(*src));
         }
+
     } else {
         static_assert(std::is_copy_constructible_v<T>);
-        // call copy constructor
-        for (std::size_t i = 0; i < n; ++i) {
-            new (dst + i) T(src[i]);
-            src[i].~T();
+        // call copy constructor and dstr
+        for (; src != src_end; ++src, ++dst) {
+            new (dst) T(*src);
+            src->~T();
+
         }
     }
 }
@@ -466,14 +468,12 @@ class core {
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(T* dst, T* src) {
-        auto size_to_move = _finish - src;
-        move_range_forward(dst, src, static_cast<size_type >(size_to_move));
+        move_range_forward(dst, src, _finish);
     }
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(const T* dst, const T* src) {
-        auto size_to_move = _finish - src;
-        move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), static_cast<size_type >(size_to_move));
+        move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish);
     }
     // move [src, end()) to dst start range from end to front
     [[gnu::always_inline]] void move_backward(T* dst, T* src) {
