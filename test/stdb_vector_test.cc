@@ -1023,6 +1023,12 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         vec.insert(vec.end() - 1, "end-1");
         CHECK_EQ(vec.size(), 6);
         CHECK_EQ(vec[4], "end-1");
+
+        stdb::memory::string str = "inserted";
+        vec.insert(vec.end() - 1, str);
+        CHECK_EQ(vec.size(), 7);
+        CHECK_EQ(vec[5], "inserted");
+
     }
     SUBCASE("insert_with_multiple_elements") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
