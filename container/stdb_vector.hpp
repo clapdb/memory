@@ -191,9 +191,6 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline, nodiscard]] inline auto move_range_without_overlap(T* __restrict__ dst, T* __restrict__ src,
                                                                          T* __restrict__ src_end) noexcept -> T* {
-    if (dst == src) [[unlikely]] {
-        assert(false);
-    }
     assert(dst != nullptr and src != nullptr);
     assert(dst != src);
     if constexpr (IsRelocatable<T>) {
@@ -218,6 +215,8 @@ template <typename T>
 [[gnu::always_inline]] inline void move_range_forward(T* __restrict__ dst, T* __restrict__ src,
                                                       T* __restrict__ src_end) {
     assert(src != nullptr and dst != nullptr);
+    // src == src_end means no data to move
+    // it will occur in erase the whole vector.
     assert(src_end >= src);
     assert(dst < src or dst >= src_end);
     if constexpr (IsRelocatable<T>) {
@@ -244,9 +243,10 @@ template <typename T>
 [[gnu::always_inline]] inline void move_range_backward(T* __restrict__ dst, T* __restrict__ src_start,
                                                        T* __restrict__ src_end) {
     assert(dst != nullptr and src_start != nullptr and src_end != nullptr);
-    if (dst == src_start or src_start == src_end) [[unlikely]] {
-        return;
-    }
+    assert(dst != src_start);
+    // if src_start == src_end, it means no overlap between src range and dst range.
+    // it will never occur.
+    assert(src_start != src_end);
     T* dst_end = dst + (src_end - src_start);
     assert(dst > src_start and dst <= src_end);
     if constexpr (IsRelocatable<T>) {
@@ -483,8 +483,12 @@ class core
         assert(dst != src);
         move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish);  // NOLINT
     }
+
     // move [src, end()) to dst start range from end to front
-    [[gnu::always_inline]] void move_backward(T* dst, T* src) { move_range_backward(dst, src, _finish - 1); }
+    [[gnu::always_inline]] void move_backward(T* dst, T* src) {
+        assert(dst != src);
+        move_range_backward(dst, src, _finish - 1);
+    }
 
     template <typename... Args>
     [[gnu::always_inline]] void construct_at(T* ptr, Args&&... args) {
