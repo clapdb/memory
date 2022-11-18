@@ -65,7 +65,7 @@ constexpr std::size_t kFastVectorDefaultCapacity = 64;
 constexpr std::size_t kFastVectorMaxSize = std::numeric_limits<std::ptrdiff_t>::max();
 
 template <typename Iterator>
-[[nodiscard, gnu::always_inline]] inline auto get_ptr_from_iter(Iterator& it) -> decltype(auto) { // NOLINT
+[[nodiscard, gnu::always_inline]] inline auto get_ptr_from_iter(Iterator& it) -> decltype(auto) {  // NOLINT
     if constexpr (std::is_pointer_v<Iterator>) {
         return it;
     } else {
@@ -111,7 +111,7 @@ template <typename T>
     assert(src < src_end);
     // if is trivial_copyable, use memcpy is faster.
     if constexpr (IsRelocatable<T>) {
-        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T)); // NOLINT
+        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
         return dst + (src_end - src);
     } else {
         for (; src != src_end; ++src, ++dst) {
@@ -197,7 +197,7 @@ template <typename T>
     assert(dst != nullptr and src != nullptr);
     assert(dst != src);
     if constexpr (IsRelocatable<T>) {
-        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T)); // NOLINT
+        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
         return dst + (src_end - src);
     } else if constexpr (std::is_move_constructible_v<T>) {
         for (; src != src_end; ++src, ++dst) {
@@ -223,7 +223,7 @@ template <typename T>
     assert(src != nullptr and dst != nullptr);
     assert(dst < src or dst >= src_end);
     if constexpr (IsRelocatable<T>) {
-        std::memmove(dst, src, (size_t)(src_end - src) * sizeof(T)); // NOLINT
+        std::memmove(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
     } else if constexpr (std::is_move_constructible_v<T>) {
         // do not support throwable move constructor.
         static_assert(std::is_nothrow_move_constructible_v<T>);
@@ -425,11 +425,11 @@ class core
     // data access section
     [[nodiscard, gnu::always_inline]] auto at(size_type index) const -> const_reference {
         assert(index < size());
-        return _start[index]; // NOLINT
+        return _start[index];  // NOLINT
     }
     [[nodiscard, gnu::always_inline]] auto at(size_type index) -> reference {
         assert(index < size());
-        return _start[index]; // NOLINT
+        return _start[index];  // NOLINT
     }
 
     [[gnu::always_inline]] void realloc_with_old_data(size_type new_cap) {
@@ -475,14 +475,14 @@ class core
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(const T* dst, const T* src) {
-        move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish); // NOLINT
+        move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish);  // NOLINT
     }
     // move [src, end()) to dst start range from end to front
     [[gnu::always_inline]] void move_backward(T* dst, T* src) { move_range_backward(dst, src, _finish - 1); }
 
     template <typename... Args>
     [[gnu::always_inline]] void construct_at(T* ptr, Args&&... args) {
-        new ((void*)ptr) T(std::forward<Args>(args)...); // NOLINT
+        new ((void*)ptr) T(std::forward<Args>(args)...);  // NOLINT
     }
 };
 
@@ -527,7 +527,7 @@ class stdb_vector : public core<T>
         int64_t size = last - first;
         // if size == 0, then do nothing.and just for caller convenience.
         assert(size >= 0);
-        this->realloc_drop_old_data((size_type)size); // NOLINT
+        this->realloc_drop_old_data((size_type)size);  // NOLINT
         copy_from_iterator(this->_start, first, last);
         this->_finish = this->_start + size;
     }
@@ -581,7 +581,7 @@ class stdb_vector : public core<T>
     constexpr void assign(Iterator first, Iterator last) {
         int64_t size_to_assign = last - first;
         assert(size_to_assign >= 0);
-        auto count = (size_type)size_to_assign; // NOLINT
+        auto count = (size_type)size_to_assign;  // NOLINT
         if (count > this->capacity()) {
             // if count is larger than current capacity, we need to reallocate memory
             this->realloc_drop_old_data(count);
@@ -723,7 +723,7 @@ class stdb_vector : public core<T>
         Iterator(Iterator&& rhs) noexcept : _ptr(std::exchange(rhs._ptr, nullptr)) {}
         Iterator(const Iterator&) noexcept = default;
         // assignment operators
-        auto operator=(Iterator&& rhs) noexcept -> Iterator&{
+        auto operator=(Iterator&& rhs) noexcept -> Iterator& {
             _ptr = std::exchange(rhs._ptr, nullptr);
             return *this;
         }

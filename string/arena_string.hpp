@@ -240,8 +240,9 @@ class arena_string_core
                 allocator_.deallocate(ml_.data_, (capacity() + 1) * sizeof(Char));  // NOLINT
             } else {
                 // detail: reverse the allocation calculating
-                RefCounted::decrementRefs(ml_.data_, (ml_.capacity() + 1) * sizeof(Char) + RefCounted::getDataOffset(),  // NOLINT
-                                          allocator_);  // NOLINT
+                RefCounted::decrementRefs(ml_.data_,
+                                          (ml_.capacity() + 1) * sizeof(Char) + RefCounted::getDataOffset(),  // NOLINT
+                                          allocator_);                                                        // NOLINT
             }
         }
     }
