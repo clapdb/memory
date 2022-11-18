@@ -448,6 +448,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.capacity(), 0);
         vec.push_back(1);
         // kFastVectorInitialCapacity = 64
+        // sizeof int == 4
         CHECK_EQ(vec.capacity(), 16);
         vec.push_back(1);
         CHECK_EQ(vec.capacity(), 16);
@@ -983,6 +984,12 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec[1], "inserted");
         CHECK_EQ(vec[2], "world");
         CHECK_EQ(vec[3], "!");
+        vec.insert(vec.end(), "inserted");
+        CHECK_EQ(vec.size(), 5);
+        CHECK_EQ(vec[4], "inserted");
+        vec.insert(vec.end() - 1, "end-1");
+        CHECK_EQ(vec.size(), 6);
+        CHECK_EQ(vec[4], "end-1");
     }
     SUBCASE("insert_with_multiple_elements") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
