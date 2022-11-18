@@ -1540,7 +1540,20 @@ TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::Revers
     it5 = it4 - 1;
     CHECK_EQ(it5.operator->(), buf + 2);
     CHECK_EQ(it5.operator*(), 3);
+}
 
+TEST_CASE("vector of char") {
+    stdb_vector<char> v(10, 'a');
+    CHECK_EQ(v.size(), 10);
+    CHECK_EQ(v.capacity(), 64);
+    CHECK_EQ(v[0], 'a');
+    CHECK_EQ(v[9], 'a');
+    v.push_back('b');
+    CHECK_EQ(v.size(), 11);
+    CHECK_EQ(v.capacity(), 64);
+    CHECK_EQ(v[0], 'a');
+    CHECK_EQ(v[9], 'a');
+    CHECK_EQ(v[10], 'b');
 }
 
 }  // namespace stdb::container
