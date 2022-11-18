@@ -30,7 +30,7 @@ namespace stdb::container {
 // NOLINTBEGIN
 
 TEST_CASE("Hilbert::stdb_vector::int") {
-    SUBCASE("zero init") {
+    SUBCASE("zero init (copy and move)") {
         stdb_vector<int> vec;
         CHECK_EQ(vec.empty(), true);
         CHECK_EQ(vec.size(), 0);
@@ -47,9 +47,13 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec < another_vec, false);
         CHECK_EQ(vec > another_vec, false);
         CHECK_EQ(vec <=> another_vec, std::strong_ordering::equal);
+        auto moved_vec = std::move(vec);
+        CHECK_EQ(moved_vec.empty(), true);
+        auto another_moved_vec(std::move(another_vec));
+        CHECK_EQ(another_moved_vec.empty(), true);
     }
 
-    SUBCASE("init with size") {
+    SUBCASE("init with size (copy and move)") {
         stdb_vector<int> vec(10);
         CHECK_EQ(vec.empty(), false);
         CHECK_EQ(vec.size(), 10);
@@ -60,7 +64,19 @@ TEST_CASE("Hilbert::stdb_vector::int") {
             CHECK_EQ(*it, 0);
         }
         CHECK_NE(vec.data(), nullptr);
-        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof(int));
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize/ sizeof(int));
+        stdb_vector<int> another_vec(3);
+        CHECK_EQ(vec != another_vec, true);
+        CHECK_EQ(another_vec.size(), 3);
+        another_vec = std::move(vec);
+        CHECK_EQ(another_vec.size(), 10);
+        for (auto i : another_vec) {
+            CHECK_EQ(i, 0);
+        }
+        auto* ptr = &another_vec;
+        // check move assignment to itself
+        another_vec = std::move(*ptr);
+        CHECK_EQ(another_vec.size(), 10);
     }
 
     SUBCASE("init with size and value") {
@@ -196,6 +212,11 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         auto vec_full_copy_2 = vec_full;
         CHECK_EQ(vec_full, vec_full_copy);
         CHECK_EQ(vec_full, vec_full_copy_2);
+        stdb_vector<int> small_vec = {1, 2, 3};
+        vec_full = small_vec;
+        CHECK_EQ(vec_full, small_vec);
+        vec_full = vec;
+        CHECK_EQ(vec_full, vec);
     }
 
     SUBCASE("move_vector") {

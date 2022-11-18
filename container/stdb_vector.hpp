@@ -362,7 +362,7 @@ class core
             return *this;
         }
         auto new_size = other.size();
-        if (other.size() > capacity()) {
+        if (new_size > capacity()) {
             // if other's size is larger than current capacity, we need to reallocate memory
             // destroy old data
             destroy_range(_start, _finish);
@@ -377,7 +377,12 @@ class core
             // destroy old data
             destroy_range(_start, _finish);
             // copy data
-            _finish = copy_range(_start, other._start, other._finish);
+            if (new_size > 0) [[likely]] {
+                _finish = copy_range(_start, other._start, other._finish);
+            } else {
+                _finish = _start;
+            }
+            // _edge is not changed
         }
         return *this;
     }
