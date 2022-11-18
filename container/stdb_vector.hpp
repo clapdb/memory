@@ -217,10 +217,8 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline]] inline void move_range_forward(T* __restrict__ dst, T* __restrict__ src,
                                                       T* __restrict__ src_end) {
-    if (dst == src) [[unlikely]] {
-        return;
-    }
     assert(src != nullptr and dst != nullptr);
+    assert(src_end >= src);
     assert(dst < src or dst >= src_end);
     if constexpr (IsRelocatable<T>) {
         std::memmove(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
@@ -291,7 +289,6 @@ auto realloc_with_move(T*& __restrict__ ptr, std::size_t old_size, std::size_t n
     if (new_ptr == nullptr) [[unlikely]] {
         throw std::bad_alloc();
     }
-    // and should undo the move_range_forward and free new_ptr.
     T* new_finish = move_range_without_overlap(new_ptr, ptr, ptr + std::min(old_size, new_size));
     std::free(ptr);
     ptr = new_ptr;
@@ -476,10 +473,14 @@ class core
     [[gnu::always_inline, nodiscard]] auto max_size() const -> size_type { return kFastVectorMaxSize / sizeof(T); }
 
     // move [src, end()) to dst start range from front to end
-    [[gnu::always_inline]] void move_forward(T* dst, T* src) { move_range_forward(dst, src, _finish); }
+    [[gnu::always_inline]] void move_forward(T* dst, T* src) {
+        assert(dst != src);
+        move_range_forward(dst, src, _finish);
+    }
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(const T* dst, const T* src) {
+        assert(dst != src);
         move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish);  // NOLINT
     }
     // move [src, end()) to dst start range from end to front
@@ -1405,6 +1406,7 @@ class stdb_vector : public core<T>
 
     template <Safety safety = Safety::Safe>
     constexpr auto insert(Iterator pos, size_type count, const_reference value) -> Iterator {
+        assert(count > 0);
         assert(pos >= begin() && pos <= end());
         auto size = this->size();
         T* pos_ptr = get_ptr_from_iter(pos);
