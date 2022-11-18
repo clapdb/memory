@@ -129,8 +129,8 @@ TEST_CASE("Hilbert::stdb_vector::int") {
     }
 
     SUBCASE("element access") {
-        const std::vector<int> input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
-        stdb_vector<int> vec(input.begin(), input.end());
+        const stdb::container::stdb_vector<int> input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        const stdb_vector<int>& vec = input;
         CHECK_EQ(*input.data(), 1);
         CHECK_EQ(*vec.data(), 1);
         CHECK_EQ(input.front(), 1);
@@ -1425,6 +1425,7 @@ static_assert(!IsZeroInitable<stdb::memory::string>, "stdb::memory::string shoul
 
 TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb_vector<int>::ConstIterator) {
     T it;
+    it.~T();
     T it2 = T();
     CHECK_EQ(it, it2);
     CHECK_EQ(it == it2, true);
@@ -1492,6 +1493,7 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
 
 TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator, stdb_vector<int>::ConstReverseIterator) {
     T it;
+    it.~T();
     T it2 = T();
     CHECK_EQ(it, it2);
     CHECK_EQ(it == it2, true);
