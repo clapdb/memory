@@ -23,6 +23,7 @@
 #include <doctest/doctest.h>
 
 #include <iostream>
+#include <span>
 
 #include "string/string.hpp"
 
@@ -64,7 +65,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
             CHECK_EQ(*it, 0);
         }
         CHECK_NE(vec.data(), nullptr);
-        CHECK_EQ(vec.max_size(), kFastVectorMaxSize/ sizeof(int));
+        CHECK_EQ(vec.max_size(), kFastVectorMaxSize / sizeof(int));
         stdb_vector<int> another_vec(3);
         CHECK_EQ(vec != another_vec, true);
         CHECK_EQ(another_vec.size(), 3);
@@ -129,7 +130,8 @@ TEST_CASE("Hilbert::stdb_vector::int") {
     }
 
     SUBCASE("element access") {
-        const stdb::container::stdb_vector<int> input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        const stdb::container::stdb_vector<int> input = {1,  2,  3,  4,  5,  6,  7,  8,  9,  10,
+                                                         11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
         const stdb_vector<int>& vec = input;
         CHECK_EQ(*input.data(), 1);
         CHECK_EQ(*vec.data(), 1);
@@ -137,7 +139,6 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.front(), 1);
         CHECK_EQ(input.back(), 20);
         CHECK_EQ(vec.back(), 20);
-
     }
 
     SUBCASE("assign vector with single value") {
@@ -235,7 +236,6 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec_full, small_vec);
         vec_full = vec;
         CHECK_EQ(vec_full, vec);
-
     }
 
     SUBCASE("move_vector") {
@@ -482,8 +482,6 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(huge.capacity(), 8 * 4096);
         huge.push_back(1);
         CHECK_EQ(huge.capacity(), 16 * 4096);
-
-
     }
 
     SUBCASE("shrink_to_fit") {
@@ -1077,7 +1075,6 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         vec.insert(vec.end() - 1, str);
         CHECK_EQ(vec.size(), 7);
         CHECK_EQ(vec[5], "inserted");
-
     }
     SUBCASE("insert_with_multiple_elements") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
@@ -1221,6 +1218,15 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec.back(), "end");
     }
+
+    SUBCASE("get_span") {
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        std::span<memory::string> span(vec.begin(), vec.size());
+        CHECK_EQ(span.size(), 3);
+        CHECK_EQ(span[0], "hello");
+        CHECK_EQ(span[1], "world");
+        CHECK_EQ(span[2], "!");
+    }
 }
 
 class non_movable
@@ -1361,7 +1367,6 @@ TEST_CASE("Hilbert::stdb_vector::fill") {
     for (int i = 0; i < 210; ++i) {
         CHECK_EQ(vec[static_cast<size_t>(i)], i % 70);
     }
-
 }
 
 TEST_CASE("Hilbert::stdb_vector::get_writebuffer") {
@@ -1378,7 +1383,6 @@ TEST_CASE("Hilbert::stdb_vector::get_writebuffer") {
     auto buffer2 = vec.get_writebuffer(2000);
     CHECK_EQ(buffer2.size(), 2000);
     CHECK_EQ(vec.size(), 2140);
-
 }
 
 struct relocate
@@ -1442,6 +1446,9 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
     it = T(buf);
     CHECK_EQ(it.operator->(), buf);
     CHECK_EQ(it.operator*(), 1);
+    CHECK_EQ(it[0], 1);
+    auto it33 = 1 + it;
+    CHECK_EQ(it33.operator->(), buf + 1);
     it2 = it;
     CHECK_EQ(it2.operator->(), buf);
     CHECK_EQ(it2.operator*(), 1);
@@ -1494,23 +1501,13 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
     CHECK_EQ(it6, it7);
 }
 
-TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator, stdb_vector<int>::ConstReverseIterator) {
-    T it;
-    it.~T();
-    T it2 = T();
-    CHECK_EQ(it, it2);
-    CHECK_EQ(it == it2, true);
-    CHECK_EQ(it != it2, false);
-    CHECK_EQ(it < it2, false);
-    CHECK_EQ(it <= it2, true);
-    CHECK_EQ(it > it2, false);
-    CHECK_EQ(it >= it2, true);
-    CHECK_EQ(it.operator->(), nullptr);
+TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator,
+                   stdb_vector<int>::ConstReverseIterator) {
     int buf[3] = {1, 2, 3};
-    it = T(buf + 2);
+    auto it = T{typename T::iterator_type(buf + 3)};
     CHECK_EQ(it.operator->(), buf + 2);
     CHECK_EQ(it.operator*(), 3);
-    it2 = it;
+    auto it2 = it;
     CHECK_EQ(it2.operator->(), buf + 2);
     CHECK_EQ(it2.operator*(), 3);
     ++it2;

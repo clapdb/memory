@@ -32,10 +32,10 @@ auto random(Integral1 low, Integral2 up) -> Integral2 {
 }
 
 template <>
-auto random<unsigned char, unsigned char>(unsigned char low, unsigned char high) -> unsigned char {
+auto random<>(unsigned char low, unsigned char up) -> unsigned char {
     auto int_low = static_cast<uint32_t>(low);
-    auto int_high = static_cast<uint32_t>(high);
-    return static_cast<unsigned char>(random(int_low, int_high));
+    auto int_up = static_cast<uint32_t>(up);
+    return static_cast<unsigned char>(random(int_low, int_up));
 }
 
 template <class String>
