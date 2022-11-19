@@ -708,20 +708,19 @@ class stdb_vector : public core<T>
      * IteratorT section
      */
     // forward iterator
-    template<bool Const>
+    template <bool Const>
     struct IteratorT
     {
         using iterator_category = std::contiguous_iterator_tag;
         using deference_type = std::ptrdiff_t;
         using value_type = std::conditional_t<Const, const T, T>;
-        using pointer =  std::conditional_t<Const, const T*, T*>;
-        using reference =  std::conditional_t<Const, const T&, T&>;
+        using pointer = std::conditional_t<Const, const T*, T*>;
+        using reference = std::conditional_t<Const, const T&, T&>;
 
        private:
         pointer _ptr;
 
        public:
-
         IteratorT() : _ptr(nullptr) {}
         ~IteratorT() = default;
         explicit IteratorT(pointer ptr) : _ptr(ptr) {}
@@ -772,25 +771,26 @@ class stdb_vector : public core<T>
 
         [[nodiscard, gnu::always_inline]] constexpr inline auto operator->() const noexcept -> pointer { return _ptr; }
 
-        [[nodiscard, gnu::always_inline]] constexpr inline auto operator[](std::size_t pos) const noexcept -> reference {
+        [[nodiscard, gnu::always_inline]] constexpr inline auto operator[](std::size_t pos) const noexcept
+          -> reference {
             return *(_ptr + pos);
         }
 
         friend auto operator<=>(const IteratorT& lhs, const IteratorT& rhs) noexcept -> std::strong_ordering = default;
 
-        friend auto operator - (const IteratorT& lhs, const IteratorT& rhs) noexcept -> deference_type {
+        friend auto operator-(const IteratorT& lhs, const IteratorT& rhs) noexcept -> deference_type {
             return lhs._ptr - rhs._ptr;
         }
 
-        friend auto operator + (const IteratorT& lhs, deference_type offset) noexcept -> IteratorT {
+        friend auto operator+(const IteratorT& lhs, deference_type offset) noexcept -> IteratorT {
             return IteratorT{lhs._ptr + offset};
         }
 
-        friend auto operator - (const IteratorT& lhs, deference_type offset) noexcept -> IteratorT {
+        friend auto operator-(const IteratorT& lhs, deference_type offset) noexcept -> IteratorT {
             return IteratorT{lhs._ptr - offset};
         }
 
-        friend auto operator + (deference_type offset, const IteratorT& rhs) noexcept -> IteratorT {
+        friend auto operator+(deference_type offset, const IteratorT& rhs) noexcept -> IteratorT {
             return IteratorT{rhs._ptr + offset};
         }
 
@@ -799,7 +799,6 @@ class stdb_vector : public core<T>
     using ConstIterator = IteratorT<true>;
     using ReverseIterator = std::reverse_iterator<Iterator>;
     using ConstReverseIterator = std::reverse_iterator<ConstIterator>;
-
 
     [[nodiscard, gnu::always_inline]] inline auto begin() noexcept -> Iterator { return Iterator(this->_start); }
 
