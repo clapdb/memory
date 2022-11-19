@@ -964,6 +964,139 @@ class stdb_vector : public core<T>
         this->_finish -= (last_ptr - first_ptr);
     }
 
+    auto erase(const value_type & value) -> size_type {
+        if constexpr (IsRelocatable<T>) {
+            size_t erased = 0;
+            for (auto* src = this->_start, *dst = this->_start; src != this->_finish;) {
+                // if the *src is not equal to the value we want to erase and dst == src, move forward both
+                if (*src != value) {
+                    if (dst != src) {
+                        *dst = *src;
+                    }
+                    ++dst;
+                }
+                // if the *src is equal to the value we want to erase, move forward src only
+                else {
+                    ++erased;
+                }
+                ++src;
+            }
+            this->_finish -= erased;
+            return erased;
+        } else if constexpr (std::is_move_constructible_v<T>) {
+            size_t erased = 0;
+            T* dst = this->_start;
+            for (T* src = this->_start; src != this->_finish;) {
+                // if the *src is not equal to the value we want to erase and dst == src, move forward both
+                if (*src != value) {
+                    if (dst != src) {
+                        new (dst) T(std::move(*src));
+                    }
+                    ++dst;
+                }
+                // if the *src is equal to the value we want to erase, move forward src only
+                else {
+                    ++erased;
+                    src->~T();
+                }
+                ++src;
+            }
+            this->_finish -= erased;
+            return erased;
+        } else {
+            static_assert(std::is_copy_constructible_v<T>, "Cannot erase from a vector of non-copyable types");
+            size_t erased = 0;
+            T* dst = this->_start;
+            for (T* src = this->_start; src != this->_finish;) {
+                // if the *src is not equal to the value we want to erase and dst == src, move forward both
+                if (*src != value) {
+                    if (dst != src) {
+                        new (dst) T(*src);
+                        src->~T();
+                    }
+                    // do nothing, just move forward dst
+                    ++dst;
+                }
+                // if the *src is equal to the value we want to erase, move forward src only
+                else {
+                    ++erased;
+                    src->~T();
+                }
+                ++src;
+            }
+            this->_finish -= erased;
+            return erased;
+        }
+    }
+
+    /*
+     * just like erase, but use a Pred function to test if the element should be erased
+     */
+    template<class Pred> requires std::predicate<Pred, const T&>
+    auto erase_if(Pred pred) -> size_type {
+        if constexpr (IsRelocatable<T>) {
+            size_t erased = 0;
+            for (auto* src = this->_start, *dst = this->_start; src != this->_finish;) {
+                // if the *src is not equal to the value we want to erase and dst == src, move forward both
+                if (!pred(*src)) {
+                    if (dst != src) {
+                        *dst = *src;
+                    }
+                    ++dst;
+                }
+                // if the *src is equal to the value we want to erase, move forward src only
+                else {
+                    ++erased;
+                }
+                ++src;
+            }
+            this->_finish -= erased;
+            return erased;
+        } else if constexpr (std::is_move_constructible_v<T>) {
+            size_t erased = 0;
+            T* dst = this->_start;
+            for (T* src = this->_start; src != this->_finish;) {
+                // if the *src is not equal to the value we want to erase and dst == src, move forward both
+                if (!pred(*src)) {
+                    if (dst != src) {
+                        new (dst) T(std::move(*src));
+                    }
+                    ++dst;
+                }
+                // if the *src is equal to the value we want to erase, move forward src only
+                else {
+                    src->~T();
+                    ++erased;
+                }
+                ++src;
+            }
+            this->_finish -= erased;
+            return erased;
+        } else {
+            static_assert(std::is_copy_constructible_v<T>, "Cannot erase from a vector of non-copyable types");
+            size_t erased = 0;
+            T* dst = this->_start;
+            for (T* src = this->_start; src != this->_finish;) {
+                // if the *src is not equal to the value we want to erase and dst == src, move forward both
+                if (!pred(*src)) {
+                    if (dst != src) {
+                        new (dst) T(*src);
+                        src->~T();
+                    }
+                    ++dst;
+                }
+                // if the *src is equal to the value we want to erase, move forward src only
+                else {
+                    ++erased;
+                    src->~T();
+                }
+                ++src;
+            }
+            this->_finish -= erased;
+            return erased;
+        }
+    }
+
     [[gnu::always_inline]] inline void pop_back() { destroy_ptr(this->_finish-- - 1); }
 
     template <Safety safety = Safety::Safe>
@@ -1235,3 +1368,18 @@ auto operator<=>(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> std::s
 }
 
 }  // namespace stdb::container
+
+namespace std {
+
+template <class T, class U>
+constexpr auto erase(stdb::container::stdb_vector<T>& c, const U& value) -> std::size_t {
+    return c.erase(value);
+}
+
+template <class T, class Predicate>
+constexpr auto erase_if(stdb::container::stdb_vector<T>& c, Predicate pred) -> std::size_t {
+    return c.erase_if(pred);
+}
+
+
+} // namespace std

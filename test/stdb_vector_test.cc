@@ -340,7 +340,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_GE(vec.capacity(), 100);
     }
 
-    SUBCASE("erase") {
+    SUBCASE("erase_by_pos") {
         stdb_vector<int> vec;
         vec.assign({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
         CHECK_EQ(vec.size(), 20);
@@ -826,6 +826,24 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec4 < vec3, false);
         CHECK_EQ(vec4 <= vec3, false);
     }
+
+    SUBCASE("erase_by_value") {
+        stdb_vector<int> vec = {1, 2, 5, 4, 5, 6, 7, 5, 9, 10};
+        auto num = std::erase(vec, 5);
+        CHECK_EQ(num, 3);
+        CHECK_EQ(vec.size(), 7);
+        stdb_vector<int> result_vec = {1, 2, 4, 6, 7, 9, 10};
+        CHECK_EQ(vec == result_vec, true);
+    }
+
+    SUBCASE("erase_if") {
+        stdb_vector<int> vec = {1, 2, 5, 4, 5, 6, 7, 5, 9, 10};
+        auto num = std::erase_if(vec, [](int i) { return i % 2 == 0; });
+        CHECK_EQ(num, 4);
+        CHECK_EQ(vec.size(), 6);
+        stdb_vector<int> result_vec = {1, 5, 5, 7, 5, 9};
+        CHECK_EQ(vec == result_vec, true);
+    }
 }
 
 TEST_CASE("Hilbert::stdb_vector::memory::string") {
@@ -1227,6 +1245,57 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(span[1], "world");
         CHECK_EQ(span[2], "!");
     }
+    SUBCASE("erase_by_value") {
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        auto num = vec.erase("world");
+        CHECK_EQ(num, 1);
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "!");
+    }
+    SUBCASE("erase_by_value_not_found") {
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        auto num = vec.erase("not found");
+        CHECK_EQ(num, 0);
+        CHECK_EQ(vec.size(), 3);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "world");
+        CHECK_EQ(vec[2], "!");
+    }
+    SUBCASE("erase_by_value_get_more_than_1") {
+        stdb_vector<memory::string> vec = {"hello", "!", "world", "hello"};
+        auto num = vec.erase("hello");
+        CHECK_EQ(num, 2);
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec[0], "!");
+        CHECK_EQ(vec[1], "world");
+    }
+    SUBCASE("erase_if") {
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        auto num = vec.erase_if([](const memory::string& str) { return str == "world"; });
+        CHECK_EQ(num, 1);
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "!");
+    }
+    SUBCASE("erase_if_not_found") {
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        auto num = vec.erase_if([](const memory::string& str) { return str == "not found"; });
+        CHECK_EQ(num, 0);
+        CHECK_EQ(vec.size(), 3);
+        CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "world");
+        CHECK_EQ(vec[2], "!");
+    }
+    SUBCASE("erase_if_get_more_than_1") {
+        stdb_vector<memory::string> vec = {"hello", "!", "world", "hello"};
+        auto num = vec.erase_if([](const memory::string& str) { return str == "hello"; });
+        CHECK_EQ(num, 2);
+        CHECK_EQ(vec.size(), 2);
+        CHECK_EQ(vec[0], "!");
+        CHECK_EQ(vec[1], "world");
+    }
+
 }
 
 class non_movable
@@ -1244,6 +1313,7 @@ class non_movable
     non_movable& operator=(const non_movable&) = delete;
     non_movable& operator=(non_movable&&) = delete;
     auto operator==(const int rhs) const -> bool { return *ptr == rhs; }
+    auto operator==(const non_movable& rhs) const -> bool { return *ptr == *rhs.ptr; }
     void print() const { std::cout << *ptr << std::endl; }
     ~non_movable() {
         std::cout << "non_movable destructor with : " << *ptr << std::endl;
@@ -1305,6 +1375,29 @@ TEST_CASE("Hilbert::stdb_vector::non_movable") {
         CHECK_EQ(vec[static_cast<std::size_t>(i)] == i - 1, true);
     }
 }
+
+TEST_CASE("Hilbert::non_movable.erase by value") {
+    stdb_vector<non_movable> vector = {1, 3, 3, 4, 5, 6, 7, 8, 9, 3};
+    non_movable nm(5);
+    auto num = vector.erase(nm);
+    CHECK_EQ(num, 1);
+    CHECK_EQ(vector.size(), 9);
+    non_movable nm3(3);
+    num = vector.erase(nm3);
+    CHECK_EQ(num, 3);
+    CHECK_EQ(vector.size(), 6);
+    stdb_vector<non_movable> result = {1, 4, 6, 7, 8, 9};
+    CHECK_EQ(vector, result);
+}
+TEST_CASE("Hilbert::non_movable.erase_if") {
+    stdb_vector<non_movable> vector = {1, 3, 3, 4, 5, 6, 7, 8, 9, 3};
+    auto num = vector.erase_if([](const non_movable& nm) { return nm == 3; });
+    CHECK_EQ(num, 3);
+    CHECK_EQ(vector.size(), 7);
+    stdb_vector<non_movable> result = {1, 4, 5, 6, 7, 8, 9};
+    CHECK_EQ(vector, result);
+}
+
 
 TEST_CASE("Hilbert::stdb_vector::non_copyable") {
     stdb_vector<non_copyable> vec;
@@ -1581,6 +1674,5 @@ namespace container {
 static_assert(IsRelocatable<normal_class_with_traits>, "normal_class_with_traits should be relocatable");
 static_assert(IsZeroInitable<normal_class_with_traits>, "normal_class_with_traits should be zero copyable");
 
-// NOLINTEND
 }  // namespace container
 }  // namespace stdb
