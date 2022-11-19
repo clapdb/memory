@@ -496,6 +496,7 @@ class core
 template <typename T>
 class stdb_vector : public core<T>
 {
+   public:
     using size_type = std::size_t;
     using value_type = T;
     using deference_type = std::ptrdiff_t;
@@ -505,7 +506,7 @@ class stdb_vector : public core<T>
     using const_reference = const T&;
     using rvalue_reference = T&&;
 
-   public:
+
     /*
      * default constructor
      * with default capacity == kFastVectorInitCapacity
