@@ -25,6 +25,7 @@
 #include <iostream>
 
 #include "string/string.hpp"
+#include <span>
 
 namespace stdb::container {
 // NOLINTBEGIN
@@ -1221,6 +1222,15 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec.back(), "end");
     }
+
+    SUBCASE("get_span") {
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        std::span<memory::string> span(vec.begin(), vec.size());
+        CHECK_EQ(span.size(), 3);
+        CHECK_EQ(span[0], "hello");
+        CHECK_EQ(span[1], "world");
+        CHECK_EQ(span[2], "!");
+    }
 }
 
 class non_movable
@@ -1495,22 +1505,11 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
 }
 
 TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator, stdb_vector<int>::ConstReverseIterator) {
-    T it;
-    it.~T();
-    T it2 = T();
-    CHECK_EQ(it, it2);
-    CHECK_EQ(it == it2, true);
-    CHECK_EQ(it != it2, false);
-    CHECK_EQ(it < it2, false);
-    CHECK_EQ(it <= it2, true);
-    CHECK_EQ(it > it2, false);
-    CHECK_EQ(it >= it2, true);
-    CHECK_EQ(it.operator->(), nullptr);
     int buf[3] = {1, 2, 3};
-    it = T(buf + 2);
+    auto it = T{typename T::iterator_type(buf + 3)};
     CHECK_EQ(it.operator->(), buf + 2);
     CHECK_EQ(it.operator*(), 3);
-    it2 = it;
+    auto it2 = it;
     CHECK_EQ(it2.operator->(), buf + 2);
     CHECK_EQ(it2.operator*(), 3);
     ++it2;
