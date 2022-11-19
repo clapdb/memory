@@ -1452,6 +1452,9 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
     it = T(buf);
     CHECK_EQ(it.operator->(), buf);
     CHECK_EQ(it.operator*(), 1);
+    CHECK_EQ(it[0], 1);
+    auto it33 = 1 + it;
+    CHECK_EQ(it33.operator->(), buf + 1);
     it2 = it;
     CHECK_EQ(it2.operator->(), buf);
     CHECK_EQ(it2.operator*(), 1);
