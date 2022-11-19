@@ -887,7 +887,7 @@ class stdb_vector : public core<T>
             }
         } else {
             assert(not this->full());
-            copy_cref(this->_finish++, std::forward<const value_type&>(value));
+            copy_cref(this->_finish++, std::forward<const_reference&>(value));
         }
     }
 
@@ -902,7 +902,7 @@ class stdb_vector : public core<T>
             }
         } else {
             assert(not this->full());
-            copy_value(this->_finish++, std::forward<value_type&&>(value));
+            copy_value(this->_finish++, std::forward<rvalue_reference>(value));
         }
     }
 
@@ -910,14 +910,14 @@ class stdb_vector : public core<T>
     auto emplace_back(Args&&... args) -> Iterator {
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
-                this->construct_at(this->_finish++, args...);
+                this->construct_at(this->_finish++, std::forward<Args...>(args...));
             } else {
                 this->realloc_and_emplace_back(compute_next_capacity(), std::forward<Args...>(args...));
             }
             return Iterator{this->_finish - 1};
         } else {
             assert(not this->full());
-            this->construct_at(this->_finish++, args...);
+            this->construct_at(this->_finish++, std::forward<Args...>(args...));
             return Iterator{this->_finish - 1};
         }
     }
@@ -1032,7 +1032,7 @@ class stdb_vector : public core<T>
     /*
      * just like erase, but use a Pred function to test if the element should be erased
      */
-    template<class Pred> requires std::predicate<Pred, const T&>
+    template<class Pred> requires std::predicate<Pred, const T&> || std::predicate<Pred, T&> || std::predicate<Pred, T>
     auto erase_if(Pred pred) -> size_type {
         if constexpr (IsRelocatable<T>) {
             size_t erased = 0;

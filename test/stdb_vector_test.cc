@@ -1421,6 +1421,11 @@ TEST_CASE("Hilbert::stdb_vector::non_copyable") {
     for (int i = 1; i < 11; ++i) {
         CHECK_EQ(vec[static_cast<size_t>(i)] == i - 1, true);
     }
+    vec.reserve(20);
+    non_copyable nc(1000);
+    vec.emplace_back(std::move(nc));
+    non_copyable nc2(1000);
+    vec.emplace_back<Safety::Unsafe>(std::move(nc2));
 }
 
 TEST_CASE("Hilbert::stdb_vector::std_vector_push") {
