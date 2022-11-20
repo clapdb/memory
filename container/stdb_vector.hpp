@@ -965,6 +965,7 @@ class stdb_vector : public core<T>
         this->_finish -= (last_ptr - first_ptr);
     }
 
+    // NOLINENEXTLINE
     auto erase(const value_type & value) -> size_type {
         if constexpr (IsRelocatable<T>) {
             size_t erased = 0;
@@ -1373,13 +1374,13 @@ auto operator<=>(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> std::s
 namespace std {
 
 template <class T, class U>
-constexpr auto erase(stdb::container::stdb_vector<T>& c, const U& value) -> std::size_t {
-    return c.erase(value);
+constexpr auto erase(stdb::container::stdb_vector<T>& vec, const U& value) -> std::size_t {
+    return vec.erase(value);
 }
 
 template <class T, class Predicate>
-constexpr auto erase_if(stdb::container::stdb_vector<T>& c, Predicate pred) -> std::size_t {
-    return c.erase_if(pred);
+constexpr auto erase_if(stdb::container::stdb_vector<T>& vec, Predicate pred) -> std::size_t {
+    return vec.erase_if(pred);
 }
 
 } // namespace std
@@ -1387,8 +1388,8 @@ constexpr auto erase_if(stdb::container::stdb_vector<T>& c, Predicate pred) -> s
 namespace fmt {
 template <typename T> struct fmt::formatter<stdb::container::stdb_vector<T>> : formatter<T> {
     template <typename FormatContext>
-    auto format (const stdb::container::stdb_vector<T>& v, FormatContext& ctx) -> decltype(ctx.out()) {
-        return format_to(ctx.out(), "[{}]", fmt::join(v, ", "));
+    auto format (const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) -> decltype(ctx.out()) {
+        return format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));
     }
 };
 }  // namespace fmt
