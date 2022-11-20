@@ -910,14 +910,14 @@ class stdb_vector : public core<T>
     auto emplace_back(Args&&... args) -> Iterator {
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
-                this->construct_at(this->_finish++, std::forward<Args...>(args...));
+                this->construct_at(this->_finish++, std::forward<Args>(args)...);
             } else {
-                this->realloc_and_emplace_back(compute_next_capacity(), std::forward<Args...>(args...));
+                this->realloc_and_emplace_back(compute_next_capacity(), std::forward<Args>(args)...);
             }
             return Iterator{this->_finish - 1};
         } else {
             assert(not this->full());
-            this->construct_at(this->_finish++, std::forward<Args...>(args...));
+            this->construct_at(this->_finish++, std::forward<Args>(args)...);
             return Iterator{this->_finish - 1};
         }
     }
