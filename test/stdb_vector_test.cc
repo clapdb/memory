@@ -1702,3 +1702,5 @@ static_assert(IsZeroInitable<normal_class_with_traits>, "normal_class_with_trait
 
 }  // namespace container
 }  // namespace stdb
+
+// NOLINTEND
