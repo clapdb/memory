@@ -844,6 +844,11 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         stdb_vector<int> result_vec = {1, 5, 5, 7, 5, 9};
         CHECK_EQ(vec == result_vec, true);
     }
+    SUBCASE("fmt") {
+        stdb_vector<int> vec = {1, 2, 3, 4, 5};
+        std::string str = fmt::format("{}", vec);
+        CHECK_EQ(str, "[1, 2, 3, 4, 5]");
+    }
 }
 
 TEST_CASE("Hilbert::stdb_vector::memory::string") {
@@ -1295,6 +1300,10 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec[0], "!");
         CHECK_EQ(vec[1], "world");
     }
+    SUBCASE("format") {
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        fmt::print("==={}===", vec);
+    }
 
 }
 
@@ -1325,10 +1334,14 @@ class non_copyable
 {
    private:
     int* ptr;
+    int size;
 
    public:
-    non_copyable() : ptr(new int(0)) { std::cout << "non_copyable constructor default" << std::endl; }
-    non_copyable(int i) : ptr(new int(i)) { std::cout << "non_copyable constructor with : " << i << std::endl; }
+    non_copyable() : ptr(new int(0)), size(0) { std::cout << "non_copyable constructor default" << std::endl; }
+    non_copyable(int i) : ptr(new int(i)), size(0) { std::cout << "non_copyable constructor with : " << i << std::endl; }
+    non_copyable(int v, int s) : ptr(new int(v)), size(s) {
+        std::cout << "non_copyable constructor with : " << v << " and size : " << s << std::endl;
+    }
     non_copyable(const non_copyable&) = delete;
     non_copyable(non_copyable&& rhs) noexcept : ptr(rhs.ptr) {
         std::cout << "move non_copyable with : " << *ptr << std::endl;
@@ -1401,25 +1414,33 @@ TEST_CASE("Hilbert::non_movable.erase_if") {
 
 TEST_CASE("Hilbert::stdb_vector::non_copyable") {
     stdb_vector<non_copyable> vec;
-    vec.reserve(10);
+    vec.reserve(20);
     for (int i = 0; i < 10; i++) {
         non_copyable nc(i);
         vec.push_back(std::move(nc));
     }
+    for (int i = 0; i < 10; i++) {
+        vec.emplace_back(i, 10);
+    }
+
+    vec.emplace(vec.begin(), 10, 1000);
+
     vec.insert(vec.begin(), non_copyable(1000));
-    CHECK_EQ(vec.size(), 11);
+    CHECK_EQ(vec.size(), 22);
 
     vec.insert(vec.end(), non_copyable(1000));
-    CHECK_EQ(vec.size(), 12);
-    /*
+    CHECK_EQ(vec.size(), 23);
     for (auto& non : vec) {
         non.print();
     }
-    */
     CHECK_EQ(vec[0] == 1000, true);
-    CHECK_EQ(vec[11] == 1000, true);
-    for (int i = 1; i < 11; ++i) {
-        CHECK_EQ(vec[static_cast<size_t>(i)] == i - 1, true);
+    CHECK_EQ(vec[1] == 10, true);
+    CHECK_EQ(vec[22] == 1000, true);
+    for (int i = 2; i < 12; ++i) {
+        CHECK_EQ(vec[static_cast<size_t>(i)] == i - 2, true);
+    }
+    for (int i = 12; i < 22; ++i) {
+        CHECK_EQ(vec[static_cast<size_t>(i)] == i - 12, true);
     }
     vec.reserve(20);
     non_copyable nc(1000);
@@ -1681,3 +1702,5 @@ static_assert(IsZeroInitable<normal_class_with_traits>, "normal_class_with_trait
 
 }  // namespace container
 }  // namespace stdb
+
+// NOLINTEND

@@ -31,6 +31,7 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
+#include <fmt/format.h>
 
 namespace stdb {
 
@@ -910,14 +911,14 @@ class stdb_vector : public core<T>
     auto emplace_back(Args&&... args) -> Iterator {
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
-                this->construct_at(this->_finish++, std::forward<Args...>(args...));
+                this->construct_at(this->_finish++, std::forward<Args>(args)...);
             } else {
-                this->realloc_and_emplace_back(compute_next_capacity(), std::forward<Args...>(args...));
+                this->realloc_and_emplace_back(compute_next_capacity(), std::forward<Args>(args)...);
             }
             return Iterator{this->_finish - 1};
         } else {
             assert(not this->full());
-            this->construct_at(this->_finish++, std::forward<Args...>(args...));
+            this->construct_at(this->_finish++, std::forward<Args>(args)...);
             return Iterator{this->_finish - 1};
         }
     }
@@ -964,7 +965,7 @@ class stdb_vector : public core<T>
         this->_finish -= (last_ptr - first_ptr);
     }
 
-    auto erase(const value_type & value) -> size_type {
+    auto erase(const value_type & value) -> size_type { // NOLINT
         if constexpr (IsRelocatable<T>) {
             size_t erased = 0;
             for (auto* src = this->_start, *dst = this->_start; src != this->_finish;) {
@@ -1033,7 +1034,7 @@ class stdb_vector : public core<T>
      * just like erase, but use a Pred function to test if the element should be erased
      */
     template<class Pred> requires std::predicate<Pred, const T&> || std::predicate<Pred, T&> || std::predicate<Pred, T>
-    auto erase_if(Pred pred) -> size_type {
+    auto erase_if(Pred pred) -> size_type { // NOLINT
         if constexpr (IsRelocatable<T>) {
             size_t erased = 0;
             for (auto* src = this->_start, *dst = this->_start; src != this->_finish;) {
@@ -1372,14 +1373,23 @@ auto operator<=>(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> std::s
 namespace std {
 
 template <class T, class U>
-constexpr auto erase(stdb::container::stdb_vector<T>& c, const U& value) -> std::size_t {
-    return c.erase(value);
+constexpr auto erase(stdb::container::stdb_vector<T>& vec, const U& value) -> std::size_t {
+    return vec.erase(value);
 }
 
 template <class T, class Predicate>
-constexpr auto erase_if(stdb::container::stdb_vector<T>& c, Predicate pred) -> std::size_t {
-    return c.erase_if(pred);
+constexpr auto erase_if(stdb::container::stdb_vector<T>& vec, Predicate pred) -> std::size_t {
+    return vec.erase_if(pred);
 }
 
-
 } // namespace std
+
+namespace fmt {
+template <typename T> struct fmt::formatter<stdb::container::stdb_vector<T>> : formatter<T> {
+    template <typename FormatContext>
+    auto format (const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) -> decltype(ctx.out()) {
+        return format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));
+    }
+};
+}  // namespace fmt
+
