@@ -31,6 +31,7 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
+#include <fmt/format.h>
 
 namespace stdb {
 
@@ -1381,5 +1382,14 @@ constexpr auto erase_if(stdb::container::stdb_vector<T>& c, Predicate pred) -> s
     return c.erase_if(pred);
 }
 
-
 } // namespace std
+
+namespace fmt {
+template <typename T> struct fmt::formatter<stdb::container::stdb_vector<T>> : formatter<T> {
+    template <typename FormatContext>
+    auto format (const stdb::container::stdb_vector<T>& v, FormatContext& ctx) -> decltype(ctx.out()) {
+        return format_to(ctx.out(), "[{}]", fmt::join(v, ", "));
+    }
+};
+}  // namespace fmt
+

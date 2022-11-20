@@ -844,6 +844,11 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         stdb_vector<int> result_vec = {1, 5, 5, 7, 5, 9};
         CHECK_EQ(vec == result_vec, true);
     }
+    SUBCASE("fmt") {
+        stdb_vector<int> vec = {1, 2, 3, 4, 5};
+        std::string str = fmt::format("{}", vec);
+        CHECK_EQ(str, "[1, 2, 3, 4, 5]");
+    }
 }
 
 TEST_CASE("Hilbert::stdb_vector::memory::string") {
@@ -1294,6 +1299,10 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec.size(), 2);
         CHECK_EQ(vec[0], "!");
         CHECK_EQ(vec[1], "world");
+    }
+    SUBCASE("format") {
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        fmt::print("==={}===", vec);
     }
 
 }
