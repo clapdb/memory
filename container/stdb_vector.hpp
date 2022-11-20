@@ -965,8 +965,7 @@ class stdb_vector : public core<T>
         this->_finish -= (last_ptr - first_ptr);
     }
 
-    // NOLINENEXTLINE
-    auto erase(const value_type & value) -> size_type {
+    auto erase(const value_type & value) -> size_type { // NOLINT
         if constexpr (IsRelocatable<T>) {
             size_t erased = 0;
             for (auto* src = this->_start, *dst = this->_start; src != this->_finish;) {
@@ -1035,7 +1034,7 @@ class stdb_vector : public core<T>
      * just like erase, but use a Pred function to test if the element should be erased
      */
     template<class Pred> requires std::predicate<Pred, const T&> || std::predicate<Pred, T&> || std::predicate<Pred, T>
-    auto erase_if(Pred pred) -> size_type {
+    auto erase_if(Pred pred) -> size_type { // NOLINT
         if constexpr (IsRelocatable<T>) {
             size_t erased = 0;
             for (auto* src = this->_start, *dst = this->_start; src != this->_finish;) {
