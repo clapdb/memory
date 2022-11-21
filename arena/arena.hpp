@@ -112,6 +112,7 @@ enum class ArenaContainStatus : uint8_t
     BlockUsed,
     BlockUnUsed,
 };
+
 /*
  * Arena is a session-ware allocator implementation,
  * it can be used to allocate memory blocks and de-allocate them in a single call.
@@ -481,6 +482,8 @@ class Arena
      */
     auto check(const char* ptr) -> ArenaContainStatus;
 
+    auto extend(const char* ptr, uint64_t size, uint64_t space_to_extend) -> bool;
+
     /*
      * get all cleanup nodes, just for testing.
      */
@@ -651,5 +654,6 @@ class Arena
 
 // the size of the Block's header.
 static constexpr uint64_t kBlockHeaderSize = AlignUpTo<kByteSize>(sizeof(memory::Arena::Block));
+
 
 }  // namespace stdb::memory

@@ -43,6 +43,13 @@ namespace pmr = ::std::experimental::pmr;
 
 // NOLINTEND
 
+
+template <typename , typename = void>
+constexpr bool is_arena_memory_resource_v = false;
+
+template <typename T>
+constexpr bool is_arena_memory_resource_v<T, std::void_t<decltype(std::declval<T>().get_arena()) >> = true;
+
 namespace stdb::memory {
 /*
  * class ArenaHelper is for helping the Type stored in the Arena memory.

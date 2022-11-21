@@ -32,6 +32,7 @@
 #include <type_traits>
 #include <utility>
 #include "arena/arenahelper.hpp"
+#include "arena/arena.hpp"
 #include <fmt/format.h>
 
 namespace stdb {
@@ -497,7 +498,6 @@ class core
     }
 };
 
-/*
 template <typename T>
 class arena_core
 {
@@ -517,6 +517,7 @@ class arena_core
 
    private:
     pmr::polymorphic_allocator<T> _allocator;
+
     [[gnu::always_inline]] void allocate(size_type cap) {
         assert(cap > 0);
         //        assert(cap <= max_size());
@@ -524,6 +525,32 @@ class arena_core
         _finish = _start;
         _edge = _start + cap;
     }
+
+    auto realloc_with_move(T*& __restrict__ ptr, std::size_t old_size, std::size_t new_size) -> T* {
+        // default init vector or after shrink_to_fit, the ptr maybe nullptr.
+        if (ptr == nullptr) {
+            assert(old_size == 0);
+            allocate(new_size);
+            return _start;
+        }
+        assert(new_size > 0);
+        auto* mr = _allocator.resource();
+        if (auto* arena_mr = dynamic_cast<memory::Arena::memory_resource*>(mr)) {
+            if (auto* arena = arena_mr->get_arena(); arena->extend(ptr, old_size * sizeof(T), (new_size- old_size) * sizeof(T))) {
+                // no move needed, _fiinish is not changed.
+                return _finish;
+            }
+        }
+        // can not extend, allocate new memory and move old data.
+        if (auto new_ptr = static_cast<T*>(_allocator.allocate(new_size * sizeof(T))); new_ptr != nullptr) {
+            T* new_finish = move_range_without_overlap(new_ptr, ptr, ptr + std::min(old_size, new_size));
+            _allocator.deallocate(ptr, old_size * sizeof(T));
+            ptr = new_ptr;
+            return new_finish;
+        }
+        throw std::bad_alloc();
+    }
+
    public:
     [[gnu::always_inline, nodiscard]] auto capacity() const -> size_type { return static_cast<size_type>(_edge - _start); }
 
@@ -533,14 +560,16 @@ class arena_core
         return kFastVectorMaxSize/ sizeof (T);
     }
 
-    arena_core(const pmr::polymorphic_allocator<T>& allocator) : _start(nullptr), _finish(nullptr), _edge(nullptr), _allocator(allocator) {}
+    arena_core(const pmr::polymorphic_allocator<T> allocator) noexcept : _start(nullptr), _finish(nullptr), _edge(nullptr), _allocator(allocator) {
+    }
 
-    arena_core(size_type size, size_type cap, const pmr::polymorphic_allocator<T>& allocator) : _allocator(allocator) {
+    arena_core(size_type size, size_type cap, const pmr::polymorphic_allocator<T>& mr) : _allocator(mr) {
         assert(size <= cap);
         allocate(cap);
         _finish = _start + size;
     }
 
+    // copy content, not allocator.
     arena_core(const arena_core& rhs) : _start(nullptr), _finish(nullptr), _edge(nullptr), _allocator(rhs._allocator) {
         // copy constructor, just copy [start, finish)
         if (rhs.size() > 0) [[likely]] {
@@ -554,12 +583,15 @@ class arena_core
         }
     }
 
+    // move allocator and content
     arena_core(arena_core&& rhs) noexcept : _start(rhs._start), _finish(rhs._finish), _edge(rhs._edge), _allocator(std::move(rhs._allocator)) {
         rhs._start = nullptr;
         rhs._finish = nullptr;
         rhs._edge = nullptr;
+        rhs._arena = nullptr;
     }
 
+    // operator =, just copy content, neither allocator nor _arena;
     auto operator = (const arena_core& rhs) -> arena_core& {
         if (this == &rhs) [[unlikely]] {
             return *this;
@@ -583,6 +615,7 @@ class arena_core
         return *this;
     }
 
+    // deallocate own content, and move allocator
     auto operator = (arena_core&& rhs) noexcept -> arena_core& {
         if (this == &rhs) [[unlikely]] {
             return *this;
@@ -605,10 +638,10 @@ class arena_core
     }
 
     constexpr auto swap(arena_core& rhs) noexcept {
-        _allocator.swap(rhs._allocator);
         std::swap(_start, rhs._start);
         std::swap(_finish, rhs._finish);
         std::swap(_edge, rhs._edge);
+        _allocator.swap(rhs._allocator);
     }
 
     [[nodiscard, gnu::always_inline]] auto full() const -> bool {
@@ -628,7 +661,7 @@ class arena_core
     [[gnu::always_inline]] void realloc_with_old_data(size_type new_cap) {
         auto old_size = size();
         assert(new_cap > old_size);
-        _finish = realloc_with_move(_start, old_size, new_cap);
+        _finish = this->realloc_with_move(_start, old_size, new_cap);
         _edge = _start + new_cap;
         return;
     }
@@ -637,15 +670,16 @@ class arena_core
     [[gnu::always_inline]] void realloc_and_emplace_back(size_type new_cap, Args&&... args) {
         auto old_size = size();
         assert(new_cap > old_size);
-        _finish = realloc_with_move(_start, old_size, new_cap);
+        _finish = this->realloc_with_move(_start, old_size, new_cap);
         _edge = _start + new_cap;
         new (_finish++) T(std::forward<Args>(args)...);
         return ;
     }
 
     [[gnu::always_inline]] auto realloc_drop_old_data(size_type new_cap) -> T* {
-        // destroy old data
         // realloc new buffer
+        allocate(new_cap);
+        return _start;
     }
 
     [[gnu::always_inline]] void destroy() {
@@ -686,7 +720,7 @@ class arena_core
         } else {
             static_assert(std::is_nothrow_copy_constructible_v<T>);
             // backward move
-            for (T* src_end = _finish - 1; src_end >= src; --dst_end; --src_end) [[likely]] {
+            for (T* src_end = _finish - 1; src_end >= src; --dst_end, --src_end) [[likely]] {
                 new (dst_end) T(*src_end);
                 src_end->~T();
             }
@@ -699,7 +733,6 @@ class arena_core
     }
 
 }; // class arena_core
-*/
 
 /*
  * stdb_vector is a vector-like container that uses a variadic size buffer to store elements.

@@ -150,4 +150,12 @@ auto Arena::check(const char* ptr) -> ArenaContainStatus {
     return ArenaContainStatus::NotContain;
 }
 
+auto Arena::extend(const char* ptr, uint64_t size, uint64_t space_to_extend) -> bool {
+    if (auto* block = _last_block; (block != nullptr) && (block->Pos() == ptr + size) && (block->remain() > space_to_extend)) {
+        block->alloc(space_to_extend);
+        return true;
+    }
+    return false;
+}
+
 }  // namespace stdb::memory

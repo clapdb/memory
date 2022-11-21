@@ -1243,4 +1243,14 @@ TEST_CASE("Arena-memory::struct_with_string") {
     ptr->name.append("agadsgavb123421341234lk1234jl231jk4lkjasdlkfjasdlkfjalskfj");
 }
 
+TEST_CASE("Arena-memory::get_arena_traits") {
+    auto options = Arena::Options::GetDefaultOptions();
+    Arena a(options);
+    auto rs = a.get_memory_resource();
+    CHECK_EQ(is_arena_memory_resource_v<decltype(*rs)>, true);
+    std::pmr::memory_resource* mr = a.get_memory_resource();
+
+    CHECK_EQ(is_arena_memory_resource_v<decltype(*mr)>, true);
+}
+
 }  // namespace stdb::memory
