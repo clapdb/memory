@@ -78,7 +78,7 @@ template <typename T>
 [[gnu::always_inline]] inline void construct_range(T* __restrict__ first, T* __restrict__ last) {
     assert(first != nullptr and last != nullptr);
     assert(first < last);
-    if constexpr (IsRelocatable<T>) {
+    if constexpr (IsZeroInitable<T>) {
         // set zero to all bytes.
         std::memset(first, 0, static_cast<size_t>(last - first) * sizeof(T));
     } else {
