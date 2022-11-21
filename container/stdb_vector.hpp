@@ -494,8 +494,8 @@ class core
  * stdb_vector is a vector-like container that uses a variadic size buffer to store elements.
  * it is designed to be used in the non-arena memory.
  */
-template <typename T>
-class stdb_vector : public core<T>
+template <typename T, template <typename > typename Core = core>
+class stdb_vector : public Core<T>
 {
    public:
     using size_type = std::size_t;
