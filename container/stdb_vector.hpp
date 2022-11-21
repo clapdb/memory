@@ -31,6 +31,7 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
+#include "arena/arenahelper.hpp"
 #include <fmt/format.h>
 
 namespace stdb {
@@ -361,10 +362,15 @@ class core
         destroy_range(_start, _finish);
         // free old memory
         std::free(_start);
+        // maybe use memcpy is better.
         // move data
-        _start = std::exchange(other._start, nullptr);
-        _finish = std::exchange(other._finish, nullptr);
-        _edge = std::exchange(other._edge, nullptr);
+        _start = other._start;
+        _finish = other._finish;
+        _edge = other._edge;
+        // set other to default state
+        other._start = nullptr;
+        other._finish = nullptr;
+        other._edge = nullptr;
         return *this;
     }
     ~core() {
@@ -375,9 +381,9 @@ class core
     }
 
     constexpr void swap(core<T>& rhs) noexcept {
-        _start = std::exchange(rhs._start, _start);
-        _finish = std::exchange(rhs._finish, _finish);
-        _edge = std::exchange(rhs._edge, _edge);
+        std::swap(_start, rhs._start);
+        std::swap(_finish, rhs._finish);
+        std::swap(_edge, rhs._edge);
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto size() const -> size_type {
@@ -389,6 +395,8 @@ class core
         assert(_edge >= _start);
         return static_cast<size_type>(_edge - _start);
     }
+
+    [[gnu::always_inline, nodiscard]] constexpr auto max_size() const -> size_type { return kFastVectorMaxSize / sizeof(T); }
 
     [[nodiscard, gnu::always_inline]] auto full() const -> bool {
         assert(_finish <= _edge);
@@ -440,7 +448,6 @@ class core
         destroy_range(_start, _finish);
     }
 
-    [[gnu::always_inline, nodiscard]] auto max_size() const -> size_type { return kFastVectorMaxSize / sizeof(T); }
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(T* __restrict__ dst, T* __restrict__ src) {
@@ -486,9 +493,213 @@ class core
 
     template <typename... Args>
     [[gnu::always_inline]] void construct_at(T* __restrict__ ptr, Args&&... args) {
-        new ((void*)ptr) T(std::forward<Args>(args)...);  // NOLINT
+        new (ptr) T(std::forward<Args>(args)...);
     }
 };
+
+/*
+template <typename T>
+class arena_core
+{
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+    using reference = T&;
+    using const_reference = const T&;
+
+   protected:
+    static constexpr std::size_t kFastVectorInitCapacity =
+      sizeof(T) >= kFastVectorDefaultCapacity ? 1 : kFastVectorDefaultCapacity / sizeof(T);
+    T* _start;
+    T* _finish;
+    T* _edge;
+
+    static constexpr size_type kFastVectorMaxSize = std::numeric_limits<size_type>::max() / 2;
+
+   private:
+    pmr::polymorphic_allocator<T> _allocator;
+    [[gnu::always_inline]] void allocate(size_type cap) {
+        assert(cap > 0);
+        //        assert(cap <= max_size());
+        _start = static_cast<T*>(_allocator.allocate(cap * sizeof(T)));
+        _finish = _start;
+        _edge = _start + cap;
+    }
+   public:
+    [[gnu::always_inline, nodiscard]] auto capacity() const -> size_type { return static_cast<size_type>(_edge - _start); }
+
+    [[gnu::always_inline, nodiscard]] auto size() const -> size_type { return static_cast<size_type>(_finish - _start); }
+
+    [[nodiscard, gnu::always_inline]] constexpr auto max_size() const -> size_type {
+        return kFastVectorMaxSize/ sizeof (T);
+    }
+
+    arena_core(const pmr::polymorphic_allocator<T>& allocator) : _start(nullptr), _finish(nullptr), _edge(nullptr), _allocator(allocator) {}
+
+    arena_core(size_type size, size_type cap, const pmr::polymorphic_allocator<T>& allocator) : _allocator(allocator) {
+        assert(size <= cap);
+        allocate(cap);
+        _finish = _start + size;
+    }
+
+    arena_core(const arena_core& rhs) : _start(nullptr), _finish(nullptr), _edge(nullptr), _allocator(rhs._allocator) {
+        // copy constructor, just copy [start, finish)
+        if (rhs.size() > 0) [[likely]] {
+            allocate(rhs.size());
+            copy_range(_start, rhs._start, rhs._finish);
+            _finish = _start + rhs.size();
+        } else {
+            _start = nullptr;
+            _finish = nullptr;
+            _edge = nullptr;
+        }
+    }
+
+    arena_core(arena_core&& rhs) noexcept : _start(rhs._start), _finish(rhs._finish), _edge(rhs._edge), _allocator(std::move(rhs._allocator)) {
+        rhs._start = nullptr;
+        rhs._finish = nullptr;
+        rhs._edge = nullptr;
+    }
+
+    auto operator = (const arena_core& rhs) -> arena_core& {
+        if (this == &rhs) [[unlikely]] {
+            return *this;
+        }
+        auto new_size = rhs.size();
+        if (new_size > capacity()) [[unlikely]] {
+            // need to reallocate
+            destroy_range(_start, _finish);
+            _allocator.deallocate(_start, capacity() * sizeof(T));
+            allocate(new_size);
+            _finish = copy_range(_start, rhs._start, rhs._finish);
+        } else {
+            // no need to reallocate
+            destroy_range(_start, _finish);
+            if (new_size > 0) [[likely]] {
+                _finish = copy_range(_start, rhs._start, rhs._finish);
+            } else {
+                _finish = _start;
+            }
+        }
+        return *this;
+    }
+
+    auto operator = (arena_core&& rhs) noexcept -> arena_core& {
+        if (this == &rhs) [[unlikely]] {
+            return *this;
+        }
+        destroy_range(_start, _finish);
+        _allocator.deallocate(_start, capacity() * sizeof(T));
+        _allocator = std::move(rhs._allocator);
+        // maybe use memcpy is better
+        _start = rhs._start;
+        _finish = rhs._finish;
+        _edge = rhs._edge;
+        rhs._start = nullptr;
+        rhs._finish = nullptr;
+        rhs._edge = nullptr;
+        return *this;
+    }
+    ~arena_core() {
+        destroy_range(_start, _finish);
+        _allocator.deallocate(_start, capacity() * sizeof(T));
+    }
+
+    constexpr auto swap(arena_core& rhs) noexcept {
+        _allocator.swap(rhs._allocator);
+        std::swap(_start, rhs._start);
+        std::swap(_finish, rhs._finish);
+        std::swap(_edge, rhs._edge);
+    }
+
+    [[nodiscard, gnu::always_inline]] auto full() const -> bool {
+        assert(_finish <= _edge);
+        return _finish == _edge;
+    }
+
+    [[nodiscard, gnu::always_inline]] auto at(size_type index) const -> const_reference {
+        assert(index < size());
+        return _start[index];
+    }
+    [[nodiscard, gnu::always_inline]] auto at(size_type index) -> reference {
+        assert(index < size());
+        return _start[index];
+    }
+
+    [[gnu::always_inline]] void realloc_with_old_data(size_type new_cap) {
+        auto old_size = size();
+        assert(new_cap > old_size);
+        _finish = realloc_with_move(_start, old_size, new_cap);
+        _edge = _start + new_cap;
+        return;
+    }
+
+    template<typename... Args>
+    [[gnu::always_inline]] void realloc_and_emplace_back(size_type new_cap, Args&&... args) {
+        auto old_size = size();
+        assert(new_cap > old_size);
+        _finish = realloc_with_move(_start, old_size, new_cap);
+        _edge = _start + new_cap;
+        new (_finish++) T(std::forward<Args>(args)...);
+        return ;
+    }
+
+    [[gnu::always_inline]] auto realloc_drop_old_data(size_type new_cap) -> T* {
+        // destroy old data
+        // realloc new buffer
+    }
+
+    [[gnu::always_inline]] void destroy() {
+        assert(_start != nullptr);
+        assert(_finish != nullptr);
+        assert(_edge != nullptr);
+        // should allow start == end, and do a empty destroy
+        assert(_start <= _finish);
+        assert(_finish <= _edge);
+        destroy_range(_start, _finish);
+    }
+
+    [[gnu::always_inline]] void move_forward(T* __restrict__ dst, T* __restrict__ src) {
+        assert(dst != src);
+        move_range_forward(dst, src, _finish);
+    }
+
+    [[gnu::always_inline]] void move_forward(const T* __restrict__ dst, const T* __restrict__ src) {
+        move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish);
+    }
+
+    void move_backward(T* __restrict__ dst, T* __restrict__ src) {
+        assert(dst != nullptr && src != nullptr);
+        assert(src < (_finish - 1));
+        assert(dst != src);
+
+        T* dst_end = dst + (_finish - 1 - src);
+        if constexpr (IsRelocatable<T>) {
+            for (T* src_end = _finish - 1; src_end >= src; ) [[likely]] {
+                *(dst_end--) = *(src_end--);
+            }
+        } else if constexpr (std::is_move_constructible_v<T>) {
+            static_assert(std::is_nothrow_move_constructible_v<T>);
+            // backward move
+            for (T* src_end = _finish - 1; src_end >= src; ) [[likely]] {
+                new (dst_end--) T(std::move(*(src_end--)));
+            }
+        } else {
+            static_assert(std::is_nothrow_copy_constructible_v<T>);
+            // backward move
+            for (T* src_end = _finish - 1; src_end >= src; --dst_end; --src_end) [[likely]] {
+                new (dst_end) T(*src_end);
+                src_end->~T();
+            }
+        }
+    }
+
+    template <typename... Args>
+    [[gnu::always_inline]] void construct_at(T* __restrict__ ptr, Args&&... args) {
+        new (ptr) T(std::forward<Args>(args)...);
+    }
+
+}; // class arena_core
+*/
 
 /*
  * stdb_vector is a vector-like container that uses a variadic size buffer to store elements.
