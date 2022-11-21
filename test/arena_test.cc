@@ -735,6 +735,30 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.SpaceTest") {
     delete mock;
 }
 
+TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.extend") {
+    auto* arena = new Arena(Arena::Options::GetDefaultOptions());
+    auto * buf_ptr = arena->AllocateAligned(1024);
+    CHECK_NE(buf_ptr, nullptr);
+    CHECK_EQ(arena->SpaceAllocated(), 4096ULL);
+    CHECK_EQ(arena->SpaceRemains(), arena->SpaceAllocated() - kBlockHeaderSize - 1024);
+
+    bool extended = arena->extend(buf_ptr, 1024, 1024);
+
+    CHECK_EQ(arena->SpaceRemains(), arena->SpaceAllocated() - kBlockHeaderSize - 1024 -1024);
+    CHECK_EQ(extended, true);
+
+    bool extended_2 = arena->extend(buf_ptr + 35, 1024, 1024);
+    bool extended_3 = arena->extend(buf_ptr + 2000, 1024, 1024);
+    CHECK_EQ(extended_2, false);
+    CHECK_EQ(extended_3, false);
+    bool extended_4 = arena->extend(buf_ptr, 2048, 1024);
+    CHECK_EQ(extended_4, true);
+    CHECK_EQ(arena->SpaceRemains(), arena->SpaceAllocated() - kBlockHeaderSize - 2048 -1024);
+
+
+    delete arena;
+}
+
 TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.RemainsTest") {
     auto* x = new Arena(ops_complex);
     ArenaTestHelper xh(*x);
@@ -1250,7 +1274,7 @@ TEST_CASE("Arena-memory::get_arena_traits") {
     CHECK_EQ(is_arena_memory_resource_v<decltype(*rs)>, true);
     std::pmr::memory_resource* mr = a.get_memory_resource();
 
-    CHECK_EQ(is_arena_memory_resource_v<decltype(*mr)>, true);
+    CHECK_EQ(is_arena_memory_resource_v<decltype(*mr)>, false);
 }
 
 }  // namespace stdb::memory
