@@ -1612,6 +1612,12 @@ auto operator<=>(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> std::s
     return std::strong_ordering::equal;
 }
 
+template <typename T>
+using vector = stdb_vector<T, core>;
+
+template <typename T>
+using arena_vector = stdb_vector<T, arena_core>;
+
 }  // namespace stdb::container
 
 namespace std {
