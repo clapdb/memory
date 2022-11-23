@@ -927,24 +927,26 @@ class stdb_vector : public core<T>
         this->_finish = this->_start;
     }
 
-    void erase(ConstIterator pos) {
+    constexpr auto erase(ConstIterator pos) -> Iterator {
         assert(pos >= cbegin() and pos < cend());
 
         auto pos_ptr = get_ptr_from_iter(pos);
         destroy_ptr(pos_ptr);
         this->move_forward(pos_ptr, pos_ptr + 1);
         --this->_finish;
+        return Iterator{(T*)pos_ptr};
     }
 
-    void erase(Iterator pos) {
+    constexpr auto erase(Iterator pos) -> Iterator {
         assert(pos >= begin() and pos < end());
         T* ptr = get_ptr_from_iter(pos);
         destroy_ptr(ptr);
         this->move_forward(ptr, ptr + 1);
         --this->_finish;
+        return pos;
     }
 
-    void erase(ConstIterator first, ConstIterator last) {
+    constexpr auto erase(ConstIterator first, ConstIterator last) -> Iterator {
         assert(first >= cbegin() and last <= cend());
         assert(last > first);
         auto first_ptr = get_ptr_from_iter(first);
@@ -952,9 +954,10 @@ class stdb_vector : public core<T>
         destroy_range(first_ptr, last_ptr);
         this->move_forward(first_ptr, last_ptr);
         this->_finish -= (last_ptr - first_ptr);
+        return Iterator{(T*)last_ptr};
     }
 
-    void erase(Iterator first, Iterator last) {
+    auto erase(Iterator first, Iterator last) -> Iterator{
         assert(first >= begin() and last <= end());
         assert(last > first);
         T* first_ptr = get_ptr_from_iter(first);
@@ -962,6 +965,7 @@ class stdb_vector : public core<T>
         destroy_range(first_ptr, last_ptr);
         this->move_forward(first_ptr, last_ptr);
         this->_finish -= (last_ptr - first_ptr);
+        return last;
     }
 
     auto erase(const value_type & value) -> size_type { // NOLINT
