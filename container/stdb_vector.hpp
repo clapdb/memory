@@ -727,6 +727,9 @@ class stdb_vector : public core<T>
         explicit IteratorT(pointer ptr) : _ptr(ptr) {}
         IteratorT(IteratorT&& rhs) noexcept : _ptr(std::exchange(rhs._ptr, nullptr)) {}
         IteratorT(const IteratorT&) noexcept = default;
+
+        template<bool OtherIterator> requires(!OtherIterator && Const)
+        IteratorT(const IteratorT<OtherIterator>& rhs) noexcept : _ptr(rhs.operator->()) {}
         // assignment operators
         auto operator=(IteratorT&& rhs) noexcept -> IteratorT& {
             _ptr = std::exchange(rhs._ptr, nullptr);
