@@ -951,23 +951,29 @@ class stdb_vector : public core<T>
 
     constexpr auto erase(ConstIterator first, ConstIterator last) -> Iterator {
         assert(first >= cbegin() and last <= cend());
-        assert(last > first);
+        assert(last >= first);
         auto first_ptr = get_ptr_from_iter(first);
         auto last_ptr = get_ptr_from_iter(last);
-        destroy_range(first_ptr, last_ptr);
-        this->move_forward(first_ptr, last_ptr);
-        this->_finish -= (last_ptr - first_ptr);
+        if (first_ptr != last_ptr) [[likely]] {
+            destroy_range(first_ptr, last_ptr);
+            this->move_forward(first_ptr, last_ptr);
+            this->_finish -= (last_ptr - first_ptr);
+        }
         return Iterator{(T*)last_ptr};  // NOLINT
     }
 
     auto erase(Iterator first, Iterator last) -> Iterator {
         assert(first >= begin() and last <= end());
-        assert(last > first);
+        assert(last >= first);
+
         T* first_ptr = get_ptr_from_iter(first);
         T* last_ptr = get_ptr_from_iter(last);
-        destroy_range(first_ptr, last_ptr);
-        this->move_forward(first_ptr, last_ptr);
-        this->_finish -= (last_ptr - first_ptr);
+        if (first_ptr != last_ptr) [[likely]] {
+            destroy_range(first_ptr, last_ptr);
+            this->move_forward(first_ptr, last_ptr);
+            this->_finish -= (last_ptr - first_ptr);
+        }
+
         return Iterator{last_ptr};
     }
 
