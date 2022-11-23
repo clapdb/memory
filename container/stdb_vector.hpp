@@ -1374,6 +1374,11 @@ auto operator<=>(const stdb_vector<T>& lhs, const stdb_vector<T>& rhs) -> std::s
 
 namespace std {
 
+template <typename T>
+constexpr void swap(stdb::container::stdb_vector<T>& lhs, stdb::container::stdb_vector<T>& rhs) {
+    lhs.swap(rhs);
+}
+
 template <class T, class U>
 constexpr auto erase(stdb::container::stdb_vector<T>& vec, const U& value) -> std::size_t {
     return vec.erase(value);
