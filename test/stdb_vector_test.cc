@@ -578,6 +578,8 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         vec.insert(vec.cend() - 1, 5);
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[3], 5);
+        vec.insert(vec.end(), 6);
+        CHECK_EQ(vec.back(), 6);
     }
 
     SUBCASE("insert_unsafe_with_single_value") {
@@ -1639,6 +1641,15 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
     CHECK_EQ(it5, it6);
     auto it7 = it6;
     CHECK_EQ(it6, it7);
+}
+
+TEST_CASE("Iterator implicit cast") {
+    stdb_vector<int> vec;
+    stdb_vector<int>::Iterator it = vec.begin();
+    stdb_vector<int>::ConstIterator cit(it);
+    CHECK_EQ(vec.cbegin(), cit);
+
+
 }
 
 TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator,
