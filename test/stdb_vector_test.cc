@@ -1183,6 +1183,12 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         vec.erase(vec.begin() + 1, vec.end());
         CHECK_EQ(vec.size(), 1);
         CHECK_EQ(vec[0], "hello");
+        vec.assign({"hello", "word", "?"});
+        CHECK_EQ(vec.size(), 3);
+        vec.erase(vec.begin(), vec.begin());
+        CHECK_EQ(vec.size(), 3);
+        vec.erase(vec.cend(), vec.cend());
+        CHECK_EQ(vec.size(), 3);
     }
     SUBCASE("push_back") {
         stdb_vector<memory::string> vec;
