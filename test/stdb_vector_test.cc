@@ -326,6 +326,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
 
     SUBCASE("clear") {
         stdb_vector<int> vec;
+        vec.clear(); // check it should not crash.
         vec.assign(100, 10);
         CHECK_EQ(vec.size(), 100);
         CHECK_GE(vec.capacity(), 100);

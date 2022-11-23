@@ -431,10 +431,9 @@ class core
     }
 
     [[gnu::always_inline]] void destroy() {
-        assert(_start != nullptr);
-        assert(_finish != nullptr);
-        assert(_edge != nullptr);
-        // should allow start == end, and do a empty destroy.
+        // if _start, _finish. _edge are nullptr, it was default constructed.
+        // just do destroy, it will do nothing.
+        // so we should allow start == end, and do a empty destroy.
         assert(_start <= _finish);
         assert(_finish <= _edge);
         destroy_range(_start, _finish);
