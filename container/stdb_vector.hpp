@@ -19,6 +19,8 @@
 */
 
 #pragma once
+#include <fmt/format.h>
+
 #include <cassert>
 #include <concepts>
 #include <cstdint>
@@ -31,7 +33,6 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
-#include <fmt/format.h>
 
 namespace stdb {
 
@@ -933,7 +934,7 @@ class stdb_vector : public core<T>
         destroy_ptr(pos_ptr);
         this->move_forward(pos_ptr, pos_ptr + 1);
         --this->_finish;
-        return Iterator{(T*)pos_ptr};
+        return Iterator{(T*)pos_ptr};  // NOLINT
     }
 
     constexpr auto erase(Iterator pos) -> Iterator {
@@ -953,10 +954,10 @@ class stdb_vector : public core<T>
         destroy_range(first_ptr, last_ptr);
         this->move_forward(first_ptr, last_ptr);
         this->_finish -= (last_ptr - first_ptr);
-        return Iterator{(T*)last_ptr};
+        return Iterator{(T*)last_ptr};  // NOLINT
     }
 
-    auto erase(Iterator first, Iterator last) -> Iterator{
+    auto erase(Iterator first, Iterator last) -> Iterator {
         assert(first >= begin() and last <= end());
         assert(last > first);
         T* first_ptr = get_ptr_from_iter(first);
@@ -967,10 +968,10 @@ class stdb_vector : public core<T>
         return Iterator{last_ptr};
     }
 
-    auto erase(const value_type & value) -> size_type { // NOLINT
+    auto erase(const value_type& value) -> size_type {  // NOLINT
         if constexpr (IsRelocatable<T>) {
             size_t erased = 0;
-            for (auto* src = this->_start, *dst = this->_start; src != this->_finish;) {
+            for (auto *src = this->_start, *dst = this->_start; src != this->_finish;) {
                 // if the *src is not equal to the value we want to erase and dst == src, move forward both
                 if (*src != value) {
                     if (dst != src) {
@@ -1035,11 +1036,13 @@ class stdb_vector : public core<T>
     /*
      * just like erase, but use a Pred function to test if the element should be erased
      */
-    template<class Pred> requires std::predicate<Pred, const T&> || std::predicate<Pred, T&> || std::predicate<Pred, T>
-    auto erase_if(Pred pred) -> size_type { // NOLINT
+    template <class Pred>
+        requires std::predicate<Pred, const T&> || std::predicate<Pred, T&> ||
+                 std::predicate<Pred, T>
+                 auto erase_if(Pred pred) -> size_type {  // NOLINT
         if constexpr (IsRelocatable<T>) {
             size_t erased = 0;
-            for (auto* src = this->_start, *dst = this->_start; src != this->_finish;) {
+            for (auto *src = this->_start, *dst = this->_start; src != this->_finish;) {
                 // if the *src is not equal to the value we want to erase and dst == src, move forward both
                 if (!pred(*src)) {
                     if (dst != src) {
@@ -1148,7 +1151,7 @@ class stdb_vector : public core<T>
     template <Safety safety = Safety::Safe>
     constexpr auto insert(ConstIterator pos, const_reference value) -> Iterator {
         assert(pos >= cbegin() && pos <= cend());
-        T* pos_ptr = (T*)get_ptr_from_iter(pos);
+        T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
                 std::ptrdiff_t pos_index = pos_ptr - this->_start;
@@ -1176,7 +1179,7 @@ class stdb_vector : public core<T>
     template <Safety safety = Safety::Safe>
     constexpr auto insert(ConstIterator pos, rvalue_reference value) -> Iterator {
         assert((pos >= cbegin()) && (pos <= cend()));
-        T* pos_ptr = (T*)get_ptr_from_iter(pos);
+        T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
                 std::ptrdiff_t pos_index = pos_ptr - this->_start;
@@ -1188,7 +1191,7 @@ class stdb_vector : public core<T>
         // insert value to the end pos
         if (pos_ptr == this->_finish) [[unlikely]] {
             copy_value(this->_finish++, std::move(value));
-            return Iterator((T*)(pos_ptr));
+            return Iterator((T*)(pos_ptr));  // NOLINT
         }
         if (pos_ptr < this->_finish - 1) [[likely]] {
             this->move_backward(pos_ptr + 1, pos_ptr);
@@ -1206,7 +1209,7 @@ class stdb_vector : public core<T>
         assert(count > 0);
         assert(pos >= cbegin() && pos <= cend());
         auto size = this->size();
-        T* pos_ptr = (T*)get_ptr_from_iter(pos);
+        T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
             if (size + count > this->capacity()) [[unlikely]] {
                 std::ptrdiff_t pos_index = pos_ptr - this->_start;
@@ -1231,10 +1234,10 @@ class stdb_vector : public core<T>
     constexpr auto insert(ConstIterator pos, InputIt first, InputIt last) -> Iterator {
         int64_t count = last - first;
         if (count == 0) [[unlikely]] {
-            return Iterator((T*)get_ptr_from_iter(pos));
+            return Iterator((T*)get_ptr_from_iter(pos));  // NOLINT
         }
-        auto size_to_insert = (size_type)count;  // NOLINT
-        T* pos_ptr = (T*)get_ptr_from_iter(pos);
+        auto size_to_insert = (size_type)count;   // NOLINT
+        T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
 
         if constexpr (safety == Safety::Safe) {
             auto size = this->size();
@@ -1389,14 +1392,13 @@ constexpr auto erase_if(stdb::container::stdb_vector<T>& vec, Predicate pred) ->
     return vec.erase_if(pred);
 }
 
-} // namespace std
+}  // namespace std
 
 namespace fmt {
 template <typename T> struct formatter<stdb::container::stdb_vector<T>> : formatter<T> {
     template <typename FormatContext>
-    auto format (const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) -> decltype(ctx.out()) {
+    auto format(const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) -> decltype(ctx.out()) {
         return format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));
     }
 };
 }  // namespace fmt
-

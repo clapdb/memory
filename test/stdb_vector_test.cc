@@ -326,7 +326,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
 
     SUBCASE("clear") {
         stdb_vector<int> vec;
-        vec.clear(); // check it should not crash.
+        vec.clear();  // check it should not crash.
         vec.assign(100, 10);
         CHECK_EQ(vec.size(), 100);
         CHECK_GE(vec.capacity(), 100);
@@ -368,7 +368,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         it = vec.erase(vec.cbegin(), vec.cend());
         CHECK_EQ(it, old_end);
         CHECK_EQ(vec.size(), 0);
-        vec.assign({1,2,3,4});
+        vec.assign({1, 2, 3, 4});
         old_end = vec.end();
         auto new_it = vec.erase(vec.begin(), vec.end());
         CHECK_EQ(new_it, old_end);
@@ -1325,7 +1325,6 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         fmt::print("==={}===", vec);
     }
-
 }
 
 class non_movable
@@ -1359,7 +1358,9 @@ class non_copyable
 
    public:
     non_copyable() : ptr(new int(0)), size(0) { std::cout << "non_copyable constructor default" << std::endl; }
-    non_copyable(int i) : ptr(new int(i)), size(0) { std::cout << "non_copyable constructor with : " << i << std::endl; }
+    non_copyable(int i) : ptr(new int(i)), size(0) {
+        std::cout << "non_copyable constructor with : " << i << std::endl;
+    }
     non_copyable(int v, int s) : ptr(new int(v)), size(s) {
         std::cout << "non_copyable constructor with : " << v << " and size : " << s << std::endl;
     }
@@ -1431,7 +1432,6 @@ TEST_CASE("Hilbert::non_movable.erase_if") {
     stdb_vector<non_movable> result = {1, 4, 5, 6, 7, 8, 9};
     CHECK_EQ(vector, result);
 }
-
 
 TEST_CASE("Hilbert::stdb_vector::non_copyable") {
     stdb_vector<non_copyable> vec;
