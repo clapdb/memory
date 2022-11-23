@@ -1384,7 +1384,7 @@ constexpr auto erase_if(stdb::container::stdb_vector<T>& vec, Predicate pred) ->
 } // namespace std
 
 namespace fmt {
-template <typename T> struct fmt::formatter<stdb::container::stdb_vector<T>> : formatter<T> {
+template <typename T> struct formatter<stdb::container::stdb_vector<T>> : formatter<T> {
     template <typename FormatContext>
     auto format (const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) -> decltype(ctx.out()) {
         return format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));
