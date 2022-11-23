@@ -506,7 +506,6 @@ class stdb_vector : public core<T>
     using const_reference = const T&;
     using rvalue_reference = T&&;
 
-
     /*
      * default constructor
      * with default capacity == kFastVectorInitCapacity
@@ -965,7 +964,7 @@ class stdb_vector : public core<T>
         destroy_range(first_ptr, last_ptr);
         this->move_forward(first_ptr, last_ptr);
         this->_finish -= (last_ptr - first_ptr);
-        return last;
+        return Iterator{last_ptr};
     }
 
     auto erase(const value_type & value) -> size_type { // NOLINT

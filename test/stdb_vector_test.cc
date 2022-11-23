@@ -346,23 +346,32 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         vec.assign({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
         CHECK_EQ(vec.size(), 20);
         CHECK_GE(vec.capacity(), 20);
-        vec.erase(vec.begin());
+        auto it = vec.erase(vec.begin());
+        CHECK_EQ(it, vec.begin());
         CHECK_EQ(vec.size(), 19);
         CHECK_GE(vec.capacity(), 20);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 20);
-        vec.erase(vec.begin() + 5);
+        it = vec.erase(vec.begin() + 5);
+        CHECK_EQ(it, vec.begin() + 5);
         CHECK_EQ(vec.size(), 18);
         CHECK_GE(vec.capacity(), 20);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 20);
-        vec.erase(vec.begin() + 5, vec.begin() + 10);
+        it = vec.erase(vec.begin() + 5, vec.begin() + 10);
+        CHECK_EQ(it, vec.begin() + 10);
         CHECK_EQ(vec.size(), 13);
         CHECK_GE(vec.capacity(), 20);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 20);
-        vec.erase(vec.cbegin(), vec.cend());
+        auto old_end = vec.end();
+        it = vec.erase(vec.cbegin(), vec.cend());
+        CHECK_EQ(it, old_end);
         CHECK_EQ(vec.size(), 0);
+        vec.assign({1,2,3,4});
+        old_end = vec.end();
+        auto new_it = vec.erase(vec.begin(), vec.end());
+        CHECK_EQ(new_it, old_end);
     }
 
     SUBCASE("pop_back") {
