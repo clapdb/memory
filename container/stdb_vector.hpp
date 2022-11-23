@@ -1143,9 +1143,9 @@ class stdb_vector : public core<T>
     [[gnu::always_inline]] constexpr inline void swap(stdb_vector& other) noexcept { core<T>::swap(other); }
 
     template <Safety safety = Safety::Safe>
-    constexpr auto insert(Iterator pos, const_reference value) -> Iterator {
-        assert(pos >= begin() && pos <= end());
-        T* pos_ptr = get_ptr_from_iter(pos);
+    constexpr auto insert(ConstIterator pos, const_reference value) -> Iterator {
+        assert(pos >= cbegin() && pos <= cend());
+        T* pos_ptr = (T*)get_ptr_from_iter(pos);
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
                 std::ptrdiff_t pos_index = pos_ptr - this->_start;
@@ -1171,9 +1171,9 @@ class stdb_vector : public core<T>
     }
 
     template <Safety safety = Safety::Safe>
-    constexpr auto insert(Iterator pos, rvalue_reference value) -> Iterator {
-        assert((pos >= begin()) && (pos <= end()));
-        T* pos_ptr = get_ptr_from_iter(pos);
+    constexpr auto insert(ConstIterator pos, rvalue_reference value) -> Iterator {
+        assert((pos >= cbegin()) && (pos <= cend()));
+        T* pos_ptr = (T*)get_ptr_from_iter(pos);
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
                 std::ptrdiff_t pos_index = pos_ptr - this->_start;
@@ -1185,7 +1185,7 @@ class stdb_vector : public core<T>
         // insert value to the end pos
         if (pos_ptr == this->_finish) [[unlikely]] {
             copy_value(this->_finish++, std::move(value));
-            return Iterator(pos_ptr);
+            return Iterator((T*)(pos_ptr));
         }
         if (pos_ptr < this->_finish - 1) [[likely]] {
             this->move_backward(pos_ptr + 1, pos_ptr);
@@ -1199,11 +1199,11 @@ class stdb_vector : public core<T>
     }
 
     template <Safety safety = Safety::Safe>
-    constexpr auto insert(Iterator pos, size_type count, const_reference value) -> Iterator {
+    constexpr auto insert(ConstIterator pos, size_type count, const_reference value) -> Iterator {
         assert(count > 0);
-        assert(pos >= begin() && pos <= end());
+        assert(pos >= cbegin() && pos <= cend());
         auto size = this->size();
-        T* pos_ptr = get_ptr_from_iter(pos);
+        T* pos_ptr = (T*)get_ptr_from_iter(pos);
         if constexpr (safety == Safety::Safe) {
             if (size + count > this->capacity()) [[unlikely]] {
                 std::ptrdiff_t pos_index = pos_ptr - this->_start;
@@ -1225,13 +1225,13 @@ class stdb_vector : public core<T>
 
     template <Safety safety = Safety::Safe, class InputIt>
         requires std::input_iterator<InputIt>
-    constexpr auto insert(Iterator pos, InputIt first, InputIt last) -> Iterator {
+    constexpr auto insert(ConstIterator pos, InputIt first, InputIt last) -> Iterator {
         int64_t count = last - first;
         if (count == 0) [[unlikely]] {
-            return pos;
+            return Iterator((T*)get_ptr_from_iter(pos));
         }
         auto size_to_insert = (size_type)count;  // NOLINT
-        T* pos_ptr = get_ptr_from_iter(pos);
+        T* pos_ptr = (T*)get_ptr_from_iter(pos);
 
         if constexpr (safety == Safety::Safe) {
             auto size = this->size();
@@ -1255,7 +1255,7 @@ class stdb_vector : public core<T>
     }
 
     template <Safety safety = Safety::Safe>
-    [[gnu::always_inline]] constexpr inline auto insert(Iterator pos, std::initializer_list<T> ilist) -> Iterator {
+    [[gnu::always_inline]] constexpr inline auto insert(ConstIterator pos, std::initializer_list<T> ilist) -> Iterator {
         return insert<safety>(pos, ilist.begin(), ilist.end());
     }
 

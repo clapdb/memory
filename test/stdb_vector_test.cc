@@ -538,24 +538,24 @@ TEST_CASE("Hilbert::stdb_vector::int") {
 
     SUBCASE("insert_with_single_value") {
         stdb_vector<int> vec;
-        vec.insert(vec.begin(), 1);
+        vec.insert(vec.cbegin(), 1);
         CHECK_EQ(vec.size(), 1);
         CHECK_EQ(vec.front(), 1);
         CHECK_EQ(vec.back(), 1);
-        vec.insert(vec.begin(), 2);
+        vec.insert(vec.cbegin(), 2);
         CHECK_EQ(vec.size(), 2);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 1);
-        vec.insert(vec.end(), 3);
+        vec.insert(vec.cend(), 3);
         CHECK_EQ(vec.size(), 3);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
-        vec.insert(vec.begin() + 1, 4);
+        vec.insert(vec.cbegin() + 1, 4);
         CHECK_EQ(vec.size(), 4);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[1], 4);
-        vec.insert(vec.end() - 1, 5);
+        vec.insert(vec.cend() - 1, 5);
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[3], 5);
     }
@@ -563,49 +563,49 @@ TEST_CASE("Hilbert::stdb_vector::int") {
     SUBCASE("insert_unsafe_with_single_value") {
         stdb_vector<int> vec;
         vec.reserve(10);
-        vec.insert<Safety::Unsafe>(vec.begin(), 1);
+        vec.insert<Safety::Unsafe>(vec.cbegin(), 1);
         CHECK_EQ(vec.size(), 1);
         CHECK_EQ(vec.front(), 1);
         CHECK_EQ(vec.back(), 1);
-        vec.insert<Safety::Unsafe>(vec.begin(), 2);
+        vec.insert<Safety::Unsafe>(vec.cbegin(), 2);
         CHECK_EQ(vec.size(), 2);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 1);
-        vec.insert<Safety::Unsafe>(vec.end(), 3);
+        vec.insert<Safety::Unsafe>(vec.cend(), 3);
         CHECK_EQ(vec.size(), 3);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
-        vec.insert<Safety::Unsafe>(vec.begin() + 1, 4);
+        vec.insert<Safety::Unsafe>(vec.cbegin() + 1, 4);
         CHECK_EQ(vec.size(), 4);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[1], 4);
-        vec.insert<Safety::Unsafe>(vec.end() - 1, 5);
+        vec.insert<Safety::Unsafe>(vec.cend() - 1, 5);
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[3], 5);
     }
 
     SUBCASE("insert_with_multi_values") {
         stdb_vector<int> vec;
-        vec.insert(vec.begin(), 3, 1);
+        vec.insert(vec.cbegin(), 3, 1);
         CHECK_EQ(vec.size(), 3);
         CHECK_EQ(vec.front(), 1);
         CHECK_EQ(vec.back(), 1);
-        vec.insert(vec.begin(), 2, 2);
+        vec.insert(vec.cbegin(), 2, 2);
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 1);
-        vec.insert(vec.end(), 4, 3);
+        vec.insert(vec.cend(), 4, 3);
         CHECK_EQ(vec.size(), 9);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
-        vec.insert(vec.begin() + 1, 5, 4);
+        vec.insert(vec.cbegin() + 1, 5, 4);
         CHECK_EQ(vec.size(), 14);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[1], 4);
         CHECK_EQ(vec[5], 4);
-        vec.insert(vec.end() - 1, 6, 5);
+        vec.insert(vec.cend() - 1, 6, 5);
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[13], 5);
     }
@@ -613,49 +613,49 @@ TEST_CASE("Hilbert::stdb_vector::int") {
     SUBCASE("insert_unsafe_with_multi_values") {
         stdb_vector<int> vec;
         vec.reserve(20);
-        vec.insert<Safety::Unsafe>(vec.begin(), 3, 1);
+        vec.insert<Safety::Unsafe>(vec.cbegin(), 3, 1);
         CHECK_EQ(vec.size(), 3);
         CHECK_EQ(vec.front(), 1);
         CHECK_EQ(vec.back(), 1);
-        vec.insert<Safety::Unsafe>(vec.begin(), 2, 2);
+        vec.insert<Safety::Unsafe>(vec.cbegin(), 2, 2);
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 1);
-        vec.insert<Safety::Unsafe>(vec.end(), 4, 3);
+        vec.insert<Safety::Unsafe>(vec.cend(), 4, 3);
         CHECK_EQ(vec.size(), 9);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
-        vec.insert<Safety::Unsafe>(vec.begin() + 1, 5, 4);
+        vec.insert<Safety::Unsafe>(vec.cbegin() + 1, 5, 4);
         CHECK_EQ(vec.size(), 14);
         CHECK_EQ(vec.front(), 2);
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[1], 4);
         CHECK_EQ(vec[5], 4);
-        vec.insert<Safety::Unsafe>(vec.end() - 1, 6, 5);
+        vec.insert<Safety::Unsafe>(vec.cend() - 1, 6, 5);
         CHECK_EQ(vec.back(), 3);
         CHECK_EQ(vec[13], 5);
     }
 
     SUBCASE("insert_with_initializer_list") {
         stdb_vector<int> vec;
-        vec.insert(vec.begin(), {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        vec.insert(vec.cbegin(), {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
         CHECK_EQ(vec.size(), 10);
         CHECK_EQ(vec.front(), 1);
         CHECK_EQ(vec.back(), 10);
-        vec.insert(vec.begin(), {11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
+        vec.insert(vec.cbegin(), {11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
         CHECK_EQ(vec.size(), 20);
         CHECK_EQ(vec.front(), 11);
         CHECK_EQ(vec.back(), 10);
-        vec.insert(vec.end(), {21, 22, 23, 24, 25, 26, 27, 28, 29, 30});
+        vec.insert(vec.cend(), {21, 22, 23, 24, 25, 26, 27, 28, 29, 30});
         CHECK_EQ(vec.size(), 30);
         CHECK_EQ(vec.front(), 11);
         CHECK_EQ(vec.back(), 30);
-        vec.insert(vec.begin() + 10, {31, 32, 33, 34, 35, 36, 37, 38, 39, 40});
+        vec.insert(vec.cbegin() + 10, {31, 32, 33, 34, 35, 36, 37, 38, 39, 40});
         CHECK_EQ(vec.size(), 40);
         CHECK_EQ(vec.front(), 11);
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[10], 31);
-        vec.insert(vec.end() - 1, {12, 44});
+        vec.insert(vec.cend() - 1, {12, 44});
         CHECK_EQ(vec.size(), 42);
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[40], 44);
@@ -664,24 +664,24 @@ TEST_CASE("Hilbert::stdb_vector::int") {
     SUBCASE("insert_unsafe_with_initializer_list") {
         stdb_vector<int> vec;
         vec.reserve(100);
-        vec.insert<Safety::Unsafe>(vec.begin(), {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        vec.insert<Safety::Unsafe>(vec.cbegin(), {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
         CHECK_EQ(vec.size(), 10);
         CHECK_EQ(vec.front(), 1);
         CHECK_EQ(vec.back(), 10);
-        vec.insert<Safety::Unsafe>(vec.begin(), {11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
+        vec.insert<Safety::Unsafe>(vec.cbegin(), {11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
         CHECK_EQ(vec.size(), 20);
         CHECK_EQ(vec.front(), 11);
         CHECK_EQ(vec.back(), 10);
-        vec.insert<Safety::Unsafe>(vec.end(), {21, 22, 23, 24, 25, 26, 27, 28, 29, 30});
+        vec.insert<Safety::Unsafe>(vec.cend(), {21, 22, 23, 24, 25, 26, 27, 28, 29, 30});
         CHECK_EQ(vec.size(), 30);
         CHECK_EQ(vec.front(), 11);
         CHECK_EQ(vec.back(), 30);
-        vec.insert<Safety::Unsafe>(vec.begin() + 10, {31, 32, 33, 34, 35, 36, 37, 38, 39, 40});
+        vec.insert<Safety::Unsafe>(vec.cbegin() + 10, {31, 32, 33, 34, 35, 36, 37, 38, 39, 40});
         CHECK_EQ(vec.size(), 40);
         CHECK_EQ(vec.front(), 11);
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[10], 31);
-        vec.insert<Safety::Unsafe>(vec.end() - 1, {12, 44});
+        vec.insert<Safety::Unsafe>(vec.cend() - 1, {12, 44});
         CHECK_EQ(vec.size(), 42);
         CHECK_EQ(vec.back(), 30);
         CHECK_EQ(vec[40], 44);
@@ -691,18 +691,18 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         stdb_vector<int> vec1;
         stdb_vector<int> vec2;
         std::vector<int> vec3 = {11, 22, 33, 44, 55, 66, 77, 88, 99, 100};
-        vec1.insert(vec1.begin(), vec2.begin(), vec2.end());
+        vec1.insert(vec1.cbegin(), vec2.begin(), vec2.end());
         CHECK_EQ(vec1.size(), 0);
-        vec1.insert(vec1.begin(), vec3.begin(), vec3.end());
+        vec1.insert(vec1.cbegin(), vec3.begin(), vec3.end());
         CHECK_EQ(vec1.size(), 10);
-        vec2.insert(vec2.begin(), vec3.begin(), vec3.end());
+        vec2.insert(vec2.cbegin(), vec3.begin(), vec3.end());
         CHECK_EQ(vec1, vec2);
         std::vector<int> vec4 = {100, 100};
-        vec1.insert(vec1.end(), vec4.begin(), vec4.end());
+        vec1.insert(vec1.cend(), vec4.begin(), vec4.end());
         CHECK_EQ(vec1.size(), 12);
         CHECK_EQ(vec1.back(), 100);
         std::vector<int> vec5 = {200, 200};
-        vec1.insert(vec1.end() - 1, vec5.begin(), vec5.end());
+        vec1.insert(vec1.cend() - 1, vec5.begin(), vec5.end());
         CHECK_EQ(vec1.size(), 14);
         CHECK_EQ(vec1.back(), 100);
         CHECK_EQ(vec1[12], 200);
@@ -714,18 +714,18 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         stdb_vector<int> vec2;
         vec2.reserve(100);
         std::vector<int> vec3 = {11, 22, 33, 44, 55, 66, 77, 88, 99, 100};
-        vec1.insert<Safety::Unsafe>(vec1.begin(), vec2.begin(), vec2.end());
+        vec1.insert<Safety::Unsafe>(vec1.cbegin(), vec2.begin(), vec2.end());
         CHECK_EQ(vec1.size(), 0);
-        vec1.insert<Safety::Unsafe>(vec1.begin(), vec3.begin(), vec3.end());
+        vec1.insert<Safety::Unsafe>(vec1.cbegin(), vec3.begin(), vec3.end());
         CHECK_EQ(vec1.size(), 10);
-        vec2.insert<Safety::Unsafe>(vec2.begin(), vec3.begin(), vec3.end());
+        vec2.insert<Safety::Unsafe>(vec2.cbegin(), vec3.begin(), vec3.end());
         CHECK_EQ(vec1, vec2);
         std::vector<int> vec4 = {100, 100};
-        vec1.insert<Safety::Unsafe>(vec1.end(), vec4.begin(), vec4.end());
+        vec1.insert<Safety::Unsafe>(vec1.cend(), vec4.begin(), vec4.end());
         CHECK_EQ(vec1.size(), 12);
         CHECK_EQ(vec1.back(), 100);
         std::vector<int> vec5 = {200, 200};
-        vec1.insert<Safety::Unsafe>(vec1.end() - 1, vec5.begin(), vec5.end());
+        vec1.insert<Safety::Unsafe>(vec1.cend() - 1, vec5.begin(), vec5.end());
         CHECK_EQ(vec1.size(), 14);
         CHECK_EQ(vec1.back(), 100);
         CHECK_EQ(vec1[12], 200);
@@ -1082,27 +1082,27 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     }
     SUBCASE("insert_with_single_element") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
-        vec.insert(vec.begin() + 1, "inserted");
+        vec.insert(vec.cbegin() + 1, "inserted");
         CHECK_EQ(vec.size(), 4);
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "inserted");
         CHECK_EQ(vec[2], "world");
         CHECK_EQ(vec[3], "!");
-        vec.insert(vec.end(), "inserted");
+        vec.insert(vec.cend(), "inserted");
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[4], "inserted");
-        vec.insert(vec.end() - 1, "end-1");
+        vec.insert(vec.cend() - 1, "end-1");
         CHECK_EQ(vec.size(), 6);
         CHECK_EQ(vec[4], "end-1");
 
         stdb::memory::string str = "inserted";
-        vec.insert(vec.end() - 1, str);
+        vec.insert(vec.cend() - 1, str);
         CHECK_EQ(vec.size(), 7);
         CHECK_EQ(vec[5], "inserted");
     }
     SUBCASE("insert_with_multiple_elements") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
-        vec.insert(vec.begin() + 1, 2, memory::string("inserted"));
+        vec.insert(vec.cbegin() + 1, 2, memory::string("inserted"));
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "inserted");
@@ -1112,36 +1112,36 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     }
     SUBCASE("insert_with_initializer_list") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
-        vec.insert(vec.begin() + 1, {"inserted", "inserted"});
+        vec.insert(vec.cbegin() + 1, {"inserted", "inserted"});
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "inserted");
         CHECK_EQ(vec[2], "inserted");
         CHECK_EQ(vec[3], "world");
         CHECK_EQ(vec[4], "!");
-        vec.insert(vec.end(), {"final"});
+        vec.insert(vec.cend(), {"final"});
         CHECK_EQ(vec.size(), 6);
         CHECK_EQ(vec[5], "final");
-        vec.insert(vec.end() - 1, {"middle"});
+        vec.insert(vec.cend() - 1, {"middle"});
         CHECK_EQ(vec[5], "middle");
         CHECK_EQ(vec[6], "final");
     }
     SUBCASE("insert_with_range") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         std::vector<memory::string> vec2 = {"inserted", "inserted"};
-        vec.insert(vec.begin() + 1, vec2.begin(), vec2.end());
+        vec.insert(vec.cbegin() + 1, vec2.begin(), vec2.end());
         CHECK_EQ(vec.size(), 5);
         CHECK_EQ(vec[0], "hello");
         CHECK_EQ(vec[1], "inserted");
         CHECK_EQ(vec[2], "inserted");
         CHECK_EQ(vec[3], "world");
         CHECK_EQ(vec[4], "!");
-        vec.insert(vec.end(), vec2.begin(), vec2.end());
+        vec.insert(vec.cend(), vec2.begin(), vec2.end());
         CHECK_EQ(vec.size(), 7);
         CHECK_EQ(vec[5], "inserted");
         CHECK_EQ(vec[6], "inserted");
         std::vector<memory::string> vec3 = {"final"};
-        vec.insert(vec.end() - 1, vec3.begin(), vec3.end());
+        vec.insert(vec.cend() - 1, vec3.begin(), vec3.end());
         CHECK_EQ(vec.size(), 8);
         CHECK_EQ(vec[6], "final");
         CHECK_EQ(vec[7], "inserted");
@@ -1370,14 +1370,14 @@ TEST_CASE("Hilbert::stdb_vector::non_movable") {
         vec.emplace_back(i);
     }
     non_movable nm(1000);
-    vec.insert(vec.begin(), nm);
+    vec.insert(vec.cbegin(), nm);
     CHECK_EQ(vec.size(), 11);
 
-    vec.insert(vec.end(), nm);
+    vec.insert(vec.cend(), nm);
     CHECK_EQ(vec.size(), 12);
     vec.erase(vec.begin());
     CHECK_EQ(vec.size(), 11);
-    vec.insert(vec.begin(), nm);
+    vec.insert(vec.cbegin(), nm);
     /*
     for (auto& non : vec) {
         non.print();
@@ -1426,10 +1426,10 @@ TEST_CASE("Hilbert::stdb_vector::non_copyable") {
 
     vec.emplace(vec.begin(), 10, 1000);
 
-    vec.insert(vec.begin(), non_copyable(1000));
+    vec.insert(vec.cbegin(), non_copyable(1000));
     CHECK_EQ(vec.size(), 22);
 
-    vec.insert(vec.end(), non_copyable(1000));
+    vec.insert(vec.cend(), non_copyable(1000));
     CHECK_EQ(vec.size(), 23);
     for (auto& non : vec) {
         non.print();
