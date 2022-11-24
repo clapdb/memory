@@ -285,7 +285,7 @@ class core
     T* _finish;  // valid end    // NOLINT
     T* _edge;    // buffer end   // NOLINT
 
-   private:
+   public:
     [[gnu::always_inline]] void allocate(size_type cap) {
         assert(cap > 0);
         if (_start = static_cast<T*>(std::malloc(cap * sizeof(T))); _start != nullptr) [[likely]] {
@@ -295,14 +295,17 @@ class core
         }
     }
 
-   public:
     core() : _start(nullptr), _finish(nullptr), _edge(nullptr) {}
 
     // this function will never be called without set values/ or construct values.
     core(size_type size, size_type cap) {
         assert(size <= cap);
-        allocate(cap);
-        _finish = _start + size;
+        if (cap > 0) {
+            allocate(cap);
+            _finish = _start + size;
+        } else {
+            _start = _finish = _edge = nullptr;
+        }
     }
 
     core(const core& rhs) {
@@ -311,11 +314,8 @@ class core
             auto size = rhs.size();
             copy_range(_start, rhs._start, rhs._finish);
             _finish = _start + size;
-
         } else {
-            _start = nullptr;
-            _finish = nullptr;
-            _edge = nullptr;
+            _start = _finish = _edge = nullptr;
         }
     }
 
@@ -528,11 +528,15 @@ class stdb_vector : public core<T>
      * constructor with capacity
      */
     constexpr explicit stdb_vector(std::size_t size) : core<T>(size, size) {
-        construct_range(this->_start, this->_finish);
+        if (size > 0) {
+            construct_range(this->_start, this->_finish);
+        }
     }
 
     constexpr stdb_vector(std::size_t size, const T& value) : core<T>(size, size) {
-        construct_range_with_cref(this->_start, this->_finish, value);
+        if (size > 0) {
+            construct_range_with_cref(this->_start, this->_finish, value);
+        }
     }
 
     template <std::forward_iterator InputIt>
@@ -540,15 +544,15 @@ class stdb_vector : public core<T>
         int64_t size = last - first;
         // if size == 0, then do nothing.and just for caller convenience.
         assert(size >= 0);
-        this->realloc_drop_old_data((size_type)size);  // NOLINT
+        this->allocate((size_type)size);                // NOLINT
         copy_from_iterator(this->_start, first, last);
         this->_finish = this->_start + size;
     }
 
     constexpr stdb_vector(std::initializer_list<T> init) : core<T>() {
-        assert((init.size()) > 0 and (init.size() <= this->max_size()));
         auto size = init.size();
-        this->realloc_drop_old_data(size);
+        assert(size > 0 and (size <= this->max_size()));
+        this->allocate(size);                // NOLINT
         copy_range(this->_start, init.begin(), init.end());
         this->_finish = this->_start + size;
     }
