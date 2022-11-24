@@ -279,6 +279,17 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec2.capacity(), 225);
     }
 
+    SUBCASE("push_back_themselves") {
+        stdb_vector<int> vec {1,2,3,4,5,6,7,8};
+        CHECK_EQ(vec.size(), 8);
+        CHECK_EQ(vec.capacity(), 8);
+        vec.push_back(vec.front());
+        CHECK_EQ(vec.size(), 9);
+        CHECK_EQ(vec.back(), 1);
+        CHECK_EQ(vec.capacity(), 16);
+
+    }
+
     SUBCASE("push_back_after_reserve") {
         stdb_vector<int> vec;
         vec.reserve(100);
@@ -1196,11 +1207,34 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec.size(), 1);
         CHECK_EQ(vec[0], "hello");
     }
-    SUBCASE("emplace_back") {
-        stdb_vector<memory::string> vec;
-        vec.emplace_back("hello");
-        CHECK_EQ(vec.size(), 1);
+
+    SUBCASE("push_back_themselves") {
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        CHECK_EQ(vec.capacity(), 3);
+        vec.push_back(vec.back());
+        CHECK_EQ(vec.size(), 4);
+        CHECK_EQ(vec.capacity(), 5);
+
+        for (auto str : vec) {
+            std::cout << str << std::endl;
+        }
         CHECK_EQ(vec[0], "hello");
+        CHECK_EQ(vec[1], "world");
+        CHECK_EQ(vec[2], "!");
+        CHECK_EQ(vec[3], "!");
+    }
+
+    SUBCASE("emplace_back") {
+        stdb_vector<memory::string> vec1;
+        vec1.emplace_back("hello");
+        CHECK_EQ(vec1.size(), 1);
+        CHECK_EQ(vec1[0], "hello");
+
+        stdb_vector<memory::string> vec = {"hello", "world", "!"};
+        CHECK_EQ(vec.capacity(), 3);
+        vec.emplace_back(vec.back());
+        CHECK_EQ(vec.size(), 4);
+        CHECK_EQ(vec.capacity(), 5);
     }
 
     SUBCASE("push_back_unsafe") {
