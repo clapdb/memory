@@ -52,6 +52,13 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(moved_vec.empty(), true);
         auto another_moved_vec(std::move(another_vec));
         CHECK_EQ(another_moved_vec.empty(), true);
+        stdb_vector<int> vec0(0);
+        CHECK_EQ(vec0.empty(), true);
+        CHECK_EQ(vec0, vec);
+        stdb_vector<int> vec01(0, 1);
+        CHECK_EQ(vec01.empty(), true);
+        CHECK_EQ(vec01, vec);
+
     }
 
     SUBCASE("init with size (copy and move)") {
