@@ -419,9 +419,18 @@ class core
         // no check new_cap because it will be checked in caller.
         auto old_size = size();
         assert(new_cap > old_size);
-        _finish = realloc_with_move(_start, old_size, new_cap);
-        _edge = _start + new_cap;
+        // backup old _start, _finish, _edge
+        auto* old_start = _start;
+        auto* old_finish = _finish;
+        allocate(new_cap);
+        // copy old data
+        _finish = _start + old_size;
         new (_finish++) T(std::forward<Args>(args)...);
+        if (old_size > 0) {
+            (void)move_range_without_overlap(_start, old_start, old_finish);
+        }
+        // free the original buffer finally.
+        std::free(old_start);
         return;
     }
 
