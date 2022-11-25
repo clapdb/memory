@@ -1188,6 +1188,9 @@ class stdb_vector : public core<T>
             copy_cref(this->_finish++, value);
             return Iterator(pos_ptr);
         }
+        // check the value's ref is not from vector internal
+        assert(&value < this->_start || &value >= this->_finish);
+
         // move all elements after pos to the right, with backward direction, because have overlap
         if (pos_ptr < this->_finish - 1) [[likely]] {
             this->move_backward(pos_ptr + 1, pos_ptr);
@@ -1241,6 +1244,8 @@ class stdb_vector : public core<T>
             }
         }
         assert((size + count) <= this->capacity());
+        // check value is not from vector internal
+        assert(&value < this->_start || &value >= this->_finish);
         // new elements are inserted after the end pos
         if (pos_ptr + count >= this->_finish) {
             this->move_forward(pos_ptr + count, pos_ptr);
@@ -1261,6 +1266,10 @@ class stdb_vector : public core<T>
         }
         auto size_to_insert = (size_type)count;   // NOLINT
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
+
+        // check value is not from vector internal
+        assert(&*first < this->_start || &*first >= this->_finish);
+        assert(&*last < this->_start || &*last >= this->_finish);
 
         if constexpr (safety == Safety::Safe) {
             auto size = this->size();
