@@ -1374,6 +1374,30 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         fmt::print("==={}===", vec);
     }
+    SUBCASE("assign_empty") {
+        auto a = memory::string("");
+        auto b = stdb_vector<char>(0);
+        b.assign(a.begin(), a.end());
+        CHECK_EQ(b.size(), 0);
+        CHECK_EQ(b.capacity(), 0);
+        CHECK_EQ(b.data(), nullptr);
+        CHECK_EQ(b.empty(), true);
+    }
+    SUBCASE("init from empty range") {
+        auto a = memory::string("");
+        auto b = stdb_vector<char>(a.begin(), a.end());
+        CHECK_EQ(b.size(), 0);
+        CHECK_EQ(b.capacity(), 0);
+        CHECK_EQ(b.data(), nullptr);
+        CHECK_EQ(b.empty(), true);
+    }
+    SUBCASE("init from empty initializaer list") {
+        auto b = stdb_vector<char>({});
+        CHECK_EQ(b.size(), 0);
+        CHECK_EQ(b.capacity(), 0);
+        CHECK_EQ(b.data(), nullptr);
+        CHECK_EQ(b.empty(), true);
+    }
 }
 
 class non_movable
