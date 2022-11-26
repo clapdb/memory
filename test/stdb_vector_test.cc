@@ -1312,6 +1312,7 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(vec.back(), "end");
     }
 
+#if defined(__GLIBCXX__) || defined(__GLIBCPP__)
     SUBCASE("get_span") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         std::span<memory::string> span(vec.begin(), vec.size());
@@ -1320,6 +1321,7 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         CHECK_EQ(span[1], "world");
         CHECK_EQ(span[2], "!");
     }
+#endif
     SUBCASE("erase_by_value") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
         auto num = vec.erase("world");
