@@ -11,7 +11,6 @@
 
 #include <algorithm>         // for min, max, copy, fill
 #include <bit>               // for endian, endian::little, endian::native
-#include <cassert>           // for assert
 #include <cstddef>           // for size_t, offsetof
 #include <cstring>           // for memcpy, memcmp, memmove, memset
 #include <functional>        // for less_equal
@@ -102,8 +101,8 @@ inline auto checkedRealloc(void* ptr, size_t size) -> void* {
  */
 inline auto smartRealloc(void* ptr, const size_t currentSize, const size_t currentCapacity, const size_t newCapacity)
   -> void* {
-    assert(ptr);
-    assert(currentSize <= currentCapacity && currentCapacity < newCapacity);
+    Assert(ptr);
+    Assert(currentSize <= currentCapacity && currentCapacity < newCapacity);
 
     auto const slack = currentCapacity - currentSize;
     if (slack * 2 > currentSize) {
@@ -144,7 +143,7 @@ inline auto copy_n(InIt begin, typename std::iterator_traits<InIt>::difference_t
 
 template <class Pod, class T>
 inline void podFill(Pod* begin, Pod* end, T c) {  // NOLINT
-    assert(begin && end && begin <= end);
+    Assert(begin && end && begin <= end);
     constexpr auto kUseMemset = sizeof(T) == 1;
     if constexpr (kUseMemset) {
         memset(begin, c, size_t(end - begin));
@@ -177,11 +176,11 @@ inline void podFill(Pod* begin, Pod* end, T c) {  // NOLINT
  */
 template <class Pod>
 inline void podCopy(const Pod* begin, const Pod* end, Pod* dest) {
-    assert(begin != nullptr);
-    assert(end != nullptr);
-    assert(dest != nullptr);
-    assert(end >= begin);
-    assert(dest >= end || dest + size_t(end - begin) <= begin);
+    Assert(begin != nullptr);
+    Assert(end != nullptr);
+    Assert(dest != nullptr);
+    Assert(end >= begin);
+    Assert(dest >= end || dest + size_t(end - begin) <= begin);
     memcpy(dest, begin, size_t(end - begin) * sizeof(Pod));
 }
 
@@ -191,7 +190,7 @@ inline void podCopy(const Pod* begin, const Pod* end, Pod* dest) {
  */
 template <class Pod>
 inline void podMove(const Pod* begin, const Pod* end, Pod* dest) {
-    assert(end >= begin);
+    Assert(end >= begin);
     memmove(dest, begin, size_t(end - begin) * sizeof(*begin));
 }
 }  // namespace string_detail
@@ -310,7 +309,7 @@ class string_core
     explicit string_core(const std::allocator<Char>& /*noused*/) noexcept { reset(); }
 
     string_core(const string_core& rhs) {
-        assert(&rhs != this);
+        Assert(&rhs != this);
         switch (rhs.category()) {
             case Category::isSmall:
                 copySmall(rhs);
@@ -324,8 +323,8 @@ class string_core
             default:
                 __builtin_unreachable();
         }
-        assert(size() == rhs.size());
-        assert(memcmp(data(), rhs.data(), size() * sizeof(Char)) == 0);
+        Assert(size() == rhs.size());
+        Assert(memcmp(data(), rhs.data(), size() * sizeof(Char)) == 0);
     }
 
     auto operator=(const string_core& rhs) -> string_core& = delete;
@@ -347,8 +346,8 @@ class string_core
         } else {
             initLarge(data, size);
         }
-        assert(this->size() == size);
-        assert(size == 0 || memcmp(this->data(), data, size * sizeof(Char)) == 0);
+        Assert(this->size() == size);
+        Assert(size == 0 || memcmp(this->data(), data, size * sizeof(Char)) == 0);
     }
 
     ~string_core() noexcept {
@@ -367,8 +366,8 @@ class string_core
     // pass 2 as "size", and pass 3 as "allocatedSize".
     string_core(Char* const data, const size_t size, const size_t allocatedSize) {
         if (size > 0) {
-            assert(allocatedSize >= size + 1);
-            assert(data[size] == '\0');  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            Assert(allocatedSize >= size + 1);
+            Assert(data[size] == '\0');  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             // Use the medium string storage
             ml_.data_ = data;  // NOLINT
             ml_.size_ = size;  // NOLINT
@@ -440,7 +439,7 @@ class string_core
                 __builtin_unreachable();
         }
 
-        assert(capacity() >= minCapacity);
+        Assert(capacity() >= minCapacity);
     }
 
     auto expandNoinit(size_t delta, bool expGrowth = false, bool disableSSO = FBSTRING_DISABLE_SSO) -> Char*;
@@ -500,7 +499,7 @@ class string_core
 
     void destroyMediumLarge() noexcept {
         auto const c = category();  // NOLINT
-        assert(c != Category::isSmall);
+        Assert(c != Category::isSmall);
         if (c == Category::isMedium) {
             free(ml_.data_);  // NOLINT
         } else {
@@ -531,7 +530,7 @@ class string_core
             auto const dis = fromData(ptr);
             // size_t oldcnt = dis->refCount_.fetch_sub(1, std::memory_order_acq_rel);
             size_t oldcnt = dis->refCount_--;
-            assert(oldcnt > 0);
+            Assert(oldcnt > 0);
             if (oldcnt == 1) {
                 free(dis);
             }
@@ -564,7 +563,7 @@ class string_core
 
         static auto reallocate(Char* const data, const size_t currentSize, const size_t currentCapacity,
                                size_t* newCapacity) -> RefCounted* {
-            assert(*newCapacity > 0 && *newCapacity > currentSize);
+            Assert(*newCapacity > 0 && *newCapacity > currentSize);
             size_t capacityBytes = 0;
             if (!checked_add(&capacityBytes, *newCapacity, static_cast<size_t>(1))) {
                 throw(std::length_error(""));
@@ -575,12 +574,12 @@ class string_core
             //            const size_t allocNewCapacity = goodMallocSize(capacityBytes);
             auto const dis = fromData(data);
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
-            assert(dis->refCount_ == 1);
+            Assert(dis->refCount_ == 1);
             auto result = static_cast<RefCounted*>(smartRealloc(dis, getDataOffset() + (currentSize + 1) * sizeof(Char),
                                                                 getDataOffset() + (currentCapacity + 1) * sizeof(Char),
                                                                 capacityBytes));
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
-            assert(result->refCount_ == 1);
+            Assert(result->refCount_ == 1);
             *newCapacity = (capacityBytes - getDataOffset()) / sizeof(Char) - 1;
             return result;
         }
@@ -638,11 +637,11 @@ class string_core
     static_assert((sizeof(MediumLarge) % sizeof(Char)) == 0U, "Corrupt memory layout for string.");
 
     [[nodiscard]] auto smallSize() const -> size_t {
-        assert(category() == Category::isSmall);
+        Assert(category() == Category::isSmall);
         constexpr auto shift = isLittleEndian() ? 0U : 2U;
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
         auto smallShifted = static_cast<size_t>(small_[maxSmallSize]) >> shift;
-        assert(static_cast<size_t>(maxSmallSize) >= smallShifted);
+        Assert(static_cast<size_t>(maxSmallSize) >= smallShifted);
         return static_cast<size_t>(maxSmallSize) - smallShifted;
     }
 
@@ -650,13 +649,13 @@ class string_core
         // Warning: this should work with uninitialized strings too,
         // so don't assume anything about the previous value of
         // small_[maxSmallSize].
-        assert(newSize <= maxSmallSize);
+        Assert(newSize <= maxSmallSize);
         constexpr auto shift = isLittleEndian() ? 0U : 2U;
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
         small_[maxSmallSize] = Char(static_cast<char>((maxSmallSize - newSize) << shift));
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
         small_[newSize] = '\0';
-        assert(category() == Category::isSmall && size() == newSize);
+        Assert(category() == Category::isSmall && size() == newSize);
     }
 
     void copySmall(const string_core& /*rhs*/);
@@ -690,7 +689,7 @@ inline void string_core<Char>::copySmall(const string_core& rhs) {
     // which stores a short string's length, is shared with the
     // ml_.capacity field).
     ml_ = rhs.ml_;  // NOLINT
-    assert(category() == Category::isSmall && this->size() == rhs.size());
+    Assert(category() == Category::isSmall && this->size() == rhs.size());
 }
 
 template <class Char>
@@ -704,7 +703,7 @@ void string_core<Char>::copyMedium(const string_core& rhs) {
     string_detail::podCopy(rhs.ml_.data_, rhs.ml_.data_ + rhs.ml_.size_ + 1, ml_.data_);  // NOLINT
     ml_.size_ = rhs.ml_.size_;                                                            // NOLINT
     ml_.setCapacity(allocSize / sizeof(Char) - 1, Category::isMedium);                    // NOLINT
-    assert(category() == Category::isMedium);
+    Assert(category() == Category::isMedium);
 }
 
 template <class Char>
@@ -712,7 +711,7 @@ void string_core<Char>::copyLarge(const string_core& rhs) {
     // Large strings are just refcounted
     ml_ = rhs.ml_;                         // NOLINT
     RefCounted::incrementRefs(ml_.data_);  // NOLINT
-    assert(category() == Category::isLarge && size() == rhs.size());
+    Assert(category() == Category::isLarge && size() == rhs.size());
 }
 
 // Small strings are bitblitted
@@ -784,12 +783,12 @@ void string_core<Char>::initLarge(const Char* const data, const size_t size) {
 
 template <class Char>
 void string_core<Char>::unshare(size_t minCapacity) {
-    assert(category() == Category::isLarge);
+    Assert(category() == Category::isLarge);
     size_t effectiveCapacity = std::max(minCapacity, ml_.capacity());  // NOLINT
     auto const newRC = RefCounted::create(&effectiveCapacity);
     // If this fails, someone placed the wrong capacity in an
     // string.
-    assert(effectiveCapacity >= ml_.capacity());  // NOLINT
+    Assert(effectiveCapacity >= ml_.capacity());  // NOLINT
     // Also copies terminator.
     string_detail::podCopy(ml_.data_, ml_.data_ + ml_.size_ + 1, newRC->data_);  // NOLINT
     RefCounted::decrementRefs(ml_.data_);                                        // NOLINT
@@ -800,7 +799,7 @@ void string_core<Char>::unshare(size_t minCapacity) {
 
 template <class Char>
 inline auto string_core<Char>::mutableDataLarge() -> Char* {
-    assert(category() == Category::isLarge);
+    Assert(category() == Category::isLarge);
     if (RefCounted::refs(ml_.data_) > 1) {  // Ensure unique. // NOLINT
         unshare();
     }
@@ -809,7 +808,7 @@ inline auto string_core<Char>::mutableDataLarge() -> Char* {
 
 template <class Char>
 void string_core<Char>::reserveLarge(size_t minCapacity) {
-    assert(category() == Category::isLarge);
+    Assert(category() == Category::isLarge);
     if (RefCounted::refs(ml_.data_) > 1) {  // Ensure unique // NOLINT
         // We must make it unique regardless; in-place reallocation is
         // useless if the string is shared. In order to not surprise
@@ -825,13 +824,13 @@ void string_core<Char>::reserveLarge(size_t minCapacity) {
             ml_.data_ = newRC->data_;                                                                       // NOLINT
             ml_.setCapacity(minCapacity, Category::isLarge);                                                // NOLINT
         }
-        assert(capacity() >= minCapacity);
+        Assert(capacity() >= minCapacity);
     }
 }
 
 template <class Char>
 void string_core<Char>::reserveMedium(const size_t minCapacity) {
-    assert(category() == Category::isMedium);
+    Assert(category() == Category::isMedium);
     // String is not shared
     if (minCapacity <= ml_.capacity()) {  // NOLINT
         return;                           // nothing to do, there's enough room
@@ -855,13 +854,13 @@ void string_core<Char>::reserveMedium(const size_t minCapacity) {
         // Also copies terminator.
         string_detail::podCopy(ml_.data_, ml_.data_ + ml_.size_ + 1, nascent.ml_.data_);  // NOLINT
         nascent.swap(*this);
-        assert(capacity() >= minCapacity);
+        Assert(capacity() >= minCapacity);
     }
 }
 
 template <class Char>
 void string_core<Char>::reserveSmall(size_t minCapacity, const bool disableSSO) {
-    assert(category() == Category::isSmall);
+    Assert(category() == Category::isSmall);
     if (!disableSSO && minCapacity <= maxSmallSize) {
         // small
         // Nothing to do, everything stays put
@@ -886,7 +885,7 @@ void string_core<Char>::reserveSmall(size_t minCapacity, const bool disableSSO) 
         ml_.data_ = newRC->data_;                                         // NOLINT
         ml_.size_ = size;                                                 // NOLINT
         ml_.setCapacity(minCapacity, Category::isLarge);                  // NOLINT
-        assert(capacity() >= minCapacity);
+        Assert(capacity() >= minCapacity);
     }
 }
 
@@ -894,7 +893,7 @@ template <class Char>
 inline auto string_core<Char>::expandNoinit(const size_t delta, bool expGrowth, /* = false */
                                             bool disableSSO /* = FBSTRING_DISABLE_SSO */) -> Char* {
     // Strategy is simple: make room, then change size
-    assert(capacity() >= size());
+    Assert(capacity() >= size());
     size_t oldSz = 0;
     size_t newSz = 0;
     if (category() == Category::isSmall) {
@@ -913,19 +912,19 @@ inline auto string_core<Char>::expandNoinit(const size_t delta, bool expGrowth, 
             reserve(expGrowth ? std::max(newSz, 1 + capacity() * 3 / 2) : newSz);
         }
     }
-    assert(capacity() >= newSz);
+    Assert(capacity() >= newSz);
     // Category can't be small - we took care of that above
-    assert(category() == Category::isMedium || category() == Category::isLarge);
+    Assert(category() == Category::isMedium || category() == Category::isLarge);
     ml_.size_ = newSz;        // NOLINT
     ml_.data_[newSz] = '\0';  // NOLINT
-    assert(size() == newSz);
+    Assert(size() == newSz);
     return ml_.data_ + oldSz;  // NOLINT
 }
 
 template <class Char>
 inline void string_core<Char>::shrinkSmall(const size_t delta) {
     // Check for underflow
-    assert(delta <= smallSize());
+    Assert(delta <= smallSize());
     setSmallSize(smallSize() - delta);
 }
 
@@ -933,14 +932,14 @@ template <class Char>
 inline void string_core<Char>::shrinkMedium(const size_t delta) {
     // Medium strings and unique large strings need no special
     // handling.
-    assert(ml_.size_ >= delta);   // NOLINT
+    Assert(ml_.size_ >= delta);   // NOLINT
     ml_.size_ -= delta;           // NOLINT
     ml_.data_[ml_.size_] = '\0';  // NOLINT
 }
 
 template <class Char>
 inline void string_core<Char>::shrinkLarge(const size_t delta) {
-    assert(ml_.size_ >= delta);  // NOLINT
+    Assert(ml_.size_ >= delta);  // NOLINT
     // Shared large string, must make unique. This is because of the
     // durn terminator must be written, which may trample the shared
     // data.
@@ -977,8 +976,8 @@ class basic_string
     struct Invariant
     {
         auto operator=(const Invariant&) -> Invariant& = delete;
-        explicit Invariant(const basic_string& str) noexcept : s_(str) { assert(s_.isSane()); }
-        ~Invariant() noexcept { assert(s_.isSane()); }
+        explicit Invariant(const basic_string& str) noexcept : s_(str) { Assert(s_.isSane()); }
+        ~Invariant() noexcept { Assert(s_.isSane()); }
 
        private:
         const basic_string& s_;
@@ -1169,18 +1168,18 @@ class basic_string
     // C++11 21.4.5, element access:
     [[nodiscard]] auto front() const -> const value_type& { return *begin(); }
     [[nodiscard]] auto back() const -> const value_type& {
-        assert(!empty());
+        Assert(!empty());
         // Should be begin()[size() - 1], but that branches twice
         return *(end() - 1);
     }
     auto front() -> value_type& { return *begin(); }
     auto back() -> value_type& {
-        assert(!empty());
+        Assert(!empty());
         // Should be begin()[size() - 1], but that branches twice
         return *(end() - 1);
     }
     void pop_back() {
-        assert(!empty());
+        Assert(!empty());
         store_.shrink(1);
     }
 
@@ -1763,7 +1762,7 @@ inline void basic_string<E, T, A, S>::resize(const size_type n, const value_type
         auto pData = store_.expandNoinit(delta);
         string_detail::podFill(pData, pData + delta, c);
     }
-    assert(this->size() == n);
+    Assert(this->size() == n);
 }
 
 template <typename E, class T, class A, class S>
@@ -1772,7 +1771,7 @@ inline auto basic_string<E, T, A, S>::append(const basic_string& str) -> basic_s
     auto desiredSize = size() + str.size();
 #endif
     append(str.data(), str.size());
-    assert(size() == desiredSize);
+    Assert(size() == desiredSize);
     return *this;
 }
 
@@ -1805,7 +1804,7 @@ auto basic_string<E, T, A, S>::append(const value_type* s, size_type n) -> basic
     // info.
     std::less_equal<const value_type*> le;  // NOLINT
     if (le(oldData, s) && !le(oldData + oldSize, s)) {
-        assert(le(s + n, oldData + oldSize));
+        Assert(le(s + n, oldData + oldSize));
         // expandNoinit() could have moved the storage, restore the source.
         s = data() + (s - oldData);
         string_detail::podMove(s, s + n, pData);
@@ -1813,7 +1812,7 @@ auto basic_string<E, T, A, S>::append(const value_type* s, size_type n) -> basic
         string_detail::podCopy(s, s + n, pData);
     }
 
-    assert(size() == oldSize + n);
+    Assert(size() == oldSize + n);
     return *this;
 }
 
@@ -1845,7 +1844,7 @@ auto basic_string<E, T, A, S>::assign(const value_type* s, const size_type n)  /
         // s can alias this, we need to use podMove.
         string_detail::podMove(s, s + n, store_.mutableData());
         store_.shrink(size() - n);
-        assert(size() == n);
+        Assert(size() == n);
     } else {
         // If n is larger than size(), s cannot alias this string's
         // storage.
@@ -1855,7 +1854,7 @@ auto basic_string<E, T, A, S>::assign(const value_type* s, const size_type n)  /
         string_detail::podCopy(s, s + n, store_.expandNoinit(n));
     }
 
-    assert(size() == n);
+    Assert(size() == n);
     return *this;
 }
 
@@ -1883,8 +1882,8 @@ inline auto basic_string<E, T, A, S>::getlineImpl(istream_type& is, value_type d
             break;
         }
 
-        assert(size == this->size());
-        assert(size == capacity());
+        Assert(size == this->size());
+        Assert(size == capacity());
         // Start at minimum allocation 63 + terminator = 64.
         reserve(std::max<size_t>(63, 3 * size / 2));  // NOLINT
         // Clear the error so we can continue reading.
@@ -1932,7 +1931,7 @@ inline auto basic_string<E, T, A, S>::find(const value_type* needle, const size_
         // Here we know that the last char matches
         // Continue in pedestrian mode
         for (size_t j = 0;;) {
-            assert(j < nsize);
+            Assert(j < nsize);
             if (i[j] != needle[j]) {  // NOLINT
                 // Not found, we can skip
                 // Compute the skip value lazily
@@ -1962,7 +1961,7 @@ inline auto basic_string<E, T, A, S>::insertImplDiscr(const_iterator i, size_typ
   typename basic_string<E, T, A, S>::iterator {
     Invariant checker(*this);
 
-    assert(i >= cbegin() && i <= cend());
+    Assert(i >= cbegin() && i <= cend());
     const size_type pos = size_t(i - cbegin());
 
     auto oldSize = size();
@@ -1989,10 +1988,10 @@ inline auto basic_string<E, T, A, S>::insertImpl(const_iterator i, FwdIterator s
   typename basic_string<E, T, A, S>::iterator {
     Invariant checker(*this);
 
-    assert(i >= cbegin() && i <= cend());
+    Assert(i >= cbegin() && i <= cend());
     const size_type pos = size_t(i - cbegin());
     auto n = std::distance(s1, s2);  // NOLINT
-    assert(n >= 0);
+    Assert(n >= 0);
 
     auto oldSize = size();
     store_.expandNoinit(size_t(n), /* expGrowth = */ true);
@@ -2024,9 +2023,9 @@ inline auto basic_string<E, T, A, S>::replaceImplDiscr(iterator i1, iterator i2,
                                                        size_type n,                                    // NOLINT
                                                        std::integral_constant<int, 2> /*unused*/)
   -> basic_string<E, T, A, S>& {
-    assert(i1 <= i2);
-    assert(begin() <= i1 && i1 <= end());
-    assert(begin() <= i2 && i2 <= end());
+    Assert(i1 <= i2);
+    Assert(begin() <= i1 && i1 <= end());
+    Assert(begin() <= i2 && i2 <= end());
     return replace(i1, i2, s, s + n);
 }
 
@@ -2043,7 +2042,7 @@ inline auto basic_string<E, T, A, S>::replaceImplDiscr(iterator i1, iterator i2,
         std::fill(i1, i2, c);
         insert(i2, n2 - n1, c);
     }
-    assert(isSane());
+    Assert(isSane());
     return *this;
 }
 
@@ -2091,9 +2090,9 @@ inline void basic_string<E, T, A, S>::replaceImpl(iterator i1, iterator i2, FwdI
     }
 
     auto const n1 = i2 - i1;  // NOLINT
-    assert(n1 >= 0);
+    Assert(n1 >= 0);
     auto const n2 = std::distance(s1, s2);  // NOLINT
-    assert(n2 >= 0);
+    Assert(n2 >= 0);
 
     if (n1 > n2) {
         // shrinks
@@ -2104,7 +2103,7 @@ inline void basic_string<E, T, A, S>::replaceImpl(iterator i1, iterator i2, FwdI
         s1 = string_detail::copy_n(s1, n1, i1).first;
         insert(i2, s1, s2);
     }
-    assert(isSane());
+    Assert(isSane());
 }
 
 template <typename E, class T, class A, class S>
