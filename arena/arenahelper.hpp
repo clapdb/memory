@@ -27,6 +27,7 @@
 
 // NOLINTBEGIN
 #include "align/align.hpp"
+#include "assert/assert_config.hpp"
 #define ArenaFullManagedTag using ArenaManaged_ = void;                    // NOLINT
 #define ArenaManagedCreateOnlyTag using ArenaManagedSkipDestruct_ = void;  // NOLINT
 #if defined(__linux__)
