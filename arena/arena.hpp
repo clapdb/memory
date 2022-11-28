@@ -24,7 +24,6 @@
 
 #include <boost/assert/source_location.hpp>
 #include <boost/core/demangle.hpp>  // for demangle
-#include <cassert>                  // for assert
 #include <concepts>
 #include <cstdlib>        // for free, malloc, size_t
 #include <exception>      // for type_info
@@ -41,6 +40,7 @@
 #include "align/align.hpp"                                           // for AlignUpTo
 #include "arenahelper.hpp"                                           // for ArenaHelper
 #include "fmt/core.h"                                                // for format
+#include "assert_config.hpp"
 #define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
 
 #include "string/arena_string.hpp"
@@ -230,14 +230,14 @@ class Arena
         }
 
         auto alloc(uint64_t size) noexcept -> char* {
-            assert(size <= (_limit - _pos));  // NOLINT
+            Assert(size <= (_limit - _pos));  // NOLINT
             char* ptr = Pos();
             _pos += size;
             return ptr;
         }
 
         [[gnu::always_inline]] inline auto alloc_cleanup() noexcept -> char* {
-            assert(_pos + kCleanupNodeSize <= _limit);  // NOLINT
+            Assert(_pos + kCleanupNodeSize <= _limit);  // NOLINT
             _limit -= kCleanupNodeSize;
             return CleanupPos();
         }
@@ -256,7 +256,7 @@ class Arena
         [[gnu::always_inline, nodiscard]] inline auto pos() const noexcept -> uint64_t { return _pos; }
 
         [[nodiscard, gnu::always_inline]] inline auto remain() const noexcept -> uint64_t {
-            assert(_limit >= _pos);  // NOLINT
+            Assert(_limit >= _pos);  // NOLINT
             return _limit - _pos;
         }
 
@@ -274,7 +274,7 @@ class Arena
 
         [[nodiscard, gnu::always_inline]] inline auto cleanups() const noexcept -> uint64_t {
             uint64_t space = _size - _limit;
-            assert(space % kCleanupNodeSize == 0);  // NOLINT
+            Assert(space % kCleanupNodeSize == 0);  // NOLINT
             return space / kCleanupNodeSize;
         }
 
@@ -288,7 +288,7 @@ class Arena
     class memory_resource : public ::pmr::memory_resource
     {
        public:
-        explicit memory_resource(Arena* arena) : _arena(arena) { assert(arena != nullptr); };  // NOLINT
+        explicit memory_resource(Arena* arena) : _arena(arena) { Assert(arena != nullptr); };  // NOLINT
         [[nodiscard]] auto get_arena() const -> Arena* { return _arena; }
 
        protected:
@@ -472,7 +472,7 @@ class Arena
     }
 
     [[gnu::always_inline]] inline auto get_memory_resource() noexcept -> memory_resource* {
-        assert(_resource != nullptr);  // NOLINT
+        Assert(_resource != nullptr);  // NOLINT
         return _resource;
     };
 
@@ -609,7 +609,7 @@ class Arena
             _options.block_dealloc(curr);
             curr = prev;
         }
-        assert(curr != nullptr);
+        Assert(curr != nullptr);
         // add the curr blk remain to result
         remain_size += curr->remain();
         // reset the last_block_ to the first block

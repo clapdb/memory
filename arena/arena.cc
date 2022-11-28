@@ -125,7 +125,7 @@ auto Arena::allocateAligned(uint64_t bytes) noexcept -> char* {
     }
     char* result = _last_block->alloc(needed);
     // re make sure aligned in debug model
-    assert((reinterpret_cast<uint64_t>(result) & 7UL) == 0);  // NOLINT
+    Assert((reinterpret_cast<uint64_t>(result) & 7UL) == 0);  // NOLINT
     return result;
 }
 
