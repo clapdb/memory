@@ -271,7 +271,7 @@ class core
 {
     using size_type = std::size_t;
     using value_type = T;
-    using deference_type = std::ptrdiff_t;
+    using difference_type = std::ptrdiff_t;
     using pointer = T*;
     using const_pointer = const T*;
     using reference = T&;
@@ -509,7 +509,7 @@ class stdb_vector : public core<T>
    public:
     using size_type = std::size_t;
     using value_type = T;
-    using deference_type = std::ptrdiff_t;
+    using difference_type = std::ptrdiff_t;
     using pointer = T*;
     using const_pointer = const T*;
     using reference = T&;
@@ -727,7 +727,7 @@ class stdb_vector : public core<T>
     struct IteratorT
     {
         using iterator_category = std::contiguous_iterator_tag;
-        using deference_type = std::ptrdiff_t;
+        using difference_type = std::ptrdiff_t;
         using value_type = std::conditional_t<Const, const T, T>;
         using pointer = std::conditional_t<Const, const T*, T*>;
         using reference = std::conditional_t<Const, const T&, T&>;
@@ -773,12 +773,12 @@ class stdb_vector : public core<T>
             return tmp;
         }
 
-        [[gnu::always_inline]] constexpr inline auto operator+=(deference_type n) noexcept -> IteratorT& {
+        [[gnu::always_inline]] constexpr inline auto operator+=(difference_type n) noexcept -> IteratorT& {
             _ptr += n;
             return *this;
         }
 
-        [[gnu::always_inline]] constexpr inline auto operator-=(deference_type n) noexcept -> IteratorT& {
+        [[gnu::always_inline]] constexpr inline auto operator-=(difference_type n) noexcept -> IteratorT& {
             _ptr -= n;
             return *this;
         }
@@ -796,19 +796,19 @@ class stdb_vector : public core<T>
 
         friend auto operator<=>(const IteratorT& lhs, const IteratorT& rhs) noexcept -> std::strong_ordering = default;
 
-        friend auto operator-(const IteratorT& lhs, const IteratorT& rhs) noexcept -> deference_type {
+        friend auto operator-(const IteratorT& lhs, const IteratorT& rhs) noexcept -> difference_type {
             return lhs._ptr - rhs._ptr;
         }
 
-        friend auto operator+(const IteratorT& lhs, deference_type offset) noexcept -> IteratorT {
+        friend auto operator+(const IteratorT& lhs, difference_type offset) noexcept -> IteratorT {
             return IteratorT{lhs._ptr + offset};
         }
 
-        friend auto operator-(const IteratorT& lhs, deference_type offset) noexcept -> IteratorT {
+        friend auto operator-(const IteratorT& lhs, difference_type offset) noexcept -> IteratorT {
             return IteratorT{lhs._ptr - offset};
         }
 
-        friend auto operator+(deference_type offset, const IteratorT& rhs) noexcept -> IteratorT {
+        friend auto operator+(difference_type offset, const IteratorT& rhs) noexcept -> IteratorT {
             return IteratorT{rhs._ptr + offset};
         }
 
@@ -1177,7 +1177,7 @@ class stdb_vector : public core<T>
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
-                std::ptrdiff_t pos_index = pos_ptr - this->_start;
+                difference_type pos_index = pos_ptr - this->_start;
                 reserve(compute_next_capacity());
                 pos_ptr = this->_start + pos_index;
             }
@@ -1205,7 +1205,7 @@ class stdb_vector : public core<T>
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
-                std::ptrdiff_t pos_index = pos_ptr - this->_start;
+                difference_type pos_index = pos_ptr - this->_start;
                 reserve(compute_next_capacity());
                 pos_ptr = this->_start + pos_index;
             }
@@ -1235,7 +1235,7 @@ class stdb_vector : public core<T>
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
             if (size + count > this->capacity()) [[unlikely]] {
-                std::ptrdiff_t pos_index = pos_ptr - this->_start;
+                difference_type pos_index = pos_ptr - this->_start;
                 reserve(compute_new_capacity(size + count));
                 pos_ptr = this->_start + pos_index;
             }
@@ -1265,7 +1265,7 @@ class stdb_vector : public core<T>
         if constexpr (safety == Safety::Safe) {
             auto size = this->size();
             if ((size + size_to_insert) > capacity()) [[unlikely]] {
-                std::ptrdiff_t pos_index = pos_ptr - this->_start;
+                difference_type pos_index = pos_ptr - this->_start;
                 reserve(compute_new_capacity(size + size_to_insert));
                 // calculate the new pos_ptr
                 pos_ptr = this->_start + pos_index;
@@ -1293,7 +1293,7 @@ class stdb_vector : public core<T>
         T* pos_ptr = get_ptr_from_iter(pos);
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
-                std::ptrdiff_t pos_offset = pos_ptr - this->_start;
+                difference_type pos_offset = pos_ptr - this->_start;
                 reserve(compute_next_capacity());
                 // calculate the new pos_ptr
                 pos_ptr = this->_start + pos_offset;
