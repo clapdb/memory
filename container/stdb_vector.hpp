@@ -21,7 +21,6 @@
 #pragma once
 #include <fmt/format.h>
 
-#include <cassert>
 #include <concepts>
 #include <cstdint>
 #include <cstdlib>
@@ -33,6 +32,7 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
+#include "assert_config.hpp"
 
 namespace stdb {
 
@@ -77,8 +77,8 @@ template <typename Iterator>
 
 template <typename T>
 [[gnu::always_inline]] inline void construct_range(T* __restrict__ first, T* __restrict__ last) {
-    assert(first != nullptr and last != nullptr);
-    assert(first < last);
+    Assert(first != nullptr and last != nullptr);
+    Assert(first < last);
     if constexpr (IsZeroInitable<T>) {
         // set zero to all bytes.
         std::memset(first, 0, static_cast<size_t>(last - first) * sizeof(T));
@@ -93,8 +93,8 @@ template <typename T>
     requires std::is_object_v<T>
 [[gnu::always_inline]] inline void construct_range_with_cref(T* __restrict__ first, T* __restrict__ last,
                                                              const T& value) {
-    assert(first != nullptr and last != nullptr);
-    assert(first < last);
+    Assert(first != nullptr and last != nullptr);
+    Assert(first < last);
     static_assert(std::is_copy_constructible_v<T>);
     if constexpr (sizeof(T) == sizeof(char)) {
         std::memset(first, static_cast<int>(value), static_cast<size_t>(last - first) * sizeof(T));
@@ -108,9 +108,9 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline]] inline auto copy_range(T* __restrict__ dst, const T* __restrict__ src,
                                               const T* __restrict__ src_end) -> T* {
-    assert(dst != nullptr and src != nullptr);
-    assert(dst != src);
-    assert(src < src_end);
+    Assert(dst != nullptr and src != nullptr);
+    Assert(dst != src);
+    Assert(src < src_end);
     // if is trivial_copyable, use memcpy is faster.
     if constexpr (IsRelocatable<T>) {
         std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
@@ -126,7 +126,7 @@ template <typename T>
 template <typename T>
     requires std::is_trivially_copyable_v<T> or std::is_nothrow_move_constructible_v<T>
 [[gnu::always_inline]] inline void copy_value(T* __restrict__ dst, T value) {
-    assert(dst != nullptr);
+    Assert(dst != nullptr);
     if constexpr (IsRelocatable<T>) {
         *dst = value;
     } else {
@@ -138,7 +138,7 @@ template <typename T>
 template <typename T>
     requires std::is_object_v<T>
 [[gnu::always_inline]] inline void copy_cref(T* __restrict__ dst, const T& value) {
-    assert(dst != nullptr);
+    Assert(dst != nullptr);
     if constexpr (IsRelocatable<T>) {
         *dst = value;
     } else {
@@ -152,8 +152,8 @@ concept PointerCompatibleIterator = std::is_pointer_v<It> or std::random_access_
 
 template <typename T, typename Iterator>
 [[gnu::always_inline]] inline void copy_from_iterator(T* __restrict__ dst, Iterator first, Iterator last) {
-    assert(dst != nullptr);
-    assert(first != last);
+    Assert(dst != nullptr);
+    Assert(first != last);
 
     if constexpr (IsRelocatable<T> and PointerCompatibleIterator<Iterator>) {
         if (get_ptr_from_iter(first) < get_ptr_from_iter(last)) [[likely]] {
@@ -193,8 +193,8 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline, nodiscard]] inline auto move_range_without_overlap(T* __restrict__ dst, T* __restrict__ src,
                                                                          T* __restrict__ src_end) noexcept -> T* {
-    assert(dst != nullptr and src != nullptr);
-    assert(dst != src);
+    Assert(dst != nullptr and src != nullptr);
+    Assert(dst != src);
     if constexpr (IsRelocatable<T>) {
         std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
         return dst + (src_end - src);
@@ -216,11 +216,11 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline]] inline void move_range_forward(T* __restrict__ dst, T* __restrict__ src,
                                                       T* __restrict__ src_end) {
-    assert(src != nullptr and dst != nullptr);
+    Assert(src != nullptr and dst != nullptr);
     // src == src_end means no data to move
     // it will occur in erase the whole vector.
-    assert(src_end >= src);
-    assert(dst < src or dst >= src_end);
+    Assert(src_end >= src);
+    Assert(dst < src or dst >= src_end);
     if constexpr (IsRelocatable<T>) {
         std::memmove(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
     } else if constexpr (std::is_move_constructible_v<T>) {
@@ -252,10 +252,10 @@ auto realloc_with_move(T*& __restrict__ ptr, std::size_t old_size, std::size_t n
     // default init vector or
     // after shrink_to_fit with zero size, the ptr may be nullptr.
     if (ptr == nullptr) {
-        assert(old_size == 0);
+        Assert(old_size == 0);
         return ptr = static_cast<T*>(std::malloc(new_size * sizeof(T)));
     }
-    assert(new_size > 0);
+    Assert(new_size > 0);
     auto new_ptr = static_cast<T*>(std::malloc(new_size * sizeof(T)));
     if (new_ptr == nullptr) [[unlikely]] {
         throw std::bad_alloc();
@@ -287,7 +287,7 @@ class core
 
    public:
     [[gnu::always_inline]] void allocate(size_type cap) {
-        assert(cap > 0);
+        Assert(cap > 0);
         if (_start = static_cast<T*>(std::malloc(cap * sizeof(T))); _start != nullptr) [[likely]] {
             _edge = _start + cap;
         } else {
@@ -299,7 +299,7 @@ class core
 
     // this function will never be called without set values/ or construct values.
     core(size_type size, size_type cap) {
-        assert(size <= cap);
+        Assert(size <= cap);
         if (cap > 0) {
             allocate(cap);
             _finish = _start + size;
@@ -382,33 +382,33 @@ class core
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto size() const -> size_type {
-        assert(_finish >= _start);
+        Assert(_finish >= _start);
         return static_cast<size_type>(_finish - _start);
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto capacity() const -> size_type {
-        assert(_edge >= _start);
+        Assert(_edge >= _start);
         return static_cast<size_type>(_edge - _start);
     }
 
     [[nodiscard, gnu::always_inline]] auto full() const -> bool {
-        assert(_finish <= _edge);
+        Assert(_finish <= _edge);
         return _edge == _finish;
     }
     // data access section
     [[nodiscard, gnu::always_inline]] auto at(size_type index) const -> const_reference {
-        assert(index < size());
+        Assert(index < size());
         return _start[index];  // NOLINT
     }
     [[nodiscard, gnu::always_inline]] auto at(size_type index) -> reference {
-        assert(index < size());
+        Assert(index < size());
         return _start[index];  // NOLINT
     }
 
     [[gnu::always_inline]] void realloc_with_old_data(size_type new_cap) {
         // no check new_cap because it will be checked in caller.
         auto old_size = size();
-        assert(new_cap >= old_size);
+        Assert(new_cap >= old_size);
         _finish = realloc_with_move(_start, old_size, new_cap);
         _edge = _start + new_cap;
         return;
@@ -418,7 +418,7 @@ class core
     [[gnu::always_inline]] void realloc_and_emplace_back(size_type new_cap, Args&&... args) {
         // no check new_cap because it will be checked in caller.
         auto old_size = size();
-        assert(new_cap > old_size);
+        Assert(new_cap > old_size);
         // backup old _start, _finish, _edge
         auto* old_start = _start;
         auto* old_finish = _finish;
@@ -444,8 +444,8 @@ class core
         // if _start, _finish. _edge are nullptr, it was default constructed.
         // just do destroy, it will do nothing.
         // so we should allow start == end, and do a empty destroy.
-        assert(_start <= _finish);
-        assert(_finish <= _edge);
+        Assert(_start <= _finish);
+        Assert(_finish <= _edge);
         destroy_range(_start, _finish);
     }
 
@@ -453,23 +453,23 @@ class core
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(T* __restrict__ dst, T* __restrict__ src) {
-        assert(dst != src);
+        Assert(dst != src);
         move_range_forward(dst, src, _finish);
     }
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(const T* __restrict__ dst, const T* __restrict__ src) {
-        assert(dst != src);
+        Assert(dst != src);
         move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish);  // NOLINT
     }
 
     // move [src, end()) to dst start range from end to front
     void move_backward(T* __restrict__ dst, T* __restrict__ src) {
-        assert(dst != nullptr && src != nullptr);
+        Assert(dst != nullptr && src != nullptr);
         // if src == _finish or src == _finish -1, just use move_forward
-        assert(src < (_finish - 1));
+        Assert(src < (_finish - 1));
         // if dst == src, no need to move
-        assert(dst != src);
+        Assert(dst != src);
 
         T* dst_end = dst + (_finish - 1 - src);
         if constexpr (IsRelocatable<T>) {
@@ -543,8 +543,8 @@ class stdb_vector : public core<T>
     constexpr stdb_vector(InputIt first, InputIt last) : core<T>() {
         int64_t size = last - first;
         // if size == 0, then do nothing.and just for caller convenience.
-        assert(size >= 0);
-        assert((size_type)size <= this->max_size());
+        Assert(size >= 0);
+        Assert((size_type)size <= this->max_size());
         if (size > 0) [[likely]] {
             this->allocate((size_type)size);                // NOLINT
             copy_from_iterator(this->_start, first, last);
@@ -594,7 +594,7 @@ class stdb_vector : public core<T>
     template <std::forward_iterator Iterator>
     constexpr void assign(Iterator first, Iterator last) {
         int64_t size_to_assign = last - first;
-        assert(size_to_assign >= 0);
+        Assert(size_to_assign >= 0);
         auto count = (size_type)size_to_assign;  // NOLINT
         if (count > this->capacity()) {
             // if count is larger than current capacity, we need to reallocate memory
@@ -700,22 +700,22 @@ class stdb_vector : public core<T>
     }
 
     [[nodiscard, gnu::always_inline]] constexpr inline auto front() const noexcept -> const_reference {
-        assert(size() > 0);
+        Assert(size() > 0);
         return *this->_start;
     }
 
     [[nodiscard, gnu::always_inline]] constexpr inline auto front() noexcept -> reference {
-        assert(size() > 0);
+        Assert(size() > 0);
         return *this->_start;
     }
 
     [[nodiscard, gnu::always_inline]] constexpr inline auto back() const noexcept -> const_reference {
-        assert(size() > 0);
+        Assert(size() > 0);
         return *(this->_finish - 1);
     }
 
     [[nodiscard, gnu::always_inline]] constexpr inline auto back() noexcept -> reference {
-        assert(size() > 0);
+        Assert(size() > 0);
         return *(this->_finish - 1);
     }
 
@@ -903,7 +903,7 @@ class stdb_vector : public core<T>
                 this->realloc_and_emplace_back(compute_next_capacity(), std::forward<const_reference>(value));
             }
         } else {
-            assert(not this->full());
+            Assert(not this->full());
             copy_cref(this->_finish++, std::forward<const_reference&>(value));
         }
     }
@@ -918,7 +918,7 @@ class stdb_vector : public core<T>
                 this->realloc_and_emplace_back(compute_next_capacity(), std::forward<rvalue_reference>(value));
             }
         } else {
-            assert(not this->full());
+            Assert(not this->full());
             copy_value(this->_finish++, std::forward<rvalue_reference>(value));
         }
     }
@@ -933,7 +933,7 @@ class stdb_vector : public core<T>
             }
             return Iterator{this->_finish - 1};
         } else {
-            assert(not this->full());
+            Assert(not this->full());
             this->construct_at(this->_finish++, std::forward<Args>(args)...);
             return Iterator{this->_finish - 1};
         }
@@ -945,7 +945,7 @@ class stdb_vector : public core<T>
     }
 
     constexpr auto erase(ConstIterator pos) -> Iterator {
-        assert(pos >= cbegin() and pos < cend());
+        Assert(pos >= cbegin() and pos < cend());
 
         auto pos_ptr = get_ptr_from_iter(pos);
         destroy_ptr(pos_ptr);
@@ -955,7 +955,7 @@ class stdb_vector : public core<T>
     }
 
     constexpr auto erase(Iterator pos) -> Iterator {
-        assert(pos >= begin() and pos < end());
+        Assert(pos >= begin() and pos < end());
         T* ptr = get_ptr_from_iter(pos);
         destroy_ptr(ptr);
         this->move_forward(ptr, ptr + 1);
@@ -964,8 +964,8 @@ class stdb_vector : public core<T>
     }
 
     constexpr auto erase(ConstIterator first, ConstIterator last) -> Iterator {
-        assert(first >= cbegin() and last <= cend());
-        assert(last >= first);
+        Assert(first >= cbegin() and last <= cend());
+        Assert(last >= first);
         auto first_ptr = get_ptr_from_iter(first);
         auto last_ptr = get_ptr_from_iter(last);
         if (first_ptr != last_ptr) [[likely]] {
@@ -977,8 +977,8 @@ class stdb_vector : public core<T>
     }
 
     auto erase(Iterator first, Iterator last) -> Iterator {
-        assert(first >= begin() and last <= end());
-        assert(last >= first);
+        Assert(first >= begin() and last <= end());
+        Assert(last >= first);
 
         T* first_ptr = get_ptr_from_iter(first);
         T* last_ptr = get_ptr_from_iter(last);
@@ -1173,7 +1173,7 @@ class stdb_vector : public core<T>
 
     template <Safety safety = Safety::Safe>
     constexpr auto insert(ConstIterator pos, const_reference value) -> Iterator {
-        assert(pos >= cbegin() && pos <= cend());
+        Assert(pos >= cbegin() && pos <= cend());
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
@@ -1182,7 +1182,7 @@ class stdb_vector : public core<T>
                 pos_ptr = this->_start + pos_index;
             }
         }
-        assert(not this->full());
+        Assert(not this->full());
         // insert value to the end pos
         if (pos_ptr == this->_finish) [[unlikely]] {
             copy_cref(this->_finish++, value);
@@ -1201,7 +1201,7 @@ class stdb_vector : public core<T>
 
     template <Safety safety = Safety::Safe>
     constexpr auto insert(ConstIterator pos, rvalue_reference value) -> Iterator {
-        assert((pos >= cbegin()) && (pos <= cend()));
+        Assert((pos >= cbegin()) && (pos <= cend()));
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
@@ -1210,7 +1210,7 @@ class stdb_vector : public core<T>
                 pos_ptr = this->_start + pos_index;
             }
         }
-        assert(not this->full());
+        Assert(not this->full());
         // insert value to the end pos
         if (pos_ptr == this->_finish) [[unlikely]] {
             copy_value(this->_finish++, std::move(value));
@@ -1229,8 +1229,8 @@ class stdb_vector : public core<T>
 
     template <Safety safety = Safety::Safe>
     constexpr auto insert(ConstIterator pos, size_type count, const_reference value) -> Iterator {
-        assert(count > 0);
-        assert(pos >= cbegin() && pos <= cend());
+        Assert(count > 0);
+        Assert(pos >= cbegin() && pos <= cend());
         auto size = this->size();
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
@@ -1240,7 +1240,7 @@ class stdb_vector : public core<T>
                 pos_ptr = this->_start + pos_index;
             }
         }
-        assert((size + count) <= this->capacity());
+        Assert((size + count) <= this->capacity());
         // new elements are inserted after the end pos
         if (pos_ptr + count >= this->_finish) {
             this->move_forward(pos_ptr + count, pos_ptr);
@@ -1272,7 +1272,7 @@ class stdb_vector : public core<T>
             }
         }
 
-        assert((this->size() + size_to_insert) <= this->capacity());
+        Assert((this->size() + size_to_insert) <= this->capacity());
         if (pos_ptr + count >= this->_finish) {
             this->move_forward(pos_ptr + count, pos_ptr);
         } else {
@@ -1299,7 +1299,7 @@ class stdb_vector : public core<T>
                 pos_ptr = this->_start + pos_offset;
             }
         }
-        assert(not this->full());
+        Assert(not this->full());
         if (pos_ptr == this->_finish) [[unlikely]] {
             new (this->_finish++) T(std::forward<Args>(args)...);
             return Iterator(pos_ptr);
@@ -1321,7 +1321,7 @@ class stdb_vector : public core<T>
                 reserve(compute_next_capacity());
             }
         }
-        assert(not this->full());
+        Assert(not this->full());
         T* pos_ptr = this->_start + pos;
 
         if (pos_ptr == this->_finish) [[unlikely]] {
@@ -1340,7 +1340,7 @@ class stdb_vector : public core<T>
 
    private:
     [[nodiscard, gnu::always_inline]] inline auto compute_new_capacity(size_type new_size) const -> size_type {
-        assert(new_size > capacity());
+        Assert(new_size > capacity());
         if (auto next_capacity = compute_next_capacity(); next_capacity > new_size) {
             return next_capacity;
         }
