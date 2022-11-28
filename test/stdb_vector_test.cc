@@ -1714,13 +1714,21 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
     CHECK_EQ(it6, it7);
 }
 
-TEST_CASE("Iterator implicit cast") {
+TEST_CASE("Hilbert::Iterator implicit cast") {
     stdb_vector<int> vec;
     stdb_vector<int>::Iterator it = vec.begin();
     stdb_vector<int>::ConstIterator cit(it);
     CHECK_EQ(vec.cbegin(), cit);
+}
 
-
+TEST_CASE("Hilbert::2 dimension stdb_Vector") {
+    auto dp = stdb_vector<stdb_vector<int>>(4, stdb_vector<int>(8));
+    CHECK_EQ(dp.size(), 4);
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = 0; j < 8; ++j) {
+            CHECK_EQ(dp[i][j], 0);
+        }
+    }
 }
 
 TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator,
