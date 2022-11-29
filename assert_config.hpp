@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <boost/stacktrace/stacktrace.hpp>
+#include <boost/stacktrace.hpp>
 #ifdef BOOST_STACKTRACE_USE_BACKTRACE
 #include <fmt/core.h>
 
