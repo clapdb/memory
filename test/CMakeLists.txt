@@ -32,8 +32,8 @@ list(APPEND TEST_FLAGS
 
 target_compile_options(memory_test PRIVATE ${TEST_FLAGS})
 if (APPLE)
-link_directories(/opt/homebrew/opt/llvm/lib/c++)
-target_link_libraries(memory_test arena doctest xxHash::xxHash ${lib_cxxexperimental})
+    link_directories(/opt/homebrew/opt/llvm/lib/c++)
+    target_link_libraries(memory_test arena dl doctest xxHash::xxHash ${lib_cxxexperimental} ${TEST_LINK_LIBS})
 elseif (UNIX)
-target_link_libraries(memory_test arena doctest xxHash::xxHash)
+    target_link_libraries(memory_test arena dl doctest xxHash::xxHash ${TEST_LINK_LIBS})
 endif()

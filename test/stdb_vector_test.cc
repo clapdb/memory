@@ -1643,7 +1643,7 @@ static_assert(IsZeroInitable<relocate>, "relocate should be zero copyable");
 static_assert(!IsZeroInitable<std::string>, "std::string should not be zero copyable");
 static_assert(!IsZeroInitable<stdb::memory::string>, "stdb::memory::string should not be zero copyable");
 
-TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb_vector<int>::ConstIterator) {
+TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::iterator, stdb_vector<int>::const_iterator) {
     T it;
     it.~T();
     T it2 = T();
@@ -1714,17 +1714,25 @@ TEST_CASE_TEMPLATE("Hilbert::iterator test", T, stdb_vector<int>::Iterator, stdb
     CHECK_EQ(it6, it7);
 }
 
-TEST_CASE("Iterator implicit cast") {
+TEST_CASE("Hilbert::iterator implicit cast") {
     stdb_vector<int> vec;
-    stdb_vector<int>::Iterator it = vec.begin();
-    stdb_vector<int>::ConstIterator cit(it);
+    stdb_vector<int>::iterator it = vec.begin();
+    stdb_vector<int>::const_iterator cit(it);
     CHECK_EQ(vec.cbegin(), cit);
-
-
 }
 
-TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::ReverseIterator,
-                   stdb_vector<int>::ConstReverseIterator) {
+TEST_CASE("Hilbert::2 dimension stdb_Vector") {
+    auto dp = stdb_vector<stdb_vector<int>>(4, stdb_vector<int>(8));
+    CHECK_EQ(dp.size(), 4);
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = 0; j < 8; ++j) {
+            CHECK_EQ(dp[i][j], 0);
+        }
+    }
+}
+
+TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::reverse_iterator,
+                   stdb_vector<int>::const_reverse_iterator) {
     int buf[3] = {1, 2, 3};
     auto it = T{typename T::iterator_type(buf + 3)};
     CHECK_EQ(it.operator->(), buf + 2);
@@ -1746,7 +1754,6 @@ TEST_CASE_TEMPLATE("Hilbert::reverse iterator test", T, stdb_vector<int>::Revers
     CHECK_EQ(it2.operator*(), 3);
     it2 += 1;
     CHECK_EQ(it2 > it, true);
-    CHECK_EQ(it2 >= it, true);
     CHECK_EQ(it2 < it, false);
     CHECK_EQ(it2 <= it, false);
     it += 1;

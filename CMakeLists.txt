@@ -57,6 +57,8 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${SANITIZE_PARAM}")
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${SANITIZE_PARAM}")
 set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_MODULE_LINKER_FLAGS_DEBUG} ${SANITIZE_PARAM}")
 
+list(APPEND TEST_FLAGS
+        -D__UNITTEST)
 
 OPTION(CODE_COVERAGE
        "build with code coverage, only work in DEBUG"
@@ -64,12 +66,32 @@ OPTION(CODE_COVERAGE
         )
 # fmt
 find_package(fmt REQUIRED)
+# xxhash
 find_package(xxHash REQUIRED)
+# boost
+find_package(Boost REQUIRED)
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+
+# pmr for apple Mac OSX
 find_library(lib_cxxexperimental c++experimental PATHS /opt/homebrew/opt/llvm/lib/c++)
 if(lib_cxxexperimental MATCHES "NOTFOUND")
     message (STATUS "libc++experimental NOTFOUND")
 else()
     message (STATUS "${lib_cxxexperimental}")
+endif()
+#backtrace
+find_package(Backtrace)
+if (Backtrace_FOUND)
+
+message (STATUS "libbacktrace found!")
+
+list(APPEND TEST_FLAGS
+    -DBOOST_STACKTRACE_USE_BACKTRACE)
+
+list(APPEND TEST_LINK_LIBS
+        backtrace
+        dl)
+
 endif()
 
 set(MEMORY_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
