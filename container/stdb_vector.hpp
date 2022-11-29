@@ -814,9 +814,13 @@ class stdb_vector : public core<T>
 
     };  // class IteratorT
     using iterator = IteratorT<false>;
+    using Iterator = IteratorT<false>;
     using const_iterator = IteratorT<true>;
+    using ConstIterator = IteratorT<true>;
     using reverse_iterator = std::reverse_iterator<iterator>;
+    using ReverseIterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using ConstReverseIterator = std::reverse_iterator<const_iterator>;
 
     [[nodiscard, gnu::always_inline]] inline auto begin() noexcept -> iterator { return iterator(this->_start); }
 

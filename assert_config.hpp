@@ -20,16 +20,16 @@
 
 #pragma once
 
-#include <boost/stacktrace.hpp>
 #ifdef BOOST_STACKTRACE_USE_BACKTRACE
+#include <boost/stacktrace.hpp>
 #include <fmt/core.h>
 
 template <std::size_t N>
-constexpr auto get_function_name(const char (&funcName)[N]) {
+constexpr auto function_name(const char (&funcName)[N]) {
     return std::string_view(funcName, N);
 }
 
-[[gnu::always_inline]] inline void stdb_print_assert(char const* expr, std::string_view msg, std::string_view function,
+[[gnu::always_inline]] inline void print_assert(char const* expr, std::string_view msg, std::string_view function,
                                                      std::string_view file, int64_t line) {
     auto traceInfo = boost::stacktrace::stacktrace{};
     fmt::print(stderr, "Expression=[{}] is false in function=[{}] of location=[{}:{}]  msg=[{}].\n", expr, function,
@@ -53,7 +53,7 @@ constexpr auto get_function_name(const char (&funcName)[N]) {
 #define AssertMsg(expr, msg)                                                          \
     {                                                                                               \
         if (!(expr)) {                                                                              \
-            stdb_print_assert(#expr, std::string_view(msg), get_function_name(__PRETTY_FUNCTION__), \
+            print_assert(#expr, std::string_view(msg), function_name(__PRETTY_FUNCTION__),          \
                               std::string(__FILE__), __LINE__);                                     \
         }                                                                                           \
     }
