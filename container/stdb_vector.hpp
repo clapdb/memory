@@ -813,52 +813,52 @@ class stdb_vector : public core<T>
         }
 
     };  // class IteratorT
-    using Iterator = IteratorT<false>;
-    using ConstIterator = IteratorT<true>;
-    using ReverseIterator = std::reverse_iterator<Iterator>;
-    using ConstReverseIterator = std::reverse_iterator<ConstIterator>;
+    using iterator = IteratorT<false>;
+    using const_iterator = IteratorT<true>;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    [[nodiscard, gnu::always_inline]] inline auto begin() noexcept -> Iterator { return Iterator(this->_start); }
+    [[nodiscard, gnu::always_inline]] inline auto begin() noexcept -> iterator { return iterator(this->_start); }
 
-    [[nodiscard, gnu::always_inline]] inline auto begin() const noexcept -> ConstIterator {
-        return ConstIterator(this->_start);
+    [[nodiscard, gnu::always_inline]] inline auto begin() const noexcept -> const_iterator {
+        return const_iterator(this->_start);
     }
 
-    [[nodiscard, gnu::always_inline]] auto cbegin() const noexcept -> ConstIterator {
-        return ConstIterator(this->_start);
+    [[nodiscard, gnu::always_inline]] auto cbegin() const noexcept -> const_iterator {
+        return const_iterator(this->_start);
     }
 
-    [[nodiscard, gnu::always_inline]] inline auto end() noexcept -> Iterator { return Iterator{this->_finish}; }
+    [[nodiscard, gnu::always_inline]] inline auto end() noexcept -> iterator { return iterator{this->_finish}; }
 
-    [[nodiscard, gnu::always_inline]] inline auto end() const noexcept -> ConstIterator {
-        return ConstIterator{this->_finish};
+    [[nodiscard, gnu::always_inline]] inline auto end() const noexcept -> const_iterator {
+        return const_iterator{this->_finish};
     }
 
-    [[nodiscard, gnu::always_inline]] inline auto cend() const noexcept -> ConstIterator {
-        return ConstIterator{this->_finish};
+    [[nodiscard, gnu::always_inline]] inline auto cend() const noexcept -> const_iterator {
+        return const_iterator{this->_finish};
     }
 
-    [[nodiscard, gnu::always_inline]] inline auto rbegin() noexcept -> ReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto rbegin() noexcept -> reverse_iterator {
         return std::make_reverse_iterator(end());
     }
 
-    [[nodiscard, gnu::always_inline]] inline auto rbegin() const noexcept -> ConstReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto rbegin() const noexcept -> const_reverse_iterator {
         return std::make_reverse_iterator(end());
     }
 
-    [[nodiscard, gnu::always_inline]] inline auto crbegin() const noexcept -> ConstReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto crbegin() const noexcept -> const_reverse_iterator {
         return std::make_reverse_iterator(cend());
     }
 
-    [[nodiscard, gnu::always_inline]] inline auto rend() noexcept -> ReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto rend() noexcept -> reverse_iterator {
         return std::make_reverse_iterator(begin());
     }
 
-    [[nodiscard, gnu::always_inline]] inline auto rend() const noexcept -> ConstReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto rend() const noexcept -> const_reverse_iterator {
         return std::make_reverse_iterator(begin());
     }
 
-    [[nodiscard, gnu::always_inline]] inline auto crend() const noexcept -> ConstReverseIterator {
+    [[nodiscard, gnu::always_inline]] inline auto crend() const noexcept -> const_reverse_iterator {
         return std::make_reverse_iterator(cbegin());
     }
 
@@ -924,18 +924,18 @@ class stdb_vector : public core<T>
     }
 
     template <Safety safety = Safety::Safe, typename... Args>
-    auto emplace_back(Args&&... args) -> Iterator {
+    auto emplace_back(Args&&... args) -> iterator {
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
                 this->construct_at(this->_finish++, std::forward<Args>(args)...);
             } else {
                 this->realloc_and_emplace_back(compute_next_capacity(), std::forward<Args>(args)...);
             }
-            return Iterator{this->_finish - 1};
+            return iterator{this->_finish - 1};
         } else {
             Assert(not this->full());
             this->construct_at(this->_finish++, std::forward<Args>(args)...);
-            return Iterator{this->_finish - 1};
+            return iterator{this->_finish - 1};
         }
     }
 
@@ -944,17 +944,17 @@ class stdb_vector : public core<T>
         this->_finish = this->_start;
     }
 
-    constexpr auto erase(ConstIterator pos) -> Iterator {
+    constexpr auto erase(const_iterator pos) -> iterator {
         Assert(pos >= cbegin() and pos < cend());
 
         auto pos_ptr = get_ptr_from_iter(pos);
         destroy_ptr(pos_ptr);
         this->move_forward(pos_ptr, pos_ptr + 1);
         --this->_finish;
-        return Iterator{(T*)pos_ptr};  // NOLINT
+        return iterator{(T*)pos_ptr};  // NOLINT
     }
 
-    constexpr auto erase(Iterator pos) -> Iterator {
+    constexpr auto erase(iterator pos) -> iterator {
         Assert(pos >= begin() and pos < end());
         T* ptr = get_ptr_from_iter(pos);
         destroy_ptr(ptr);
@@ -963,7 +963,7 @@ class stdb_vector : public core<T>
         return pos;
     }
 
-    constexpr auto erase(ConstIterator first, ConstIterator last) -> Iterator {
+    constexpr auto erase(const_iterator first, const_iterator last) -> iterator {
         Assert(first >= cbegin() and last <= cend());
         Assert(last >= first);
         auto first_ptr = get_ptr_from_iter(first);
@@ -973,10 +973,10 @@ class stdb_vector : public core<T>
             this->move_forward(first_ptr, last_ptr);
             this->_finish -= (last_ptr - first_ptr);
         }
-        return Iterator{(T*)last_ptr};  // NOLINT
+        return iterator{(T*)last_ptr};  // NOLINT
     }
 
-    auto erase(Iterator first, Iterator last) -> Iterator {
+    auto erase(iterator first, iterator last) -> iterator {
         Assert(first >= begin() and last <= end());
         Assert(last >= first);
 
@@ -988,7 +988,7 @@ class stdb_vector : public core<T>
             this->_finish -= (last_ptr - first_ptr);
         }
 
-        return Iterator{last_ptr};
+        return iterator{last_ptr};
     }
 
     auto erase(const value_type& value) -> size_type {  // NOLINT
@@ -1172,7 +1172,7 @@ class stdb_vector : public core<T>
     [[gnu::always_inline]] constexpr inline void swap(stdb_vector& other) noexcept { core<T>::swap(other); }
 
     template <Safety safety = Safety::Safe>
-    constexpr auto insert(ConstIterator pos, const_reference value) -> Iterator {
+    constexpr auto insert(const_iterator pos, const_reference value) -> iterator {
         Assert(pos >= cbegin() && pos <= cend());
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
@@ -1186,7 +1186,7 @@ class stdb_vector : public core<T>
         // insert value to the end pos
         if (pos_ptr == this->_finish) [[unlikely]] {
             copy_cref(this->_finish++, value);
-            return Iterator(pos_ptr);
+            return iterator(pos_ptr);
         }
         // move all elements after pos to the right, with backward direction, because have overlap
         if (pos_ptr < this->_finish - 1) [[likely]] {
@@ -1196,11 +1196,11 @@ class stdb_vector : public core<T>
         }
         copy_cref(pos_ptr, value);
         ++this->_finish;
-        return Iterator(pos_ptr);
+        return iterator(pos_ptr);
     }
 
     template <Safety safety = Safety::Safe>
-    constexpr auto insert(ConstIterator pos, rvalue_reference value) -> Iterator {
+    constexpr auto insert(const_iterator pos, rvalue_reference value) -> iterator {
         Assert((pos >= cbegin()) && (pos <= cend()));
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
@@ -1214,7 +1214,7 @@ class stdb_vector : public core<T>
         // insert value to the end pos
         if (pos_ptr == this->_finish) [[unlikely]] {
             copy_value(this->_finish++, std::move(value));
-            return Iterator((T*)(pos_ptr));  // NOLINT
+            return iterator((T*)(pos_ptr));  // NOLINT
         }
         if (pos_ptr < this->_finish - 1) [[likely]] {
             this->move_backward(pos_ptr + 1, pos_ptr);
@@ -1224,11 +1224,11 @@ class stdb_vector : public core<T>
         }
         ++this->_finish;
         copy_value(pos_ptr, std::move(value));
-        return Iterator(pos_ptr);
+        return iterator(pos_ptr);
     }
 
     template <Safety safety = Safety::Safe>
-    constexpr auto insert(ConstIterator pos, size_type count, const_reference value) -> Iterator {
+    constexpr auto insert(const_iterator pos, size_type count, const_reference value) -> iterator {
         Assert(count > 0);
         Assert(pos >= cbegin() && pos <= cend());
         auto size = this->size();
@@ -1249,15 +1249,15 @@ class stdb_vector : public core<T>
         }
         construct_range_with_cref(pos_ptr, pos_ptr + count, value);
         this->_finish += count;
-        return Iterator(pos_ptr);
+        return iterator(pos_ptr);
     }
 
     template <Safety safety = Safety::Safe, class InputIt>
         requires std::input_iterator<InputIt>
-    constexpr auto insert(ConstIterator pos, InputIt first, InputIt last) -> Iterator {
+    constexpr auto insert(const_iterator pos, InputIt first, InputIt last) -> iterator {
         int64_t count = last - first;
         if (count == 0) [[unlikely]] {
-            return Iterator((T*)get_ptr_from_iter(pos));  // NOLINT
+            return iterator((T*)get_ptr_from_iter(pos));  // NOLINT
         }
         auto size_to_insert = (size_type)count;   // NOLINT
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
@@ -1280,16 +1280,16 @@ class stdb_vector : public core<T>
         }
         copy_from_iterator(pos_ptr, first, last);
         this->_finish += size_to_insert;
-        return Iterator(pos_ptr);
+        return iterator(pos_ptr);
     }
 
     template <Safety safety = Safety::Safe>
-    [[gnu::always_inline]] constexpr inline auto insert(ConstIterator pos, std::initializer_list<T> ilist) -> Iterator {
+    [[gnu::always_inline]] constexpr inline auto insert(const_iterator pos, std::initializer_list<T> ilist) -> iterator {
         return insert<safety>(pos, ilist.begin(), ilist.end());
     }
 
     template <Safety safety = Safety::Safe, typename... Args>
-    constexpr auto emplace(Iterator pos, Args&&... args) -> Iterator {
+    constexpr auto emplace(iterator pos, Args&&... args) -> iterator {
         T* pos_ptr = get_ptr_from_iter(pos);
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
@@ -1302,7 +1302,7 @@ class stdb_vector : public core<T>
         Assert(not this->full());
         if (pos_ptr == this->_finish) [[unlikely]] {
             new (this->_finish++) T(std::forward<Args>(args)...);
-            return Iterator(pos_ptr);
+            return iterator(pos_ptr);
         }
         if (pos_ptr < this->_finish - 1) [[likely]] {
             this->move_backward(pos_ptr + 1, pos_ptr);
@@ -1311,11 +1311,11 @@ class stdb_vector : public core<T>
         }
         new (pos_ptr) T(std::forward<Args>(args)...);
         ++this->_finish;
-        return Iterator(pos_ptr);
+        return iterator(pos_ptr);
     }
 
     template <Safety safety = Safety::Safe, typename... Args>
-    constexpr auto emplace(size_type pos, Args&&... args) -> Iterator {
+    constexpr auto emplace(size_type pos, Args&&... args) -> iterator {
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
                 reserve(compute_next_capacity());
@@ -1326,7 +1326,7 @@ class stdb_vector : public core<T>
 
         if (pos_ptr == this->_finish) [[unlikely]] {
             new (this->_finish++) T(std::forward<Args>(args)...);
-            return Iterator(pos_ptr);
+            return iterator(pos_ptr);
         }
         if (pos_ptr < this->_finish - 1) [[likely]] {
             this->move_backward(pos_ptr + 1, pos_ptr);
@@ -1335,7 +1335,7 @@ class stdb_vector : public core<T>
         }
         new (pos_ptr) T(std::forward<Args>(args)...);
         ++this->_finish;
-        return Iterator(pos_ptr);
+        return iterator(pos_ptr);
     }
 
    private:
