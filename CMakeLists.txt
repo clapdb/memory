@@ -80,18 +80,16 @@ else()
     message (STATUS "${lib_cxxexperimental}")
 endif()
 #backtrace
-find_package(Backtrace)
-if (Backtrace_FOUND)
-
-message (STATUS "libbacktrace found!")
-
+if (APPLE)
+    message (STATUS "Apple not support libbacktrace!")
+elseif(UNIX)
+    # for linux
 list(APPEND TEST_FLAGS
     -DBOOST_STACKTRACE_USE_BACKTRACE)
 
 list(APPEND TEST_LINK_LIBS
         backtrace
         dl)
-
 endif()
 
 set(MEMORY_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
