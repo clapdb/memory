@@ -29,7 +29,7 @@ constexpr auto function_name(const char (&funcName)[N]) {
     return std::string_view(funcName, N);
 }
 
-[[gnu::always_inline]] inline void print_assert(char const* expr, std::string_view msg, std::string_view function,
+inline void print_assert(char const* expr, std::string_view msg, std::string_view function,
                                                      std::string_view file, int64_t line) {
     auto traceInfo = boost::stacktrace::stacktrace{};
     fmt::print(stderr, "Expression=[{}] is false in function=[{}] of location=[{}:{}]  msg=[{}].\n", expr, function,
