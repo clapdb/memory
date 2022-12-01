@@ -79,18 +79,6 @@ if(lib_cxxexperimental MATCHES "NOTFOUND")
 else()
     message (STATUS "${lib_cxxexperimental}")
 endif()
-#backtrace
-if (APPLE)
-    message (STATUS "Apple not support libbacktrace!")
-elseif(UNIX)
-    # for linux
-list(APPEND TEST_FLAGS
-    -DBOOST_STACKTRACE_USE_BACKTRACE)
-
-list(APPEND TEST_LINK_LIBS
-        backtrace
-        dl)
-endif()
 
 set(MEMORY_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR})
 include_directories(SYSTEM ${MEMORY_SOURCE_DIR}/doctest/)
