@@ -20,6 +20,7 @@
 #pragma once
 
 #include <iostream>
+#include <memory_resource>
 
 #include "arena/arenahelper.hpp"
 #include "string.hpp"
@@ -59,7 +60,9 @@ class arena_string_core
 
     arena_string_core(const Char* str, std::size_t len) : arena_string_core(str, len, pmr::get_default_resource()) {}
 
-    arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
+    arena_string_core(const arena_string_core& rhs,
+                      const pmr::polymorphic_allocator<Char>& allocator = pmr::get_default_resource())
+        : allocator_{allocator} {
         Assert(&rhs != this);
         switch (rhs.category()) {
             case Category::isSmall:
@@ -69,7 +72,12 @@ class arena_string_core
                 copyMedium(rhs);
                 break;
             case Category::isLarge:
-                copyLarge(rhs);
+                if (rhs.allocator_ == allocator) {
+                    copyLarge(rhs);
+                } else {
+                    initLarge(rhs.data(), rhs.size());
+                }
+
                 break;
             default:
                 __builtin_unreachable();
@@ -228,7 +236,7 @@ class arena_string_core
     void reset() { setSmallSize(0); }
 
     void destroyMediumLarge() noexcept {
-        if (allocator_ == pmr::polymorphic_allocator<Char>()) [[unlikely]] {
+        if (allocator_ == pmr::get_default_resource()) [[unlikely]] {
             auto const c = category();  // NOLINT
             Assert(c != Category::isSmall);
 #ifdef STDB_WARNING_ON_ARENA
@@ -455,7 +463,7 @@ class arena_string_core
     void shrinkMedium(size_t delta);
     void shrinkLarge(size_t delta);
 
-    void unshare(size_t minCapacity = 0);
+    void unshare(size_t minCapacity = 0, pmr::polymorphic_allocator<Char> allocator = pmr::get_default_resource());
     auto mutableDataLarge() -> Char*;
 };
 
@@ -567,16 +575,16 @@ void arena_string_core<Char>::initLarge(const Char* const data, const size_t siz
 }
 
 template <class Char>
-void arena_string_core<Char>::unshare(size_t minCapacity) {
+void arena_string_core<Char>::unshare(size_t minCapacity, pmr::polymorphic_allocator<Char> allocator) {
     Assert(category() == Category::isLarge);
     size_t effectiveCapacity = std::max(minCapacity, ml_.capacity());  // NOLINT
-    auto const newRC = RefCounted::create(allocator_, &effectiveCapacity);
+    auto const newRC = RefCounted::create(allocator, &effectiveCapacity);
     // If this fails, someone placed the wrong capacity in an
     // string.
     Assert(effectiveCapacity >= ml_.capacity());  // NOLINT
     // Also copies terminator.
     string_detail::podCopy(ml_.data_, ml_.data_ + ml_.size_ + 1, newRC->data_);  // NOLINT
-    RefCounted::decrementRefs(ml_.data_, ml_.size_, allocator_);                 // NOLINT
+    RefCounted::decrementRefs(ml_.data_, ml_.size_, allocator);                  // NOLINT
     ml_.data_ = newRC->data_;                                                    // NOLINT
     ml_.setCapacity(effectiveCapacity, Category::isLarge);                       // NOLINT
     // size_ remains unchanged.

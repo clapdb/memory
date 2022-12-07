@@ -2880,7 +2880,7 @@ TEST_CASE("arena_string::normal") {
         CHECK_EQ(arena.check(copied_str.data()), ArenaContainStatus::NotContain);
         arena_string str_long("12345671234567123456712345671234567", arena.get_memory_resource());
         arena_string copied_str_long(str_long);
-        CHECK_EQ(arena.check(copied_str_long.data()), ArenaContainStatus::BlockUsed);
+        CHECK_EQ(arena.check(copied_str_long.data()), ArenaContainStatus::NotContain);
     }
 
     SUBCASE("move") {
@@ -2998,7 +2998,7 @@ TEST_CASE("arena_string::normal") {
         CHECK_EQ(arena.check(copied_str.data()), ArenaContainStatus::NotContain);
         arena_string str_long("12345671234567123456712345671234567", arena.get_memory_resource());
         arena_string copied_str_long(str_long);
-        CHECK_EQ(arena.check(copied_str_long.data()), ArenaContainStatus::BlockUsed);
+        CHECK_EQ(arena.check(copied_str_long.data()), ArenaContainStatus::NotContain);
     }
 
     SUBCASE("move") {
