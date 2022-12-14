@@ -862,8 +862,8 @@ static void reserve_std_vector(benchmark::State& state) {
     std::vector<T> vec;
     for (auto _ : state) {
         vec.reserve(times * 2);
-        benchmark::DoNotOptimize(vec);
     }
+    vec.push_back(T());
 }
 
 template <typename T>
@@ -871,8 +871,8 @@ static void reserve_stdb_vector(benchmark::State& state) {
     stdb::container::stdb_vector<T> vec;
     for (auto _ : state) {
         vec.reserve(times * 2);
-        benchmark::DoNotOptimize(vec);
     }
+    vec.push_back(T());
 }
 template <typename T>
 auto generate_t() -> T {
@@ -902,25 +902,6 @@ static void stack_like_std_vector(benchmark::State& state) {
 }
 
 template <typename T>
-static void stack_like_std_vector_with_size(benchmark::State& state) {
-    std::vector<T> vec;
-    vec.reserve(16);
-    for (auto _ : state) {
-        vec.push_back(T{});
-        if (vec.back() == T{}) {
-            vec.pop_back();
-        }
-        for (uint64_t i = 0; i < 8; ++i) {
-            vec.push_back(generate_t<T>());
-        }
-        auto size = vec.size();
-        for (size_t  i = 0; i < size; ++i) {
-            vec.pop_back();
-        }
-    }
-}
-
-template <typename T>
 static void stack_like_stdb_vector(benchmark::State& state) {
     stdb_vector<T> vec;
     vec.reserve(16);
@@ -939,10 +920,12 @@ static void stack_like_stdb_vector(benchmark::State& state) {
 }
 
 template <typename T>
-static void stack_like_stdb_vector_with_size(benchmark::State& state) {
-    stdb_vector<T> vec;
-    vec.reserve(16);
+static void stack_like_std_vector_with_size(benchmark::State& state) {
+
     for (auto _ : state) {
+        std::vector<T> vec;
+        vec.reserve(16);
+
         vec.push_back(T{});
         if (vec.back() == T{}) {
             vec.pop_back();
@@ -955,6 +938,29 @@ static void stack_like_stdb_vector_with_size(benchmark::State& state) {
             vec.pop_back();
         }
     }
+
+}
+
+template <typename T>
+static void stack_like_stdb_vector_with_size(benchmark::State& state) {
+
+    for (auto _ : state) {
+        stdb_vector<T> vec;
+        vec.reserve(16);
+
+        vec.push_back(T{});
+        if (vec.back() == T{}) {
+            vec.pop_back();
+        }
+        for (uint64_t i = 0; i < 8; ++i) {
+            vec.push_back(generate_t<T>());
+        }
+        auto size = vec.size();
+        for (size_t  i = 0; i < size; ++i) {
+            vec.pop_back();
+        }
+    }
+
 }
 
 BENCHMARK(init_std_vector);
