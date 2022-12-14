@@ -874,6 +874,63 @@ static void reserve_stdb_vector(benchmark::State& state) {
         benchmark::DoNotOptimize(vec);
     }
 }
+template <typename T>
+auto generate_t() -> T {
+    if constexpr(std::is_pointer_v<T>) {
+        return T(-1);
+    } else {
+        return T{1};
+    }
+}
+
+template<typename T>
+void std_stack_like_operator(std::vector<T>& vec) {
+    vec.push_back(T{});
+    if (vec.back() == T{}) {
+        vec.pop_back();
+    }
+    for (uint64_t i = 0; i < 8; ++i) {
+        vec.push_back(generate_t<T>());
+    }
+    if (not vec.empty()) {
+        vec.pop_back();
+    }
+
+}
+
+template<typename T>
+void stdb_stack_like_operator(stdb_vector<T>& vec) {
+    vec.push_back(T{});
+    if (vec.back() == T{}) {
+        vec.pop_back();
+    }
+    for (uint64_t i = 0; i < 8; ++i) {
+        vec.push_back(generate_t<T>());
+    }
+    if (not vec.empty()) {
+        vec.pop_back();
+    }
+
+}
+
+
+template <typename T>
+static void stack_like_std_vector(benchmark::State& state) {
+    std::vector<T> vec;
+    vec.reserve(16);
+    for (auto _ : state) {
+        std_stack_like_operator(vec);
+    }
+}
+
+template <typename T>
+static void stack_like_stdb_vector(benchmark::State& state) {
+    stdb_vector<T> vec;
+    vec.reserve(16);
+    for (auto _ : state) {
+        stdb_stack_like_operator(vec);
+    }
+}
 
 BENCHMARK(init_std_vector);
 BENCHMARK(init_stdb_vector_with_pushback_unsafe);
@@ -888,6 +945,10 @@ BENCHMARK(reserve_std_vector<trivially_copyable>);
 BENCHMARK(reserve_std_vector<non_trivially_copyable>);
 BENCHMARK(reserve_stdb_vector<trivially_copyable>);
 BENCHMARK(reserve_stdb_vector<non_trivially_copyable>);
+
+BENCHMARK(stack_like_std_vector<char*>);
+BENCHMARK(stack_like_stdb_vector<char*>);
+
 BENCHMARK_MAIN();
 
 // NOLINTEND
