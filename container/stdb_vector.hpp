@@ -382,26 +382,26 @@ class core
         _edge = std::exchange(rhs._edge, _edge);
     }
 
-    [[nodiscard, gnu::always_inline]] constexpr auto size() const -> size_type {
+    [[nodiscard, gnu::always_inline]] constexpr auto size() const noexcept -> size_type {
         Assert(_finish >= _start);
-        return static_cast<size_type>(_finish - _start);
+        return (size_type)(_finish - _start);
     }
 
-    [[nodiscard, gnu::always_inline]] constexpr auto capacity() const -> size_type {
+    [[nodiscard, gnu::always_inline]] constexpr auto capacity() const noexcept -> size_type {
         Assert(_edge >= _start);
-        return static_cast<size_type>(_edge - _start);
+        return (size_type)(_edge - _start);
     }
 
-    [[nodiscard, gnu::always_inline]] auto full() const -> bool {
+    [[nodiscard, gnu::always_inline]] auto full() const noexcept -> bool {
         Assert(_finish <= _edge);
         return _edge == _finish;
     }
     // data access section
-    [[nodiscard, gnu::always_inline]] auto at(size_type index) const -> const_reference {
+    [[nodiscard, gnu::always_inline]] auto at(size_type index) const noexcept -> const_reference {
         Assert(index < size());
         return _start[index];  // NOLINT
     }
-    [[nodiscard, gnu::always_inline]] auto at(size_type index) -> reference {
+    [[nodiscard, gnu::always_inline]] auto at(size_type index) noexcept -> reference {
         Assert(index < size());
         return _start[index];  // NOLINT
     }
@@ -450,7 +450,7 @@ class core
         destroy_range(_start, _finish);
     }
 
-    [[gnu::always_inline, nodiscard]] auto max_size() const -> size_type { return kFastVectorMaxSize / sizeof(T); }
+    [[gnu::always_inline, nodiscard]] auto max_size() const noexcept -> size_type { return kFastVectorMaxSize / sizeof(T); }
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(T* __restrict__ dst, T* __restrict__ src) {
@@ -1131,7 +1131,7 @@ class stdb_vector : public core<T>
         }
     }
 
-    [[gnu::always_inline]] inline void pop_back() { destroy_ptr(this->_finish-- - 1); }
+    constexpr void pop_back() noexcept { destroy_ptr(--this->_finish); }
 
     template <Safety safety = Safety::Safe>
     constexpr void resize(size_type count) {
