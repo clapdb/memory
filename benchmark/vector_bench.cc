@@ -892,7 +892,7 @@ void std_stack_like_operator(std::vector<T>& vec) {
     for (uint64_t i = 0; i < 8; ++i) {
         vec.push_back(generate_t<T>());
     }
-    if (not vec.empty()) {
+    while (not vec.empty()) {
         vec.pop_back();
     }
 
@@ -907,7 +907,7 @@ void stdb_stack_like_operator(stdb_vector<T>& vec) {
     for (uint64_t i = 0; i < 8; ++i) {
         vec.push_back(generate_t<T>());
     }
-    if (not vec.empty()) {
+    while (not vec.empty()) {
         vec.pop_back();
     }
 
