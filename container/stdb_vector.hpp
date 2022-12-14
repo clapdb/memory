@@ -1131,7 +1131,7 @@ class stdb_vector : public core<T>
         }
     }
 
-    [[gnu::always_inline]] inline void pop_back() { destroy_ptr(this->_finish-- - 1); }
+    [[gnu::always_inline]] inline void pop_back() { destroy_ptr(--this->_finish); }
 
     template <Safety safety = Safety::Safe>
     constexpr void resize(size_type count) {
