@@ -1798,6 +1798,10 @@ TEST_CASE("vector of char") {
     CHECK_EQ(v[10], 'b');
 }
 
+TEST_CASE("vector of bool can not compile") {
+//    stdb_vector<bool> v(10, true);
+}
+
 }  // namespace stdb::container
 
 namespace stdb {
@@ -1814,5 +1818,6 @@ static_assert(IsZeroInitable<normal_class_with_traits>, "normal_class_with_trait
 
 }  // namespace container
 }  // namespace stdb
+
 
 // NOLINTEND
