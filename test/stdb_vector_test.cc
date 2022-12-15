@@ -1798,8 +1798,17 @@ TEST_CASE("vector of char") {
     CHECK_EQ(v[10], 'b');
 }
 
-TEST_CASE("vector of bool can not compile") {
-//    stdb_vector<bool> v(10, true);
+TEST_CASE("vector of bool works well") {
+    stdb_vector<bool> v(10, true);
+    CHECK_EQ(sizeof(bool), 1);
+    for (size_t i = 0; i < 10; ++i) {
+        CHECK_EQ(v[i], true);
+    }
+    v.push_back(false);
+    CHECK_EQ(v.size(), 11);
+    CHECK_EQ(v[10], false);
+
+
 }
 
 }  // namespace stdb::container

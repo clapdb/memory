@@ -267,7 +267,7 @@ auto realloc_with_move(T*& __restrict__ ptr, std::size_t old_size, std::size_t n
 }
 
 // make T is not bool
-template <typename T> requires (not std::is_same_v<T, bool>)
+template <typename T>
 class core
 {
     using size_type = std::size_t;
