@@ -1799,7 +1799,8 @@ TEST_CASE("vector of char") {
 }
 
 TEST_CASE("vector of bool can not compile") {
-//    stdb_vector<bool> v(10, true);
+    stdb_vector<bool> v(10, true);
+    CHECK_EQ(sizeof(bool), 1);
 }
 
 }  // namespace stdb::container
