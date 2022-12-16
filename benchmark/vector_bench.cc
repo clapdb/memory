@@ -898,6 +898,7 @@ static void stack_like_std_vector(benchmark::State& state) {
         while (not vec.empty()) {
             vec.pop_back();
         }
+        benchmark::DoNotOptimize(vec);
     }
 }
 
@@ -916,16 +917,15 @@ static void stack_like_stdb_vector(benchmark::State& state) {
         while (not vec.empty()) {
             vec.pop_back();
         }
+        benchmark::DoNotOptimize(vec);
     }
 }
 
 template <typename T>
 static void stack_like_std_vector_with_size(benchmark::State& state) {
-
+    std::vector<T> vec;
+    vec.reserve(16);
     for (auto _ : state) {
-        std::vector<T> vec;
-        vec.reserve(16);
-
         vec.push_back(T{});
         if (vec.back() == T{}) {
             vec.pop_back();
@@ -937,17 +937,16 @@ static void stack_like_std_vector_with_size(benchmark::State& state) {
         for (size_t  i = 0; i < size; ++i) {
             vec.pop_back();
         }
+        benchmark::DoNotOptimize(vec);
     }
 
 }
 
 template <typename T>
 static void stack_like_stdb_vector_with_size(benchmark::State& state) {
-
+    stdb_vector<T> vec;
+    vec.reserve(16);
     for (auto _ : state) {
-        stdb_vector<T> vec;
-        vec.reserve(16);
-
         vec.push_back(T{});
         if (vec.back() == T{}) {
             vec.pop_back();
@@ -959,6 +958,7 @@ static void stack_like_stdb_vector_with_size(benchmark::State& state) {
         for (size_t  i = 0; i < size; ++i) {
             vec.pop_back();
         }
+        benchmark::DoNotOptimize(vec);
     }
 
 }
