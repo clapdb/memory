@@ -37,10 +37,10 @@
 #include <utility>        // for exchange, forward
 #include <variant>
 
-#include "align/align.hpp"                                           // for AlignUpTo
-#include "arenahelper.hpp"                                           // for ArenaHelper
-#include "fmt/core.h"                                                // for format
+#include "align/align.hpp"  // for AlignUpTo
+#include "arenahelper.hpp"  // for ArenaHelper
 #include "assert_config.hpp"
+#include "fmt/core.h"                                                // for format
 #define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
 
 #include "string/arena_string.hpp"
@@ -146,6 +146,10 @@ class Arena
           _cookie(std::exchange(other._cookie, nullptr)),
           _space_allocated(std::exchange(other._space_allocated, 0)) {}
     [[gnu::always_inline]] auto operator=(Arena&& other) noexcept -> Arena& {
+        if (this == &other) [[unlikely]] {
+            return *this;
+        }
+        this->~Arena();
         _options = other._options;
         _last_block = std::exchange(other._last_block, nullptr);
         _resource = std::exchange(other._resource, nullptr);
