@@ -1243,4 +1243,21 @@ TEST_CASE("Arena-memory::struct_with_string") {
     ptr->name.append("agadsgavb123421341234lk1234jl231jk4lkjasdlkfjasdlkfjalskfj");
 }
 
+TEST_CASE("ArenaTest.MoveAssignmentTest") {
+    auto a = Arena(Arena::Options::GetDefaultOptions());
+    auto* obj_a0 = a.Create<class_with_allocator>();
+    auto* obj_a1 = a.Create<class_with_allocator>();
+
+    auto b = Arena(Arena::Options::GetDefaultOptions());
+    (void)a.Create<class_with_allocator>();
+
+    const auto space_allocated_a = a.SpaceAllocated();
+    const auto space_allocated_b = b.SpaceAllocated();
+    b = std::move(a);
+    CHECK_EQ(b.SpaceAllocated(), space_allocated_a);
+    CHECK_NE(b.SpaceAllocated(), space_allocated_b);
+    (void)*obj_a0;
+    (void)*obj_a1;
+}
+
 }  // namespace stdb::memory
