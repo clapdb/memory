@@ -1243,6 +1243,7 @@ TEST_CASE("Arena-memory::struct_with_string") {
     ptr->name.append("agadsgavb123421341234lk1234jl231jk4lkjasdlkfjasdlkfjalskfj");
 }
 
+/*
 TEST_CASE("ArenaTest.MoveAssignmentTest") {
     auto a = Arena(Arena::Options::GetDefaultOptions());
     auto* obj_a0 = a.Create<class_with_allocator>();
@@ -1259,5 +1260,6 @@ TEST_CASE("ArenaTest.MoveAssignmentTest") {
     (void)*obj_a0;
     (void)*obj_a1;
 }
+ */
 
 }  // namespace stdb::memory

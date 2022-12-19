@@ -145,6 +145,8 @@ class Arena
           _resource(std::exchange(other._resource, nullptr)),
           _cookie(std::exchange(other._cookie, nullptr)),
           _space_allocated(std::exchange(other._space_allocated, 0)) {}
+    auto operator = (Arena&&) noexcept -> Arena& = delete;
+    /*
     [[gnu::always_inline]] auto operator=(Arena&& other) noexcept -> Arena& {
         if (this == &other) [[unlikely]] {
             return *this;
@@ -157,6 +159,7 @@ class Arena
         _space_allocated = std::exchange(other._space_allocated, 0);
         return *this;
     }
+    */
 
     /*
      * Arena Options class for the Arena class' configuration.
