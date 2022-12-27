@@ -70,7 +70,7 @@ class alloc_class
 class alloc_fail_class : public alloc_class
 {
    public:
-    auto alloc(uint64_t) -> void* override { return nullptr; }
+    auto alloc(uint64_t /*size*/) -> void* override { return nullptr; }
     ~alloc_fail_class() override = default;
 };
 
@@ -90,9 +90,9 @@ class BlockTest
 class cleanup_mock
 {
    public:
-    void cleanup1(void*) { clean1 = true; }
-    void cleanup2(void*) { clean2 = true; }
-    void cleanup3(void*) { clean3 = true; }
+    void cleanup1(void* /*unused*/) { clean1 = true; }
+    void cleanup2(void* /*unused*/) { clean2 = true; }
+    void cleanup3(void* /*unused*/) { clean3 = true; }
     bool clean1{false};
     bool clean2{false};
     bool clean3{false};
@@ -777,7 +777,7 @@ TEST_CASE("ArenaTest.CheckTest") {
     struct destructible
     {
         ArenaFullManagedTag;
-        destructible() { to_free = new char[5]; }
+        destructible(): to_free{new char[5]} { }
         ~destructible() { delete[] to_free; }
         int x{0};
         char* to_free;
@@ -817,16 +817,16 @@ class mock_hook
 {
    public:
     explicit mock_hook(void* cookie) : _cookie(cookie) {}
-    auto arena_init_hook(Arena*) -> void* {
+    auto arena_init_hook(Arena* /*unused*/) -> void* {
         inited++;
         return _cookie;
     }
-    void arena_allocate_hook(const std::type_info*, uint64_t, void*) { allocated++; }
-    auto arena_destruction_hook(Arena*, void*, uint64_t, uint64_t) -> void* {
+    void arena_allocate_hook(const std::type_info* /*unused*/, uint64_t /*unused*/, void* /*unused*/) { allocated++; }
+    auto arena_destruction_hook(Arena* /*unused*/, void* /*unused*/, uint64_t /*unused*/, uint64_t /*unused*/) -> void* {
         destructed++;
         return _cookie;
     }
-    void arena_reset_hook(Arena*, void*, uint64_t, uint64_t) { reseted++; }
+    void arena_reset_hook(Arena* /*unused*/, void* /*unused*/, uint64_t /*unused*/, uint64_t /*unused*/) { reseted++; }
     int inited = 0;
     int allocated = 0;
     int destructed = 0;
