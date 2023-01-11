@@ -770,28 +770,44 @@ template <>
 struct hash<::stdb::memory::arena_basic_string<char>>
 {
     auto operator()(const ::stdb::memory::arena_basic_string<char>& str) const -> size_t {
-        return XXH32(str.data(), str.size(), str.size() * sizeof(char));
+        if constexpr (std::is_same_v<size_t, uint64_t>) {
+            return XXH3_64bits_withSeed(str.data(), str.size(), str.size() * sizeof(char));
+        } else {
+            return XXH32(str.data(), str.size(), str.size() * sizeof(char));
+        }
     }
 };
 template <>
 struct hash<::stdb::memory::arena_basic_string<char16_t>>
 {
     auto operator()(const ::stdb::memory::arena_basic_string<char16_t>& str) const -> size_t {
-        return XXH32(str.data(), str.size(), str.size() * sizeof(char16_t));
+        if constexpr (std::is_same_v<size_t, uint64_t>) {
+            return XXH3_64bits_withSeed(str.data(), str.size(), str.size() * sizeof(char16_t));
+        } else {
+            return XXH32(str.data(), str.size(), str.size() * sizeof(char16_t));
+        }
     }
 };
 template <>
 struct hash<::stdb::memory::arena_basic_string<char32_t>>
 {
     auto operator()(const ::stdb::memory::arena_basic_string<char32_t>& str) const -> size_t {
-        return XXH32(str.data(), str.size(), str.size() * sizeof(char32_t));
+        if constexpr (std::is_same_v<size_t, uint64_t>) {
+            return XXH3_64bits_withSeed(str.data(), str.size(), str.size() * sizeof(char32_t));
+        } else {
+            return XXH32(str.data(), str.size(), str.size() * sizeof(char32_t));
+        }
     }
 };
 template <>
 struct hash<::stdb::memory::arena_basic_string<wchar_t>>
 {
     auto operator()(const ::stdb::memory::arena_basic_string<wchar_t>& str) const -> size_t {
-        return XXH32(str.data(), str.size(), str.size() * sizeof(wchar_t));
+        if constexpr (std::is_same_v<size_t, uint64_t>) {
+            return XXH3_64bits_withSeed(str.data(), str.size(), str.size() * sizeof(wchar_t));
+        } else {
+            return XXH32(str.data(), str.size(), str.size() * sizeof(wchar_t));
+        }
     }
 };
 
