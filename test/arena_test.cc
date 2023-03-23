@@ -311,8 +311,8 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.CtorTest") {
     ArenaTestHelper ah(a);
     CHECK_EQ(ah.last_block(), nullptr);
     CHECK_EQ(ah.options().normal_block_size, 1024ULL);
-    CHECK_EQ(ah.options().block_alloc, &mock_alloc);
-    CHECK_EQ(ah.options().block_dealloc, &mock_dealloc);
+    CHECK_EQ(ah.options().block_alloc, &mock_alloc); // NOLINT
+    CHECK_EQ(ah.options().block_dealloc, &mock_dealloc);  // NOLINT
     Arena b(ops_simple);
     ArenaTestHelper bh(b);
     CHECK_EQ(bh.options().normal_block_size, 1024ULL);
