@@ -148,6 +148,7 @@ TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsDestruction") {
     CHECK_EQ(m.destruct_count, 1);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE_FIXTURE(ThreadLocalArenaMetricsTest, "MetricsReportToGlobalMetrics") {
     auto* a = new Arena(ops);
     uint64_t alloc_count = 1024;

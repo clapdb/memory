@@ -786,6 +786,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocateAlignedAndAddCleanupTest") {
     delete mock_cleaners;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE("ArenaTest.CheckTest") {
     struct destructible
     {
@@ -865,6 +866,7 @@ void reset_hook(Arena* a, void* cookie, uint64_t space_used, uint64_t space_wast
     hook_instance->arena_reset_hook(a, cookie, space_used, space_wasted);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.HookTest") {
     struct xx
     {
