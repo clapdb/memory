@@ -42,6 +42,6 @@
 #else
 
 #include <cassert>
-#define Assert(expr) assert(expr)
+#define Assert(expr) assert(expr) // NOLINT
 
 #endif
