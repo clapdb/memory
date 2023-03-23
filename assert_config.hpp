@@ -36,7 +36,7 @@
 
 // means in STDB project.
 #include "hilbert/assert.hpp"
-#define Assert(expr) STDB_ASSERT(expr)
+#define Assert(expr) STDB_ASSERT(expr) // NOLINT
 
 
 #else
