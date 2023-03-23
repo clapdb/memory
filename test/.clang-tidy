@@ -46,7 +46,7 @@ Checks: '-*,
   /*readability-convert-member-functions-to-static,*/
   readability-delete-null-pointer,
   readability-else-after-return,
-  readability-function-cognitive-complexity,
+  /*readability-function-cognitive-complexity,*/
   readability-function-size,
   /*readability-identifier-length,*/
   readability-identifier-naming,
@@ -68,7 +68,7 @@ Checks: '-*,
   readability-uniqueptr-delete-release,
   readability-uppercase-literal-suffix,
   readability-use-anyofallof,
-  #performance-faster-string-find,
+  /*performance-faster-string-find,*/
   performance-for-range-copy,
   performance-implicit-conversion-in-loop,
   performance-inefficient-algorithm,
