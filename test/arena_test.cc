@@ -72,9 +72,9 @@ class alloc_class
     }
 
     // private:
-    std::vector<uint64_t> alloc_sizes;
-    std::vector<void*> ptrs;
-    std::vector<void*> free_ptrs;
+    std::vector<uint64_t> alloc_sizes{};
+    std::vector<void*> ptrs{};
+    std::vector<void*> free_ptrs{};
     char* init{nullptr};
     char* curr{nullptr};
 };
@@ -395,7 +395,8 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AddCleanupTest") {
 
     // NOLINTNEXTLINE(cppcoreguidelines-no-malloc)
     void* obj = malloc(120);  // will be free automatically
-    bool ok2 = ah.addCleanup(obj, &std::free);
+    bool ok2 = false;
+    ok2 = ah.addCleanup(obj, &std::free);
     CHECK(ok2);
     CHECK_EQ(2, a->cleanups());
     CHECK_EQ(ah.last_block()->remain(), ah.last_block()->size() - kBlockHeaderSize - kCleanupNodeSize * 2);
@@ -590,7 +591,7 @@ class cstr_class
         name = input;
         count--;
     }
-    std::string name;
+    std::string name{};
     inline static int count = 0;
 };
 
