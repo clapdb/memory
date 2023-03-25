@@ -311,16 +311,16 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.CtorTest") {
     ArenaTestHelper ah(a);
     CHECK_EQ(ah.last_block(), nullptr);
     CHECK_EQ(ah.options().normal_block_size, 1024ULL);
-    CHECK_EQ(ah.options().block_alloc, &mock_alloc); // NOLINT
-    CHECK_EQ(ah.options().block_dealloc, &mock_dealloc);  // NOLINT
+    CHECK_EQ(ah.options().block_alloc == &mock_alloc, true);
+    CHECK_EQ(ah.options().block_dealloc == &mock_dealloc, true);
     Arena b(ops_simple);
     ArenaTestHelper bh(b);
     CHECK_EQ(bh.options().normal_block_size, 1024ULL);
     CHECK_EQ(bh.options().suggested_init_block_size, 1024ULL);
     CHECK_EQ(bh.options().huge_block_size, 1024ULL);
     CHECK_EQ(bh.last_block(), nullptr);
-    CHECK_EQ(bh.options().block_alloc, &mock_alloc);
-    CHECK_EQ(bh.options().block_dealloc, &mock_dealloc);
+    CHECK_EQ(bh.options().block_alloc == &mock_alloc, true);
+    CHECK_EQ(bh.options().block_dealloc == &mock_dealloc, true);
     Arena::Options o = Arena::Options::GetDefaultOptions();
     o.block_alloc = mock_alloc;
     o.block_dealloc = mock_dealloc;
@@ -329,8 +329,8 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.CtorTest") {
     CHECK_EQ(ch.options().normal_block_size, 4096ULL);
     CHECK_EQ(ch.options().suggested_init_block_size, 4096ULL);
     CHECK_EQ(ch.options().huge_block_size, 2ULL * 1024ULL * 1024ULL);
-    CHECK_EQ(ch.options().block_alloc, &mock_alloc);
-    CHECK_EQ(ch.options().block_dealloc, &mock_dealloc);
+    CHECK_EQ(ch.options().block_alloc == &mock_alloc, true);
+    CHECK_EQ(ch.options().block_dealloc == &mock_dealloc, true);
 }
 
 TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.NewBlockTest") {
