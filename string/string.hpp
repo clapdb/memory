@@ -2354,110 +2354,110 @@ inline auto operator+(basic_string<E, T, A, S>&& lhs, E rhs) -> basic_string<E, 
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator==(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator==(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return lhs.size() == rhs.size() && lhs.compare(rhs) == 0;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator==(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs)
+inline auto operator==(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
   -> bool {
     return rhs == lhs;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator==(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs)
+inline auto operator==(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
   -> bool {
     return lhs.compare(rhs) == 0;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator!=(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator!=(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return !(lhs == rhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator!=(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs)
+inline auto operator!=(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
   -> bool {
     return !(lhs == rhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator!=(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs)
+inline auto operator!=(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
   -> bool {
     return !(lhs == rhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator<(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return lhs.compare(rhs) < 0;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs)
+inline auto operator<(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
   -> bool {
     return lhs.compare(rhs) < 0;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs)
+inline auto operator<(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
   -> bool {
     return rhs.compare(lhs) > 0;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator>(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator>(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return rhs < lhs;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator>(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs)
-  -> bool {
-    return rhs < lhs;
-}
-
-template <typename E, class T, class A, class S>
-inline auto operator>(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs)
+inline auto operator>(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
   -> bool {
     return rhs < lhs;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<=(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator>(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
+  -> bool {
+    return rhs < lhs;
+}
+
+template <typename E, class T, class A, class S>
+inline auto operator<=(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return !(rhs < lhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<=(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs)
+inline auto operator<=(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
   -> bool {
     return !(rhs < lhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<=(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs)
+inline auto operator<=(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
   -> bool {
     return !(rhs < lhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator>=(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator>=(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return !(lhs < rhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator>=(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs)
+inline auto operator>=(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
   -> bool {
     return !(lhs < rhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator>=(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs)
+inline auto operator>=(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
   -> bool {
     return !(lhs < rhs);
 }
 
 // C++11 21.4.8.8
 template <typename E, class T, class A, class S>
-void swap(basic_string<E, T, A, S>& lhs, basic_string<E, T, A, S>& rhs) {
+void swap(basic_string<E, T, A, S>& lhs, basic_string<E, T, A, S>& rhs) noexcept {
     lhs.swap(rhs);
 }
 
@@ -2539,62 +2539,62 @@ constexpr typename basic_string<E1, T, A, S>::size_type basic_string<E1, T, A, S
 // basic_string compatibility routines
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator==(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) -> bool {
+inline auto operator==(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) == 0;
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator==(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator==(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return rhs == lhs;
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator!=(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) -> bool {
+inline auto operator!=(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return !(lhs == rhs);
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator!=(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator!=(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return !(lhs == rhs);
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator<(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) -> bool {
+inline auto operator<(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) < 0;
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator>(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) -> bool {
+inline auto operator>(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) > 0;
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator<(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator<(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return rhs > lhs;
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator>(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator>(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return rhs < lhs;
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator<=(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) -> bool {
+inline auto operator<=(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return !(lhs > rhs);
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator>=(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) -> bool {
+inline auto operator>=(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return !(lhs < rhs);
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator<=(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator<=(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return !(lhs > rhs);
 }
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator>=(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) -> bool {
+inline auto operator>=(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return !(lhs < rhs);
 }
 
@@ -2643,7 +2643,7 @@ namespace std {
 template <>
 struct hash<::stdb::memory::basic_string<char>>
 {
-    auto operator()(const ::stdb::memory::basic_string<char>& str) const -> size_t {
+    auto operator()(const ::stdb::memory::basic_string<char>& str) const noexcept -> size_t {
         if constexpr (std::is_same_v<size_t, uint64_t>) {
             return XXH3_64bits_withSeed(str.data(), str.size(), str.size() * sizeof(char));
         } else {
@@ -2654,7 +2654,7 @@ struct hash<::stdb::memory::basic_string<char>>
 template <>
 struct hash<::stdb::memory::basic_string<char16_t>>
 {
-    auto operator()(const ::stdb::memory::basic_string<char16_t>& str) const -> size_t {
+    auto operator()(const ::stdb::memory::basic_string<char16_t>& str) const noexcept -> size_t {
         if constexpr (std::is_same_v<size_t, uint64_t>) {
             return XXH3_64bits_withSeed(str.data(), str.size(), str.size() * sizeof(char16_t));
         } else {
@@ -2665,7 +2665,7 @@ struct hash<::stdb::memory::basic_string<char16_t>>
 template <>
 struct hash<::stdb::memory::basic_string<char32_t>>
 {
-    auto operator()(const ::stdb::memory::basic_string<char32_t>& str) const -> size_t {
+    auto operator()(const ::stdb::memory::basic_string<char32_t>& str) const noexcept -> size_t {
         if constexpr (std::is_same_v<size_t, uint64_t>) {
             return XXH3_64bits_withSeed(str.data(), str.size(), str.size() * sizeof(char32_t));
         } else {
@@ -2676,7 +2676,7 @@ struct hash<::stdb::memory::basic_string<char32_t>>
 template <>
 struct hash<::stdb::memory::basic_string<wchar_t>>
 {
-    auto operator()(const ::stdb::memory::basic_string<wchar_t>& str) const -> size_t {
+    auto operator()(const ::stdb::memory::basic_string<wchar_t>& str) const noexcept -> size_t {
         if constexpr (std::is_same_v<size_t, uint64_t>) {
             return XXH3_64bits_withSeed(str.data(), str.size(), str.size() * sizeof(wchar_t));
         } else {
@@ -2705,7 +2705,7 @@ struct fmt::formatter<stdb::memory::string> : private formatter<fmt::string_view
 
 namespace std {
 
-[[gnu::always_inline, nodiscard]] inline auto to_string(const ::stdb::memory::string& str) -> std::string {
+[[gnu::always_inline, nodiscard]] inline auto to_string(const ::stdb::memory::string& str) noexcept -> std::string {
     return {str.data()};
 }
 
