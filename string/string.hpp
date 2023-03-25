@@ -26,6 +26,7 @@
 
 #include <algorithm>         // for min, max, copy, fill
 #include <bit>               // for endian, endian::little, endian::native
+#include <compare>
 #include <cstddef>           // for size_t, offsetof
 #include <cstring>           // for memcpy, memcmp, memmove, memset
 #include <functional>        // for less_equal
@@ -2354,6 +2355,19 @@ inline auto operator+(basic_string<E, T, A, S>&& lhs, E rhs) -> basic_string<E, 
 }
 
 template <typename E, class T, class A, class S>
+inline auto operator<=>(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> std::strong_ordering {
+    // return lhs.size() == rhs.size() && lhs.compare(rhs) == 0;
+    auto const cmp = lhs.compare(rhs);
+    if (cmp < 0) {
+        return std::strong_ordering::less;
+    }
+    if (cmp > 0) {
+        return std::strong_ordering::greater;
+    }
+    return std::strong_ordering::equal;
+}
+
+template <typename E, class T, class A, class S>
 inline auto operator==(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return lhs.size() == rhs.size() && lhs.compare(rhs) == 0;
 }
@@ -2537,6 +2551,33 @@ template <typename E1, class T, class A, class S>
 constexpr typename basic_string<E1, T, A, S>::size_type basic_string<E1, T, A, S>::npos;
 
 // basic_string compatibility routines
+
+template <typename E, class T, class A, class S, class A2>
+inline auto operator<=>(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> std::strong_ordering {
+    const auto cmp = lhs.compare(0, lhs.size(), rhs.data(), rhs.size());
+    if (cmp < 0) {
+        return std::strong_ordering::less;
+    }
+    if (cmp > 0) {
+        return std::strong_ordering::greater;
+    }
+    return std::strong_ordering::equal;
+    // return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) == 0;
+}
+
+// swap the lhs and rhs
+template <typename E, class T, class A, class S, class A2>
+inline auto operator<=>(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> std::strong_ordering {
+    const auto cmp = lhs.compare(0, lhs.size(), rhs.data(), rhs.size());
+    if (cmp < 0) {
+        return std::strong_ordering::less;
+    }
+    if (cmp > 0) {
+        return std::strong_ordering::greater;
+    }
+    return std::strong_ordering::equal;
+}
+
 
 template <typename E, class T, class A, class S, class A2>
 inline auto operator==(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {

@@ -2645,6 +2645,15 @@ TEST_CASE("string::compareToStdString") {
     CHECK(fbB >= stdA);
     CHECK(stdB >= fbB);
     CHECK(fbB >= stdB);
+    CHECK((fbA <=> fbB) == std::strong_ordering::less);
+    CHECK((fbB <=> fbA) == std::strong_ordering::greater);
+    CHECK((fbA <=> fbA) == std::strong_ordering::equal);
+    CHECK((fbA <=> stdA) == std::strong_ordering::equal);
+    CHECK((fbB <=> stdB) == std::strong_ordering::equal);
+    CHECK((stdB <=> fbB) == std::strong_ordering::equal);
+    CHECK((fbA <=> stdB) == std::strong_ordering::less);
+    CHECK((stdA <=> fbB) == std::strong_ordering::less);
+    CHECK((stdB <=> fbA) == std::strong_ordering::greater);
 }
 
 // TEST_CASE("U16FBString::compareToStdU16String") {
