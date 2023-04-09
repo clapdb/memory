@@ -137,6 +137,29 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore
             handle_long_opt(store, args_list);
         }
     }
+    // check defaults
+    for (auto& opt : _options) {
+        if (not opt.default_value().empty()) {
+            auto dest = opt.dest();
+            if (not store.user_set(dest)) {
+                process_opt(opt, store, opt.default_value());
+            }
+        }
+    }
+    // check environment variables
+    for (auto& opt : _options) {
+        if (not opt.env().empty()) {
+            auto dest = opt.dest();
+            if (not store.user_set(dest)) {
+                // get the environment variable
+                auto env_val = std::getenv(opt.env().data());
+                if (env_val != nullptr) {
+                    process_opt(opt, store, env_val);
+                }
+            }
+        }
+    }
+
     return store;
 }
 template <typename T>
@@ -195,12 +218,30 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
 
         case StoreTrue:
         {
-            store.set(dest, true);
+            if (str_val.empty()) {
+                store.set(dest, true);
+            } else {
+                auto parsed_val = parse_value(str_val, type, &opt);
+                if (parsed_val) {
+                    store.set(dest, *parsed_val);
+                    return true;
+                }
+                return false;
+            }
             return true;
         }
         case StoreFalse:
         {
-            store.set(dest, false);
+            if (str_val.empty()) {
+                store.set(dest, false);
+            } else {
+                auto parsed_val = parse_value(str_val, type, &opt);
+                if (parsed_val) {
+                    store.set(dest, *parsed_val);
+                    return true;
+                }
+                return false;
+            }
             return true;
         }
         case Append:

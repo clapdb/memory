@@ -70,6 +70,10 @@ class ValueStore {
         return _values.find(key) != _values.end();
     }
 
+    inline auto user_set(string key) const -> bool {
+        return _usr_set.find(key) != _usr_set.end();
+    }
+
     inline auto set(string key, Value val) -> void {
         _values[key] = val;
         _usr_set.insert(key);
@@ -114,6 +118,12 @@ class ValueStore {
         if (it == _values.end()) [[unlikely]] return {};
         auto val = it->second;
         return std::get<T>(val);
+    }
+
+    inline auto get_list(string key) const -> vector<Value> {
+        auto it = _list_values.find(key);
+        if (it == _list_values.end()) [[unlikely]] return {};
+        return it->second;
     }
 
 }; // class ValueStore
@@ -241,6 +251,10 @@ class Option {
   inline auto env(string e) -> Option& {
       _env = std::move(e);
       return *this;
+  }
+
+  inline auto env() const -> string {
+      return _env;
   }
 
 }; // class Option

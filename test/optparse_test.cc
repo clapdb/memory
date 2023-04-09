@@ -78,4 +78,32 @@ TEST_CASE("optparser::choice") {
     CHECK_EQ(options.get<string>("mode"), "work");
 }
 
+TEST_CASE("optparser::complex") {
+    auto parser = OptionParser();
+    parser.program("test");
+    parser.add_option({"-f", "--file"}).dest("filename").action(Action::Store).nargs(1).help("write report to FILE");
+    parser.add_option("-q", "--quiet")
+      .action(Action::StoreFalse)
+      .type(Type::Bool)
+      .nargs(0)
+      .dest("quiet")
+      .default_value("true")
+      .help("don't print status messages to stdout");
+    parser.add_option("-v", "--verbose")
+      .action(Action::StoreTrue)
+      .dest("verbose")
+      .type(Type::Bool)
+      .nargs(0)
+      .default_value("false")
+      .help("print status messages to stdout");
+    parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
+    parser.add_option("-r", "--ratio").type(Type::Int).action(Action::Append).nargs(2).help("ratios");
+
+    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "-r1", "100"});
+
+    CHECK_EQ(options.get<string>("filename"), "test.txt");
+    CHECK_EQ(options.get<bool>("verbose"), false);
+    CHECK_EQ(options.get<string>("config"), "config.txt");
+    CHECK_EQ(options.get_list("ratio").size(), 2);
+}
 }
