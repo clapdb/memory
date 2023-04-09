@@ -57,7 +57,7 @@ using Value = std::variant<bool, int, long, float, double, string>;
 class ValueStore {
    private:
     std::map<string, Value> _values;
-    std::map<string, std::list<Value>> _list_values;
+    std::map<string, vector<Value>> _list_values;
     std::set<string> _usr_set;
    public:
     ValueStore(): _values{}, _list_values{}, _usr_set{} {}
@@ -76,7 +76,26 @@ class ValueStore {
     }
 
     inline auto append(string key, Value val) -> void {
-        _list_values[key].push_back(val);
+        auto it = _list_values.find(key);
+        if (it == _list_values.end()) {
+            _list_values.emplace(key, vector<Value>{val});
+        } else {
+            auto& list_values = it->second;
+            list_values.push_back(val);
+        }
+        _usr_set.insert(key);
+    }
+
+    inline auto append(string key, std::initializer_list<Value> vals) -> void {
+        auto it = _list_values.find(key);
+        if (it == _list_values.end()) {
+            _list_values[key] = vector<Value>{vals};
+        } else {
+            auto& list_values = it->second;
+            for (auto& val : vals) {
+                list_values.push_back(val);
+            }
+        }
         _usr_set.insert(key);
     }
 
@@ -146,85 +165,82 @@ class Option {
   Option(const OptionParser& p, vector<string> names):
     _parser(p), _names(std::move(names)) {}
 
-  inline auto validate() const -> bool {
-        if (_names.empty() or _action == Action::Null or _dest.empty() or _nargs == 0) [[unlikely]] return false;
-        return true;
-  }
+  auto validate() -> bool;
 
   inline auto names() const -> const vector<string>& {
-    return _names;
+      return _names;
   }
 
   inline auto action(Action a) -> Option& {
-    _action = a;
-    return *this;
+      _action = a;
+      return *this;
   }
 
   inline auto action() const -> Action {
-    return _action;
+      return _action;
   }
 
   inline auto type(Type t) -> Option& {
-    _type = t;
-    return *this;
+      _type = t;
+      return *this;
   }
 
   inline auto type() const -> Type {
-    return _type;
+      return _type;
   }
 
   inline auto dest(string d) -> Option& {
-    _dest = std::move(d);
-    return *this;
+      _dest = std::move(d);
+      return *this;
   }
 
   inline auto dest() const -> string {
-    return _dest;
+      return _dest;
   }
 
   inline auto default_value(string d) -> Option& {
-    _default = std::move(d);
-    return *this;
+      _default = std::move(d);
+      return *this;
   }
 
   inline auto default_value() const -> string {
-    return _default;
+      return _default;
   }
 
   inline auto nargs(size_t n) -> Option& {
-    _nargs = n;
-    return *this;
+      _nargs = n;
+      return *this;
   }
 
   inline auto nargs() -> size_t {
-    return _nargs;
+      return _nargs;
   }
 
   template<typename InputIterator>
   inline auto choices(InputIterator begin, InputIterator end) -> Option& {
-    _choices.insert(begin, end);
-    type(Type::Choice);
-    return *this;
+      _choices.insert(begin, end);
+      type(Type::Choice);
+      return *this;
   }
 
   inline auto choices(::std::initializer_list<string> choices) -> Option& {
-    _choices.insert(choices.begin(), choices.end());
-    type(Type::Choice);
-    return *this;
+      _choices.insert(choices.begin(), choices.end());
+      type(Type::Choice);
+      return *this;
   }
 
   inline auto choices() const -> const std::set<string>& {
-    return _choices;
+      return _choices;
   }
 
   inline auto help(string h) -> Option& {
-    _help = std::move(h);
-    return *this;
+      _help = std::move(h);
+      return *this;
   }
 
   inline auto env(string e) -> Option& {
-    _env = std::move(e);
-    return *this;
+      _env = std::move(e);
+      return *this;
   }
 
 }; // class Option
@@ -278,7 +294,6 @@ class OptionParser {
   std::map<string, size_t> _short_option_map;
   vector<string> _invalid_args;
 
-  auto extract_option_type(string opt) const -> OptionType;
 
 
   auto extract_arg_type(string arg) const -> OptionType;
@@ -286,36 +301,37 @@ class OptionParser {
   auto add_option(Option option) -> Option&;
 
  public:
+  auto extract_option_type(string opt) const -> OptionType;
   explicit OptionParser(char prefix);
   OptionParser() = default;
 
   ~OptionParser() = default;
 
   inline auto program(string p) -> OptionParser& {
-    _program = std::move(p);
-    return *this;
+      _program = std::move(p);
+      return *this;
   }
 
   inline auto program() const -> string {
-    return _program;
+      return _program;
   }
 
   inline auto usage(string u) -> OptionParser& {
-    _usage = std::move(u);
-    return *this;
+      _usage = std::move(u);
+      return *this;
   }
 
   inline auto usage() const -> string {
-    return _usage;
+      return _usage;
   }
 
   inline auto version(string v) -> OptionParser& {
-    _version = std::move(v);
-    return *this;
+      _version = std::move(v);
+      return *this;
   }
 
   inline auto version() const -> string {
-    return _version;
+      return _version;
   }
 
   auto add_option(std::initializer_list<string> names) -> Option&;

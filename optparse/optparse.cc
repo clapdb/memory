@@ -36,6 +36,21 @@
 
 namespace stdb::optparse {
 
+auto Option::validate() -> bool {
+    // if _dest is empty, we will use the first long option name as the _dest.
+    if (_dest.empty()) {
+        for (auto n : _names) {
+            if (_parser.extract_option_type(n)== OptionType::LongOpt) {
+                _dest = n.substr(2);
+                break;
+            }
+        }
+    }
+    if (_names.empty() or _action == Action::Null or _dest.empty() or (_type != Type::Choice and not _choices.empty())) [[unlikely]] return false;
+    return true;
+}
+
+
 OptionParser::OptionParser(char prefix): _prefix(prefix) {
     if (not(_prefix == '-' or _prefix == '+' or _prefix == '#' or _prefix == '$' or _prefix == '&' or _prefix == '%')) {
         throw std::logic_error(fmt::format("Invalid prefix: {}, the prefix has to be one of -, +, #, $, &, %", _prefix));
@@ -108,9 +123,9 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore
     }
     ArgList args_list{std::move(args)};
     ValueStore store;
-    auto front = args_list.peek();
-    auto arg_type = extract_arg_type(front);
     while (not args_list.empty()) {
+        auto front = args_list.peek();
+        auto arg_type = extract_arg_type(front);
         if (arg_type == OptionType::InvalidOpt) {
             // do nothing if the first argument is not an option.
             _invalid_args.emplace_back(std::move(front));
@@ -267,13 +282,12 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
         }
         size_t opt_offset = opt_it->second;
         auto& opt = _options[opt_offset];
-        if (opt.nargs() <= 1) {
-            // if nargs is 0 or 1, then process the option.
+        if (opt.nargs() == 0) {
             process_opt(opt, values, {});
             return true;
         }
-        // if nargs is 2, then process the option and pop the next 2 arguments.
-        if (opt.nargs() == 2) {
+        // if nargs is 1, then process the option and pop the next 1 argument.
+        if (opt.nargs() == 1) {
             if (auto val = extract_short_opt_value(front); val.empty()) {
                 // if the value is empty, then pop the next argument.
                 if (not args.empty()) {
@@ -287,8 +301,23 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
             }
             return true;
         }
-        // if nargs is greater than 2, then it is an invalid option.
-        return false;
+        auto nargs = opt.nargs();
+        if (auto val = extract_short_opt_value(front); not val.empty()) {
+            process_opt(opt, values, val);
+            --nargs;
+        }
+        // if nargs is greater than 2, then it is an append option to a list.
+        for (size_t i = 0; i < nargs; ++i) {
+            if (not args.empty()) {
+                auto next_val = args.pop();
+                // should make sure the action is Append
+                assert(opt.action() == Append);
+                process_opt(opt, values, next_val);
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
     return false;
 }
@@ -310,12 +339,12 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
         }
         size_t opt_offset = opt_it->second;
         auto& opt = _options[opt_offset];
-        if (opt.nargs() <= 1) {
+        if (opt.nargs() == 0) {
             process_opt(opt, values, {});
             return true;
         }
         // if nargs is 2, then process the option and pop the next 2 arguments.
-        if (opt.nargs() == 2) {
+        if (opt.nargs() == 1) {
             if (auto val = extract_long_opt_value(front); val.empty()) {
                 // if the value is empty, then pop the next argument.
                 if (not args.empty()) {
@@ -330,7 +359,24 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
             return true;
         }
         // if nargs is greater than 2, then it is an invalid option.
-        return false;
+
+        auto nargs = opt.nargs();
+        if (auto val = extract_long_opt_value(front); not val.empty()) {
+            process_opt(opt, values, val);
+            --nargs;
+        }
+        // if nargs is greater than 2, then it is an append option to a list.
+        for (size_t i = 0; i < nargs; ++i) {
+            if (not args.empty()) {
+                auto next_val = args.pop();
+                // should make sure the action is Append
+                assert(opt.action() == Append);
+                process_opt(opt, values, next_val);
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
     return false;
 }
@@ -342,5 +388,6 @@ auto OptionParser::print_help() const -> void {
 auto OptionParser::format_help() const -> string {
     return "---help-----";
 }
+
 
 }  // namespace stdb::optparse
