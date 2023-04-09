@@ -274,6 +274,8 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
             __builtin_unreachable();
         }
     }
+    __builtin_unreachable();
+    return false;
 }
 
 auto extract_short_opt_name(string opt) -> string {
