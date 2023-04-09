@@ -35,7 +35,6 @@
 #include "string/string.hpp"
 #include <sstream>
 #include <map>
-//#include <unordered_map>
 #include <list>
 #include <set>
 #include <variant>
@@ -47,14 +46,13 @@ namespace stdb::optparse {
 
 class Option;
 
-using string = memory::string;
+//using string = memory::string;
+using string = std::string;
 
 template<typename T>
 using vector = stdb::container::stdb_vector<T>;
 
-using choice = std::set<string>;
-using Value = std::variant<int, long, float, double, string, choice>;
-
+using Value = std::variant<bool, int, long, float, double, string>;
 
 class ValueStore {
    private:
@@ -62,16 +60,41 @@ class ValueStore {
     std::map<string, std::list<Value>> _list_values;
     std::set<string> _usr_set;
    public:
-    ValueStore(): _values(), _list_values(), _usr_set() {}
+    ValueStore(): _values{}, _list_values{}, _usr_set{} {}
+    ValueStore(const ValueStore&) = delete;
+    ValueStore(ValueStore&&) noexcept = default;
+    ValueStore& operator=(const ValueStore&) = delete;
+    ValueStore& operator=(ValueStore&&) noexcept = default;
+
     inline auto has(string key) const -> bool {
         return _values.find(key) != _values.end();
+    }
+
+    inline auto set(string key, Value val) -> void {
+        _values[key] = val;
+        _usr_set.insert(key);
+    }
+
+    inline auto append(string key, Value val) -> void {
+        _list_values[key].push_back(val);
+        _usr_set.insert(key);
+    }
+
+    inline auto increment(string key) -> void {
+        auto it = _values.find(key);
+        if (it == _values.end()) {
+            _values[key] = 1;
+        } else {
+            _values[key] = std::get<int>(it->second) + 1;
+        }
     }
 
     template<typename T>
     inline auto get(string key) const -> T {
         auto it = _values.find(key);
         if (it == _values.end()) [[unlikely]] return {};
-        return std::get<T>(it->second);
+        auto val = it->second;
+        return std::get<T>(val);
     }
 
 }; // class ValueStore
@@ -79,21 +102,20 @@ class ValueStore {
 class OptionParser;
 enum Action : uint8_t
 {
-    Store = 0,
-    StoreConst,
+    Null = 0,
+    Store = 1,
     StoreTrue,
     StoreFalse,
     Append,
-    AppendConst,
     Count,
     Help,
     Version,
-    Callback,
 };
 
 enum Type : uint8_t
 {
-    Int = 0,
+    Bool = 1,
+    Int,
     Long,
     Float,
     Double,
@@ -101,25 +123,18 @@ enum Type : uint8_t
     String,
 };
 
-enum Const : uint8_t
-{
-    True = 0,
-    False,
-};
-
 class Option {
  private:
   const OptionParser& _parser;
   vector<string> _names;
-  Action _action;
-  Type _type;
-  string _dest;
-  string _default;
-  size_t _nargs;
-  Const _const;
-  vector<string> _choices;
-  string _help;
-  string _env;
+  Action _action = Action::Null;
+  Type _type = Type::String;
+  string _dest = "";
+  string _default = "";
+  size_t _nargs = 0;
+  std::set<string> _choices{};
+  string _help = "";
+  string _env = "";
 
  public:
   Option(const OptionParser& p): _parser(p) {}
@@ -128,24 +143,25 @@ class Option {
   Option(const Option&) = default;
   Option(Option&&) noexcept = default;
 
-  inline auto names(std::initializer_list<string> names) -> Option& {
-    _names = names;
-    return *this;
-  }
+  Option(const OptionParser& p, vector<string> names):
+    _parser(p), _names(std::move(names)) {}
 
-  inline auto names(vector<string> names) -> Option& {
-    _names = std::move(names);
-    return *this;
+  inline auto validate() const -> bool {
+        if (_names.empty() or _action == Action::Null or _dest.empty() or _nargs == 0) [[unlikely]] return false;
+        return true;
   }
 
   inline auto names() const -> const vector<string>& {
     return _names;
   }
 
-
   inline auto action(Action a) -> Option& {
     _action = a;
     return *this;
+  }
+
+  inline auto action() const -> Action {
+    return _action;
   }
 
   inline auto type(Type t) -> Option& {
@@ -153,17 +169,25 @@ class Option {
     return *this;
   }
 
+  inline auto type() const -> Type {
+    return _type;
+  }
+
   inline auto dest(string d) -> Option& {
     _dest = std::move(d);
     return *this;
   }
 
-  inline auto set_default(string d) -> Option& {
+  inline auto dest() const -> string {
+    return _dest;
+  }
+
+  inline auto default_value(string d) -> Option& {
     _default = std::move(d);
     return *this;
   }
 
-  inline auto get_default() const -> string {
+  inline auto default_value() const -> string {
     return _default;
   }
 
@@ -172,25 +196,25 @@ class Option {
     return *this;
   }
 
-  inline auto set_const(Const c) -> Option& {
-    _const = c;
-    return *this;
-  }
-  inline auto get_const() const -> Const {
-    return _const;
+  inline auto nargs() -> size_t {
+    return _nargs;
   }
 
   template<typename InputIterator>
   inline auto choices(InputIterator begin, InputIterator end) -> Option& {
-    _choices.assign(begin, end);
+    _choices.insert(begin, end);
     type(Type::Choice);
     return *this;
   }
 
   inline auto choices(::std::initializer_list<string> choices) -> Option& {
-    _choices.assign(choices.begin(), choices.end());
+    _choices.insert(choices.begin(), choices.end());
     type(Type::Choice);
     return *this;
+  }
+
+  inline auto choices() const -> const std::set<string>& {
+    return _choices;
   }
 
   inline auto help(string h) -> Option& {
@@ -218,6 +242,30 @@ enum OptionType : uint8_t
     InvalidOpt,
 };
 
+class ArgList {
+ private:
+  vector<string> _args;
+  vector<string>::iterator _it;
+ public:
+  ArgList(vector<string> args): _args(std::move(args)), _it(_args.begin()) {}
+  ~ArgList() = default;
+  ArgList(const ArgList&) = delete;
+  ArgList(ArgList&&) noexcept = delete;
+  ArgList& operator=(const ArgList&) = delete;
+  ArgList& operator=(ArgList&&) noexcept = delete;
+
+  inline auto empty() const -> bool {
+    return _it == _args.end();
+  }
+  inline auto pop() -> string {
+    return *_it++;
+  }
+  inline auto peek() const -> string {
+    return *_it;
+  }
+
+}; // class ArgList
+
 class OptionParser {
  private:
   const char _prefix = '-';
@@ -226,121 +274,65 @@ class OptionParser {
   string _usage;
   string _version;
   vector<Option> _options;
-  std::map<string, Option*> _long_option_map;
-  std::map<string, Option*> _short_option_map;
+  std::map<string, size_t> _long_option_map;
+  std::map<string, size_t> _short_option_map;
   vector<string> _invalid_args;
 
-  auto extract_option_type(string opt) const -> OptionType {
-    if (opt.size() == 2 and opt[0] == _prefix) {
-        return OptionType::ShortOpt;
-    } else if (opt.size() > 2 and opt.substr(0, 2) == _long_prefix) {
-        return OptionType::LongOpt;
-    } else {
-        return OptionType::InvalidOpt;
-    }
-  }
+  auto extract_option_type(string opt) const -> OptionType;
 
 
-  auto extract_arg_type(string arg) const -> OptionType {
-    if (not arg.starts_with(_prefix)) {
-        return OptionType::InvalidOpt;
-    }
-    if (arg.starts_with(_long_prefix)) {
-        return OptionType::LongOpt;
-    }
-    return OptionType::ShortOpt;
-  }
+  auto extract_arg_type(string arg) const -> OptionType;
+
+  auto add_option(Option option) -> Option&;
 
  public:
-  explicit OptionParser(char prefix) : _prefix(prefix) {
-    if (not(_prefix == '-' or _prefix == '+' or _prefix == '#' or _prefix == '$' or _prefix == '&' or _prefix == '%')) {
-        throw std::logic_error(fmt::format("Invalid prefix: {}, the prefix has to be one of -, +, #, $, &, %", _prefix));
-    }
-    _long_prefix = fmt::format("{}{}", _prefix, _prefix);
-  }
+  explicit OptionParser(char prefix);
+  OptionParser() = default;
+
   ~OptionParser() = default;
 
-  auto program(string p) -> OptionParser& {
+  inline auto program(string p) -> OptionParser& {
     _program = std::move(p);
     return *this;
   }
-  auto program() const -> string {
+
+  inline auto program() const -> string {
     return _program;
   }
-  auto usage(string u) -> OptionParser& {
+
+  inline auto usage(string u) -> OptionParser& {
     _usage = std::move(u);
     return *this;
   }
-  auto usage() const -> string {
+
+  inline auto usage() const -> string {
     return _usage;
   }
-  auto version(string v) -> OptionParser& {
+
+  inline auto version(string v) -> OptionParser& {
     _version = std::move(v);
     return *this;
   }
-  auto version() const -> string {
+
+  inline auto version() const -> string {
     return _version;
   }
 
-  auto add_option(Option option) -> void {
-    _options.emplace_back(std::move(option));
-    // register all names for the option.
-    for (const auto& name : _options.back().names()) {
-        auto type = extract_option_type(name);
-        if (type == OptionType::ShortOpt) {
-            _short_option_map[name] = &_options.back();
-        } else if (type == OptionType::LongOpt) {
-            _long_option_map[name] = &_options.back();
-        } else {
-            throw std::logic_error(fmt::format("Invalid option name: {}", name));
-        }
-    }
-    return;
-  }
+  auto add_option(std::initializer_list<string> names) -> Option&;
 
-  auto handle_short_opt() -> void {
+  auto add_option(string short_name, string long_name) -> Option&;
 
-      return;
-  }
+  auto handle_short_opt(ValueStore&, ArgList& args) -> bool;
+  auto handle_long_opt(ValueStore&, ArgList& args) -> bool;
 
+  auto process_opt(const Option&, ValueStore&, string) -> bool;
 
-  auto handle_long_opt() -> void {
+  auto parse_args(vector<string> args) -> ValueStore;
 
-      return;
-  }
+  auto parse_args(int argc, char** argv) -> ValueStore;
 
-
-  auto parse_args(vector<string> args) -> ValueStore {
-      auto local_args = std::move(args);
-      ValueStore store;
-      auto front = local_args.front();
-      auto arg_type = extract_arg_type(front);
-      while (not local_args.empty()) {
-        if (arg_type == OptionType::InvalidOpt) {
-            // do nothing if the first argument is not an option.
-            _invalid_args.emplace_back(std::move(front));
-            continue;
-        }
-        if (arg_type == OptionType::ShortOpt) {
-            handle_short_opt();
-        } else if (arg_type == OptionType::LongOpt) {
-            handle_long_opt();
-        }
-      }
-  }
-
-
-  auto parse_args(int argc, char** argv) -> ValueStore {
-    if (argc == 0) {
-        // do nothing if argc is 0
-        return {};
-    }
-    if (_program.empty()) {
-        _program.assign(argv[0]);
-    }
-    return parse_args(vector<string>(&argv[1], &argv[argc]));
-  }
-
+  auto format_help() const -> string;
+  auto print_help() const -> void;
 };
 
 } // namespace stdb::optparse

@@ -31,4 +31,316 @@
 */
 
 #include "optparse/optparse.hpp"
+#include <optional>
 
+
+namespace stdb::optparse {
+
+OptionParser::OptionParser(char prefix): _prefix(prefix) {
+    if (not(_prefix == '-' or _prefix == '+' or _prefix == '#' or _prefix == '$' or _prefix == '&' or _prefix == '%')) {
+        throw std::logic_error(fmt::format("Invalid prefix: {}, the prefix has to be one of -, +, #, $, &, %", _prefix));
+    }
+    _long_prefix = fmt::format("{}{}", _prefix, _prefix);
+}
+
+auto OptionParser::extract_option_type(stdb::optparse::string opt) const -> OptionType {
+    if (opt.size() == 2 and opt[0] == _prefix) {
+        return OptionType::ShortOpt;
+    } else if (opt.size() > 2 and opt.substr(0, 2) == _long_prefix) {
+        return OptionType::LongOpt;
+    } else {
+        return OptionType::InvalidOpt;
+    }
+}
+
+auto OptionParser::extract_arg_type(stdb::optparse::string arg) const -> OptionType {
+    if (not arg.starts_with(_prefix)) {
+        return OptionType::InvalidOpt;
+    }
+    if (arg.starts_with(_long_prefix)) {
+        return OptionType::LongOpt;
+    }
+    return OptionType::ShortOpt;
+}
+
+auto OptionParser::add_option(stdb::optparse::Option option) -> Option& {
+    _options.emplace_back(std::move(option));
+    // register all names for the option.
+    for (const auto& name : _options.back().names()) {
+        auto type = extract_option_type(name);
+        if (type == OptionType::ShortOpt) {
+            _short_option_map[name] = _options.size() - 1;
+        } else if (type == OptionType::LongOpt) {
+            _long_option_map[name] = _options.size() - 1;
+        } else {
+            throw std::logic_error(fmt::format("Invalid option name: {}", name));
+        }
+    }
+    return _options.back();
+}
+
+auto OptionParser::add_option(std::initializer_list<string> names) -> Option& {
+    Option option{*this, {names}};
+    return add_option(std::move(option));
+}
+
+auto OptionParser::add_option(string short_name, string long_name) -> Option& {
+    Option option{*this, {short_name, long_name}};
+    return add_option(std::move(option));
+}
+
+auto OptionParser::parse_args(int argc, char** argv) -> ValueStore {
+    if (argc == 0) {
+        // do nothing if argc is 0
+        return {};
+    }
+    if (_program.empty()) {
+        _program.assign(argv[0]);
+    }
+    return parse_args(vector<string>(&argv[1], &argv[argc]));
+}
+
+auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore {
+    for (auto& opt : _options) {
+        if (not opt.validate()) {
+            throw std::logic_error(fmt::format("incomplete option: {}", opt.names().front()));
+        }
+    }
+    ArgList args_list{std::move(args)};
+    ValueStore store;
+    auto front = args_list.peek();
+    auto arg_type = extract_arg_type(front);
+    while (not args_list.empty()) {
+        if (arg_type == OptionType::InvalidOpt) {
+            // do nothing if the first argument is not an option.
+            _invalid_args.emplace_back(std::move(front));
+            continue;
+        }
+        if (arg_type == OptionType::ShortOpt) {
+            handle_short_opt(store, args_list);
+        } else if (arg_type == OptionType::LongOpt) {
+            handle_long_opt(store, args_list);
+        }
+    }
+    return store;
+}
+template <typename T>
+concept OptValue = std::is_same_v<T, bool> or std::is_same_v<T, int> or std::is_same_v<T, long> or std::is_same_v<T, float> or std::is_same_v<T, double>;
+
+template<OptValue T>
+auto parse_string(string v) -> T {
+    T val;
+    std::stringstream ss(v.data());
+    ss >> val;
+    return val;
+}
+
+auto parse_value(string val, Type typ, const Option* option = nullptr) -> std::optional<Value> {
+    if (typ == Type::Bool) {
+        return parse_string<bool>(val);
+    }
+    if (typ == Type::Int) {
+        return parse_string<int>(val);
+    }
+    if (typ == Type::Long) {
+        return parse_string<long>(val);
+    }
+    if (typ == Type::Float) {
+        return parse_string<float>(val);
+    }
+    if (typ == Type::Double) {
+        return parse_string<double>(val);
+    }
+    if (typ == Type::Choice) {
+        auto choice = val;
+        if (option != nullptr) {
+            auto choices = option->choices();
+            if (choices.contains(choice)) {
+                return choice;
+            }
+        }
+        return std::nullopt;
+    }
+    return val;
+}
+
+auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse::ValueStore& store, string str_val) -> bool {
+    auto dest = opt.dest();
+    auto type = opt.type();
+    switch (opt.action()) {
+        case Store:
+        {
+            auto parsed_val = parse_value(str_val, type, &opt);
+            if (parsed_val) {
+                store.set(dest, *parsed_val);
+                return true;
+            }
+            return false;
+        }
+
+        case StoreTrue:
+        {
+            store.set(dest, true);
+            return true;
+        }
+        case StoreFalse:
+        {
+            store.set(dest, false);
+            return true;
+        }
+        case Append:
+        {
+            auto parsed_val = parse_value(str_val, type, &opt);
+            if (parsed_val) {
+                store.append(dest, *parsed_val);
+                return true;
+            }
+            return false;
+        }
+        case Count:
+        {
+            store.increment(dest);
+            return true;
+        }
+        case Help:
+        {
+            throw std::logic_error("Help action is not supported yet.");
+            __builtin_unreachable();
+        }
+        case Version:
+        {
+            throw std::logic_error("Version action is not supported yet.");
+            __builtin_unreachable();
+        }
+        case Null:
+        {
+            throw std::logic_error("Null action is init value of Action, that was incorrect.");
+            __builtin_unreachable();
+        }
+    }
+}
+
+auto extract_short_opt_name(string opt) -> string {
+    return opt.substr(0, 2);
+}
+
+auto extract_short_opt_value(string opt) -> string {
+    if (opt.size() == 2) return {};
+    return opt.find('=') == string::npos ? opt.substr(2) : opt.substr(3);
+}
+
+auto extract_long_opt_name(string opt) -> string {
+    auto delim = opt.find('=');
+    if (delim == string::npos) {
+        return opt;
+    }
+    return opt.substr(0, delim);
+}
+
+auto extract_long_opt_value(string opt) -> string {
+    auto delim = opt.find('=');
+    if (delim == string::npos) {
+        return {};
+    }
+    return opt.substr(delim + 1);
+}
+
+auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
+    if (not args.empty()) {
+        // get front of args
+        auto front = args.pop();
+        if (front == "-h") {
+            // if the front is -h, then print help message and exit.
+            print_help();
+            exit(0);
+        }
+        auto short_name = extract_short_opt_name(front);
+
+        // lookup the option of short options.
+        auto opt_it = _short_option_map.find(short_name);
+        if (opt_it == _short_option_map.end()) {
+            // if the option is not found, then it is an invalid option.
+            _invalid_args.emplace_back(std::move(front));
+            // TODO(hurricane):maybe use enum to represent the return value.
+            // for telling the caller the next arg is not valid for any option.
+            return true;
+        }
+        size_t opt_offset = opt_it->second;
+        auto& opt = _options[opt_offset];
+        if (opt.nargs() <= 1) {
+            // if nargs is 0 or 1, then process the option.
+            process_opt(opt, values, {});
+            return true;
+        }
+        // if nargs is 2, then process the option and pop the next 2 arguments.
+        if (opt.nargs() == 2) {
+            if (auto val = extract_short_opt_value(front); val.empty()) {
+                // if the value is empty, then pop the next argument.
+                if (not args.empty()) {
+                    auto next_val = args.pop();
+                    process_opt(opt, values, next_val);
+                } else {
+                    return false;
+                }
+            } else {
+                process_opt(opt, values, val);
+            }
+            return true;
+        }
+        // if nargs is greater than 2, then it is an invalid option.
+        return false;
+    }
+    return false;
+}
+
+auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& args) -> bool {
+    if (not args.empty()) {
+        auto front = args.pop();
+        if (front == "--help") {
+            print_help();
+            exit(0);
+        }
+        auto long_name = extract_long_opt_name(front);
+        auto opt_it = _long_option_map.find(long_name);
+        if (opt_it == _long_option_map.end()) {
+            _invalid_args.emplace_back(std::move(front));
+            // TODO(hurricane): maybe use enum to represent the return value.
+            // for telling the caller the next arg is not valid for any option.
+            return true;
+        }
+        size_t opt_offset = opt_it->second;
+        auto& opt = _options[opt_offset];
+        if (opt.nargs() <= 1) {
+            process_opt(opt, values, {});
+            return true;
+        }
+        // if nargs is 2, then process the option and pop the next 2 arguments.
+        if (opt.nargs() == 2) {
+            if (auto val = extract_long_opt_value(front); val.empty()) {
+                // if the value is empty, then pop the next argument.
+                if (not args.empty()) {
+                    auto next_val = args.pop();
+                    process_opt(opt, values, next_val);
+                } else {
+                    return false;
+                }
+            } else {
+                process_opt(opt, values, val);
+            }
+            return true;
+        }
+        // if nargs is greater than 2, then it is an invalid option.
+        return false;
+    }
+    return false;
+}
+
+auto OptionParser::print_help() const -> void {
+    fmt::print("{}\n", format_help());
+}
+
+auto OptionParser::format_help() const -> string {
+    return "---help-----";
+}
+
+}  // namespace stdb::optparse
