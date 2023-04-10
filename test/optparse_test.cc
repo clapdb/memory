@@ -105,5 +105,9 @@ TEST_CASE("optparser::complex") {
     CHECK_EQ(options.get<bool>("verbose"), false);
     CHECK_EQ(options.get<string>("config"), "config.txt");
     CHECK_EQ(options.get_list("ratio").size(), 2);
+
+    auto help_msg = parser.format_help();
+    fmt::print("{}", help_msg);
+    CHECK_EQ(help_msg.size() > 0, true);
 }
 }

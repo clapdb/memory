@@ -32,6 +32,9 @@
 
 #include "optparse/optparse.hpp"
 #include <optional>
+#include <algorithm>
+#include <ranges>
+#include <cctype>
 
 
 namespace stdb::optparse {
@@ -424,12 +427,68 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
     return false;
 }
 
-auto OptionParser::print_help() const -> void {
-    fmt::print("{}\n", format_help());
+
+auto to_upper(string& input) -> void {
+    std::transform(input.begin(), input.end(), input.begin(), [] (unsigned char c) {return std::toupper(c);});
 }
 
-auto OptionParser::format_help() const -> string {
-    return "---help-----";
+
+auto OptionParser::format_usage() -> string {
+    if (_usage.empty()) {
+        // enrich the _usage message.
+        _usage = fmt::format("usage: {}", _program);
+    }
+    for (auto& opt : _options) {
+        if (opt.nargs() > 0) {
+            auto upper_dest = opt.dest();
+            to_upper(upper_dest);
+            auto opt_msg = fmt::format(" [{} {}]", opt.names().front(), upper_dest);
+            _usage += std::string_view{opt_msg};
+        } else {
+            auto opt_msg = fmt::format(" [{}]", opt.names().front());
+            _usage += std::string_view{opt_msg};
+        }
+    }
+    _usage += "\n";
+    return _usage;
+}
+
+auto format_opt_names(const vector<string>& names, const string& dest) -> string {
+    assert(not names.empty());
+    auto opt_msg = fmt::format("{} {}", names.front(), dest);
+    if (names.size() == 1) {
+        return opt_msg;
+    }
+    // for-loop the rest names, and append to the opt_msg
+    for (size_t off = 1; off < names.size(); ++off) {
+        opt_msg += fmt::format(", {} {}", names[off], dest);
+    }
+    return opt_msg;
+}
+
+auto OptionParser::format_help() -> string {
+    constexpr int column_width = 80 - 1;
+    auto content = fmt::format("{} \n options: \n", format_usage());
+    for (auto& opt : _options) {
+        string line;
+        if (opt.nargs() > 0) {
+            auto upper_dest = opt.dest();
+            to_upper(upper_dest);
+            line = fmt::format("  {}", format_opt_names(opt.names(), upper_dest));
+        } else {
+            line = fmt::format("  {}", format_opt_names(opt.names(), {}));
+        }
+        auto help = opt.help();
+        auto space_width = column_width - line.size() - help.size();
+        assert(space_width >= 0);
+        auto spaces = string(space_width, ' ');
+        content +=  fmt::format("{}{}{}\n", line, spaces, help);
+    }
+    return content;
+}
+
+auto OptionParser::print_help() -> void {
+    fmt::print("{}", format_help());
 }
 
 

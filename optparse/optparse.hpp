@@ -46,8 +46,8 @@ namespace stdb::optparse {
 
 class Option;
 
-//using string = memory::string;
-using string = std::string;
+using string = memory::string;
+//using string = std::string;
 
 template<typename T>
 using vector = stdb::container::stdb_vector<T>;
@@ -248,6 +248,10 @@ class Option {
       return *this;
   }
 
+  inline auto help() -> string {
+      return _help;
+  }
+
   inline auto env(string e) -> Option& {
       _env = std::move(e);
       return *this;
@@ -297,72 +301,73 @@ class ArgList {
 }; // class ArgList
 
 class OptionParser {
- private:
-  const char _prefix = '-';
-  string  _long_prefix = "--";
-  string _program;
-  string _usage;
-  string _version;
-  vector<Option> _options;
-  std::map<string, size_t> _long_option_map;
-  std::map<string, size_t> _short_option_map;
-  vector<string> _invalid_args;
+  private:
+    const char _prefix = '-';
+    string  _long_prefix = "--";
+    string _program;
+    string _usage;
+    string _version;
+    vector<Option> _options;
+    std::map<string, size_t> _long_option_map;
+    std::map<string, size_t> _short_option_map;
+    vector<string> _invalid_args;
 
 
 
-  auto extract_arg_type(string arg) const -> OptionType;
+    auto extract_arg_type(string arg) const -> OptionType;
 
-  auto add_option(Option option) -> Option&;
+    auto add_option(Option option) -> Option&;
 
  public:
-  auto extract_option_type(string opt) const -> OptionType;
-  explicit OptionParser(char prefix);
-  OptionParser() = default;
+    auto extract_option_type(string opt) const -> OptionType;
+    explicit OptionParser(char prefix);
+    OptionParser() = default;
 
-  ~OptionParser() = default;
+    ~OptionParser() = default;
 
-  inline auto program(string p) -> OptionParser& {
-      _program = std::move(p);
-      return *this;
-  }
+    inline auto program(string p) -> OptionParser& {
+        _program = std::move(p);
+        return *this;
+    }
 
-  inline auto program() const -> string {
-      return _program;
-  }
+    inline auto program() const -> string {
+        return _program;
+    }
 
-  inline auto usage(string u) -> OptionParser& {
-      _usage = std::move(u);
-      return *this;
-  }
+    inline auto usage(string u) -> OptionParser& {
+        _usage = std::move(u);
+        return *this;
+    }
 
-  inline auto usage() const -> string {
-      return _usage;
-  }
+    inline auto usage() const -> string {
+        return _usage;
+    }
 
-  inline auto version(string v) -> OptionParser& {
+    inline auto version(string v) -> OptionParser& {
       _version = std::move(v);
-      return *this;
-  }
+        return *this;
+    }
 
-  inline auto version() const -> string {
-      return _version;
-  }
+    inline auto version() const -> string {
+        return _version;
+    }
 
-  auto add_option(std::initializer_list<string> names) -> Option&;
+    auto add_option(std::initializer_list<string> names) -> Option&;
 
-  auto add_option(string short_name, string long_name) -> Option&;
+    auto add_option(string short_name, string long_name) -> Option&;
 
-  auto handle_short_opt(ValueStore&, ArgList& args) -> bool;
-  auto handle_long_opt(ValueStore&, ArgList& args) -> bool;
+    auto handle_short_opt(ValueStore&, ArgList& args) -> bool;
+    auto handle_long_opt(ValueStore&, ArgList& args) -> bool;
 
-  auto process_opt(const Option&, ValueStore&, string) -> bool;
+    auto process_opt(const Option&, ValueStore&, string) -> bool;
 
-  auto parse_args(vector<string> args) -> ValueStore;
+    auto parse_args(vector<string> args) -> ValueStore;
 
-  auto parse_args(int argc, char** argv) -> ValueStore;
+    auto parse_args(int argc, char** argv) -> ValueStore;
 
-  auto format_help() const -> string;
-  auto print_help() const -> void;
+    auto format_usage() -> string;
+    auto format_help() -> string;
+    auto print_help() -> void;
 };
 
 } // namespace stdb::optparse
