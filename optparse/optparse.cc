@@ -443,10 +443,10 @@ auto OptionParser::format_usage() -> string {
             auto upper_dest = opt.dest();
             to_upper(upper_dest);
             auto opt_msg = fmt::format(" [{} {}]", opt.names().front(), upper_dest);
-            _usage += opt_msg;
+            _usage += std::string_view{opt_msg};
         } else {
             auto opt_msg = fmt::format(" [{}]", opt.names().front());
-            _usage += opt_msg;
+            _usage += std::string_view{opt_msg};
         }
     }
     _usage += "\n";
@@ -467,16 +467,22 @@ auto format_opt_names(const vector<string>& names, const string& dest) -> string
 }
 
 auto OptionParser::format_help() -> string {
+    constexpr int column_width = 80 - 1;
     auto content = fmt::format("{} \n options: \n", format_usage());
     for (auto& opt : _options) {
+        string line;
         if (opt.nargs() > 0) {
             auto upper_dest = opt.dest();
             to_upper(upper_dest);
-            // FIXME: the spaces between the 2 {}'s length should be calculated for aligning
-            content += fmt::format("  {}        {}\n", format_opt_names(opt.names(), upper_dest), opt.help());
+            line = fmt::format("  {}", format_opt_names(opt.names(), upper_dest));
         } else {
-            content += fmt::format("  {}        {}\n", format_opt_names(opt.names(), {}), opt.help());
+            line = fmt::format("  {}", format_opt_names(opt.names(), {}));
         }
+        auto help = opt.help();
+        auto space_width = column_width - line.size() - help.size();
+        assert(space_width >= 0);
+        auto spaces = string(space_width, ' ');
+        content +=  fmt::format("{}{}{}\n", line, spaces, help);
     }
     return content;
 }
