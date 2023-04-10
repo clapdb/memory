@@ -112,6 +112,7 @@ endif()
 
 ### build arena
 add_subdirectory(arena)
+add_subdirectory(optparse)
 
 add_subdirectory(doctest EXCLUE_FROM_ALL)
 add_subdirectory(test EXCLUDE_FROM_ALL)
