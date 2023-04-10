@@ -46,8 +46,8 @@ namespace stdb::optparse {
 
 class Option;
 
-using string = memory::string;
-//using string = std::string;
+//using string = memory::string;
+using string = std::string;
 
 template<typename T>
 using vector = stdb::container::stdb_vector<T>;
@@ -355,6 +355,8 @@ class OptionParser {
     auto add_option(std::initializer_list<string> names) -> Option&;
 
     auto add_option(string short_name, string long_name) -> Option&;
+
+    auto add_option(string name) -> Option&;
 
     auto handle_short_opt(ValueStore&, ArgList& args) -> bool;
     auto handle_long_opt(ValueStore&, ArgList& args) -> bool;

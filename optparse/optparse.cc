@@ -107,6 +107,11 @@ auto OptionParser::add_option(string short_name, string long_name) -> Option& {
     return add_option(std::move(option));
 }
 
+auto OptionParser::add_option(string name) -> Option& {
+    Option option{*this, {name}};
+    return add_option(std::move(option));
+}
+
 auto OptionParser::parse_args(int argc, char** argv) -> ValueStore {
     if (argc == 0) {
         // do nothing if argc is 0
@@ -479,10 +484,15 @@ auto OptionParser::format_help() -> string {
             line = fmt::format("  {}", format_opt_names(opt.names(), {}));
         }
         auto help = opt.help();
-        auto space_width = column_width - line.size() - help.size();
-        assert(space_width >= 0);
-        auto spaces = string(space_width, ' ');
-        content +=  fmt::format("{}{}{}\n", line, spaces, help);
+        int space_width = column_width - static_cast<int>(line.size()) - static_cast<int>(help.size());
+        if (space_width > 0) {
+            // the line + help is shorter than 79
+            auto spaces = string(static_cast<size_t>(space_width), ' ');
+            content +=  fmt::format("{}{}{}\n", line, spaces, help);
+        } else {
+            // newline and add help msg
+            content += fmt::format("{}\n  {}\n", line, help);
+        }
     }
     return content;
 }
