@@ -115,14 +115,18 @@ class ValueStore {
     template<typename T>
     inline auto get(string key) const -> T {
         auto it = _values.find(key);
-        if (it == _values.end()) [[unlikely]] return {};
+        if (it == _values.end()) [[unlikely]] {
+            throw std::out_of_range{key.data()};
+        }
         auto val = it->second;
         return std::get<T>(val);
     }
 
     inline auto get_list(string key) const -> vector<Value> {
         auto it = _list_values.find(key);
-        if (it == _list_values.end()) [[unlikely]] return {};
+        if (it == _list_values.end()) [[unlikely]] {
+            throw std::out_of_range{key.data()};
+        }
         return it->second;
     }
 
@@ -266,7 +270,7 @@ class Option {
 enum ConflictHandler : uint8_t
 {
     Error = 0,
-    Resolve,
+    Replace,
 };
 
 enum OptionType : uint8_t
@@ -311,8 +315,7 @@ class OptionParser {
     std::map<string, size_t> _long_option_map;
     std::map<string, size_t> _short_option_map;
     vector<string> _invalid_args;
-
-
+    ConflictHandler _conflict_handler = ConflictHandler::Error;
 
     auto extract_arg_type(string arg) const -> OptionType;
 
@@ -321,6 +324,8 @@ class OptionParser {
  public:
     auto extract_option_type(string opt) const -> OptionType;
     explicit OptionParser(char prefix);
+    OptionParser(char prefix, ConflictHandler handler);
+    explicit OptionParser(ConflictHandler handler);
     OptionParser() = default;
 
     ~OptionParser() = default;
@@ -357,6 +362,9 @@ class OptionParser {
     auto add_option(string short_name, string long_name) -> Option&;
 
     auto add_option(string name) -> Option&;
+
+    auto add_usage_option(string usage_msg) -> void;
+    auto add_help_option(string help_msg) -> void;
 
     auto handle_short_opt(ValueStore&, ArgList& args) -> bool;
     auto handle_long_opt(ValueStore&, ArgList& args) -> bool;

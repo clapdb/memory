@@ -107,9 +107,18 @@ TEST_CASE("optparser::complex") {
     CHECK_EQ(options.get<string>("config"), "config.txt");
     CHECK_EQ(options.get_list("ratio").size(), 2);
     CHECK_EQ(options.get<double>("duration"), 2.0);
+    CHECK_EQ(options.has("help"), false);
 
     auto help_msg = parser.format_help();
     fmt::print("{}", help_msg);
     CHECK_EQ(help_msg.size() > 0, true);
+
+    auto usage_options= parser.parse_args({"-u"});
+    CHECK_EQ(usage_options.has("usage"), true);
+    CHECK_EQ(usage_options.get<bool>("usage"), true);
+    fmt::print("============\n");
+    fmt::print("{}", parser.format_usage());
+    fmt::print("------------\n");
+    fmt::print("{}", parser.format_help());
 }
 }
