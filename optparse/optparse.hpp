@@ -46,8 +46,8 @@ namespace stdb::optparse {
 
 class Option;
 
-using string = memory::string;
-//using string = std::string;
+//using string = memory::string;
+using string = std::string;
 
 template<typename T>
 using vector = stdb::container::stdb_vector<T>;

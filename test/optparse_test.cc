@@ -98,7 +98,7 @@ TEST_CASE("optparser::complex") {
       .help("print status messages to stdout");
     parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
     parser.add_option("-r", "--ratio").type(Type::Int).action(Action::Append).nargs(2).help("ratios");
-    parser.add_option("--duration").type(Type::Double).action(Action::Store).nargs(1).help("duration");
+    parser.add_option("--duration").type(Type::Double).action(Action::Store).nargs(1).help("print duration time for the loooooooooooooooooooooong running!! lasting lasting lasting for testing testing");
 
     auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0" ,"-r1", "100"});
 
