@@ -61,6 +61,10 @@ OptionParser::OptionParser(char prefix): _prefix(prefix) {
     _long_prefix = fmt::format("{}{}", _prefix, _prefix);
 }
 
+OptionParser::OptionParser(stdb::optparse::ConflictHandler handler): _conflict_handler(handler) { }
+
+OptionParser::OptionParser(char prefix, stdb::optparse::ConflictHandler handler): _prefix{prefix}, _conflict_handler{handler} {}
+
 auto OptionParser::extract_option_type(stdb::optparse::string opt) const -> OptionType {
     if (opt.size() == 2 and opt[0] == _prefix) {
         return OptionType::ShortOpt;
@@ -87,13 +91,22 @@ auto OptionParser::add_option(stdb::optparse::Option option) -> Option& {
     for (const auto& name : _options.back().names()) {
         auto type = extract_option_type(name);
         if (type == OptionType::ShortOpt) {
+            if (_conflict_handler == ConflictHandler::Error and _short_option_map.contains(name)) {
+                throw std::logic_error(fmt::format("Short option {} is already registered", name));
+            }
+            // if the ConflictHandler is Replace, we will replace the old option with the new one.
             _short_option_map[name] = _options.size() - 1;
         } else if (type == OptionType::LongOpt) {
+            if (_conflict_handler == ConflictHandler::Error and _long_option_map.contains(name)) {
+                throw std::logic_error(fmt::format("Long option {} is already registered", name));
+            }
+            // if the ConflictHandler is Replace, we will replace the old option with the new one.
             _long_option_map[name] = _options.size() - 1;
         } else {
             throw std::logic_error(fmt::format("Invalid option name: {}", name));
         }
     }
+
     return _options.back();
 }
 
@@ -105,6 +118,18 @@ auto OptionParser::add_option(std::initializer_list<string> names) -> Option& {
 auto OptionParser::add_option(string short_name, string long_name) -> Option& {
     Option option{*this, {short_name, long_name}};
     return add_option(std::move(option));
+}
+
+auto OptionParser::add_help_option(string help_msg) -> void {
+    if (not _short_option_map.contains("-h") and not _long_option_map.contains("--help")) {
+        add_option("-h", "--help").dest("help").action(Action::StoreTrue).nargs(0).type(Type::Bool).help(help_msg.empty() ? fmt::format("show the help of the {}", _program): help_msg);
+    }
+}
+
+auto OptionParser::add_usage_option(string usage_msg) -> void {
+    if (not _short_option_map.contains("-u") and not _long_option_map.contains("--usage")) {
+        add_option("-u", "--usage").dest("usage").action(Action::StoreTrue).nargs(0).type(Type::Bool).help(usage_msg.empty()? fmt::format("show usage of the {}", _program) : usage_msg);
+    }
 }
 
 auto OptionParser::add_option(string name) -> Option& {
@@ -129,6 +154,8 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore
             throw std::logic_error(fmt::format("incomplete option: {}", opt.names().front()));
         }
     }
+    add_usage_option({});
+    add_help_option({});
     ArgList args_list{std::move(args)};
     ValueStore store;
     while (not args_list.empty()) {
@@ -442,19 +469,19 @@ auto OptionParser::format_usage() -> string {
     if (_usage.empty()) {
         // enrich the _usage message.
         _usage = fmt::format("usage: {}", _program);
-    }
-    for (auto& opt : _options) {
-        if (opt.nargs() > 0) {
-            auto upper_dest = opt.dest();
-            to_upper(upper_dest);
-            auto opt_msg = fmt::format(" [{} {}]", opt.names().front(), upper_dest);
-            _usage += std::string_view{opt_msg};
-        } else {
-            auto opt_msg = fmt::format(" [{}]", opt.names().front());
-            _usage += std::string_view{opt_msg};
+        for (auto& opt : _options) {
+            if (opt.nargs() > 0) {
+                auto upper_dest = opt.dest();
+                to_upper(upper_dest);
+                auto opt_msg = fmt::format(" [{} {}]", opt.names().front(), upper_dest);
+                _usage += std::string_view{opt_msg};
+            } else {
+                auto opt_msg = fmt::format(" [{}]", opt.names().front());
+                _usage += std::string_view{opt_msg};
+            }
         }
+        _usage += "\n";
     }
-    _usage += "\n";
     return _usage;
 }
 
