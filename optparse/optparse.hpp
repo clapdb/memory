@@ -356,6 +356,8 @@ class OptionParser {
 
     auto add_option(string short_name, string long_name) -> Option&;
 
+    auto add_option(string name) -> Option&;
+
     auto handle_short_opt(ValueStore&, ArgList& args) -> bool;
     auto handle_long_opt(ValueStore&, ArgList& args) -> bool;
 

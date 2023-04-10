@@ -107,6 +107,11 @@ auto OptionParser::add_option(string short_name, string long_name) -> Option& {
     return add_option(std::move(option));
 }
 
+auto OptionParser::add_option(string name) -> Option& {
+    Option option{*this, {name}};
+    return add_option(std::move(option));
+}
+
 auto OptionParser::parse_args(int argc, char** argv) -> ValueStore {
     if (argc == 0) {
         // do nothing if argc is 0

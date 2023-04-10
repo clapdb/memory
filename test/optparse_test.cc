@@ -98,13 +98,15 @@ TEST_CASE("optparser::complex") {
       .help("print status messages to stdout");
     parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
     parser.add_option("-r", "--ratio").type(Type::Int).action(Action::Append).nargs(2).help("ratios");
+    parser.add_option("--duration").type(Type::Double).action(Action::Store).nargs(1).help("duration");
 
-    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "-r1", "100"});
+    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0" ,"-r1", "100"});
 
     CHECK_EQ(options.get<string>("filename"), "test.txt");
     CHECK_EQ(options.get<bool>("verbose"), false);
     CHECK_EQ(options.get<string>("config"), "config.txt");
     CHECK_EQ(options.get_list("ratio").size(), 2);
+    CHECK_EQ(options.get<double>("duration"), 2.0);
 
     auto help_msg = parser.format_help();
     fmt::print("{}", help_msg);
