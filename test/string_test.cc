@@ -57,7 +57,7 @@ template <class String>
 void randomString(String* toFill, unsigned int maxSize = 1000) {
     assert(toFill);
     toFill->resize(random(0, maxSize));
-    std::for_each(toFill->begin(), toFill->end(), [](auto& ch) { ch = random('a', 'z'); });
+    std::for_each(toFill->begin(), toFill->end(), [](auto& ch) { ch = random(int8_t('a'), int8_t('z')); });
 }
 
 template <class String, class Integral>
@@ -70,7 +70,8 @@ std::list<char> RandomList(unsigned int maxSize) {
     std::list<char> lst(random(0, maxSize));
     auto i = lst.begin();
     for (; i != lst.end(); ++i) {
-        *i = random('a', 'z');
+        // *i = random('a', 'z');
+        *i = random(int8_t('a'), int8_t('z'));
     }
     return lst;
 }
@@ -289,7 +290,7 @@ void clause11_21_4_2_j(String& test) {
     CHECK_EQ(s.size(), size);
     // FOR_EACH_RANGE(i, 0, s.size()) { s[i] = random('a', 'z'); }
     for (size_t i = 0; i < s.size(); ++i) {
-        s[i] = random('a', 'z');
+        s[i] = random(int8_t('a'), int8_t('z'));
     }
     test = s;
 }
@@ -302,7 +303,7 @@ void arena_clause11_21_4_2_j(String& test) {
     CHECK_EQ(s.size(), size);
     // FOR_EACH_RANGE(i, 0, s.size()) { s[i] = random('a', 'z'); }
     for (size_t i = 0; i < s.size(); ++i) {
-        s[i] = random('a', 'z');
+        s[i] = (char)random(int8_t('a'), int8_t('z'));
     }
     test = s;
 }
@@ -315,7 +316,7 @@ void clause11_21_4_2_k(String& test) {
     CHECK_EQ(s.size(), size);
     // FOR_EACH_RANGE(i, 0, s.size()) { s[i] = random('a', 'z'); }
     for (size_t i = 0; i < s.size(); ++i) {
-        s[i] = random('a', 'z');
+        s[i] = random(int8_t('a'), int8_t('z'));
     }
     test = std::move(s);
     if (std::is_same<String, string>::value) {
@@ -331,7 +332,7 @@ void arena_clause11_21_4_2_k(String& test) {
     CHECK_EQ(s.size(), size);
     // FOR_EACH_RANGE(i, 0, s.size()) { s[i] = random('a', 'z'); }
     for (size_t i = 0; i < s.size(); ++i) {
-        s[i] = random('a', 'z');
+        s[i] = (char)random(int8_t('a'), int8_t('z'));
     }
     test = std::move(s);
     if (std::is_same<String, string>::value) {
@@ -345,7 +346,7 @@ void clause11_21_4_2_l(String& test) {
     String s(random(0, 1000U), '\0');
     size_t i = 0;
     for (; i != s.size(); ++i) {
-        s[i] = random('a', 'z');
+        s[i] = random(int8_t('a'), int8_t('z'));
     }
     test = s.c_str();  // NOLINT
 }
@@ -356,7 +357,7 @@ void arena_clause11_21_4_2_l(String& test) {
     String s(random(0, 1000U), '\0', test.get_allocator());
     size_t i = 0;
     for (; i != s.size(); ++i) {
-        s[i] = random('a', 'z');
+        s[i] = random(int8_t('a'), int8_t('z'));
     }
     test = s.c_str();  // NOLINT
 }
@@ -387,14 +388,14 @@ template <class String>
 void clause11_21_4_2_m(String& test) {
     // Assignment from char
     using value_type = typename String::value_type;
-    test = random(static_cast<value_type>('a'), static_cast<value_type>('z'));
+    test = value_type(random(int8_t('a'), int8_t('z')));
 }
 
 template <class String>
 void arena_clause11_21_4_2_m(String& test) {
     // Assignment from char
     using value_type = typename String::value_type;
-    test = random(static_cast<value_type>('a'), static_cast<value_type>('z'));
+    test = value_type(random(int8_t('a'), int8_t('z')));
 }
 
 template <class String>
@@ -565,7 +566,7 @@ void clause11_21_4_6_1(String& test) {
     CHECK_EQ(test.size(), 2 * len - pos);
     // single char
     len = test.size();
-    test += random('a', 'z');
+    test += char(random(int8_t('a'), int8_t('z')));
     CHECK_EQ(test.size(), len + 1);
     // initializer_list
     std::initializer_list<typename String::value_type> il{'a', 'b', 'c'};
@@ -616,7 +617,7 @@ void arena_clause11_21_4_6_1(String& test) {
     CHECK_EQ(test.size(), 2 * len - pos);
     // single char
     len = test.size();
-    test += random('a', 'z');
+    test += (char)random(int8_t('a'), int8_t('z'));
     CHECK_EQ(test.size(), len + 1);
     // initializer_list
     std::initializer_list<typename String::value_type> il{'a', 'b', 'c'};
@@ -629,7 +630,7 @@ void clause11_21_4_6_2(String& test) {
     String s;
 
     // Test with a small string first
-    char c = random('a', 'z');
+    char c = char(random(int8_t('a'), int8_t('z')));
     s.push_back(c);
     CHECK_EQ(s[s.size() - 1], c);
     CHECK_EQ(s.size(), 1);
@@ -643,10 +644,10 @@ void clause11_21_4_6_2(String& test) {
     test.append(s.c_str(), random(0, s.size()));
     randomString(&s, maxString);
     test.append(s.c_str());  // NOLINT
-    test.append(random(0, maxString), random('a', 'z'));
+    test.append(random(0, maxString), (char)random(int8_t('a'), int8_t('z')));
     std::list<char> lst(RandomList(maxString));
     test.append(lst.begin(), lst.end());
-    c = random('a', 'z');
+    c = (char)random(int8_t('a'), int8_t('z'));
     test.push_back(c);
     CHECK_EQ(test[test.size() - 1], c);
     // initializer_list
@@ -660,7 +661,7 @@ void arena_clause11_21_4_6_2(String& test) {
     String s(test.get_allocator());
 
     // Test with a small string first
-    char c = random('a', 'z');
+    char c = (char)random(int8_t('a'), int8_t('z'));
     s.push_back(c);
     CHECK_EQ(s[s.size() - 1], c);
     CHECK_EQ(s.size(), 1);
@@ -674,10 +675,10 @@ void arena_clause11_21_4_6_2(String& test) {
     test.append(s.c_str(), random(0, s.size()));
     randomString(&s, maxString);
     test.append(s.c_str());  // NOLINT
-    test.append(random(0, maxString), random('a', 'z'));
+    test.append(random(0, maxString), (char)random(int8_t('a'), int8_t('z')));
     std::list<char> lst(RandomList(maxString));
     test.append(lst.begin(), lst.end());
-    c = random('a', 'z');
+    c = (char)random(int8_t('a'), int8_t('z'));
     test.push_back(c);
     CHECK_EQ(test[test.size() - 1], c);
     // initializer_list
@@ -765,7 +766,7 @@ void clause11_21_4_6_3_e(String& test) {
     // assign
     String s;
     randomString(&s, maxString);
-    test.assign(random(0, maxString), random('a', 'z'));
+    test.assign(random(0, maxString), (char)random(int8_t('a'), int8_t('z')));
 }
 
 template <class String>
@@ -773,7 +774,7 @@ void arena_clause11_21_4_6_3_e(String& test) {
     // assign
     String s(test.get_allocator());
     randomString(&s, maxString);
-    test.assign(random(0, maxString), random('a', 'z'));
+    test.assign(random(0, maxString), (char)random(int8_t('a'), int8_t('z')));
 }
 
 template <class String>
@@ -864,9 +865,9 @@ void clause11_21_4_6_4(String& test) {
     test.insert(random(0, test.size()), s.c_str(), random(0, s.size()));
     randomString(&s, maxString);
     test.insert(random(0, test.size()), s.c_str());  // NOLINT
-    test.insert(random(0, test.size()), random(0, maxString), random('a', 'z'));
+    test.insert(random(0, test.size()), random(0, maxString), (char)random(int8_t('a'), int8_t('z')));
     typename String::size_type pos = random(0, test.size());
-    typename String::iterator res = test.insert(test.begin() + int(pos), random('a', 'z'));  // NOLINT
+    typename String::iterator res = test.insert(test.begin() + int(pos), (char)random(int8_t('a'), int8_t('z')));  // NOLINT
     CHECK_EQ(res - test.begin(), pos);
     std::list<char> lst(RandomList(maxString));
     pos = random(0, test.size());
@@ -897,9 +898,9 @@ void arena_clause11_21_4_6_4(String& test) {
     test.insert(random(0, test.size()), s.c_str(), random(0, s.size()));
     randomString(&s, maxString);
     test.insert(random(0, test.size()), s.c_str());  // NOLINT
-    test.insert(random(0, test.size()), random(0, maxString), random('a', 'z'));
+    test.insert(random(0, test.size()), random(0, maxString), (char)random(int8_t('a'), int8_t('z')));
     typename String::size_type pos = random(0, test.size());
-    typename String::iterator res = test.insert(test.begin() + int(pos), random('a', 'z'));  // NOLINT
+    typename String::iterator res = test.insert(test.begin() + int(pos), (char)random(int8_t('a'), int8_t('z')));  // NOLINT
     CHECK_EQ(res - test.begin(), pos);
     std::list<char> lst(RandomList(maxString));
     pos = random(0, test.size());
@@ -1000,7 +1001,7 @@ void clause11_21_4_6_6(String& test) {
     randomString(&str, maxString);
     test.replace(pos, pos + random(0, test.size() - pos), str.c_str());
     pos = random(0, test.size());
-    test.replace(pos, random(0, test.size() - pos), random(0, maxString), random('a', 'z'));
+    test.replace(pos, random(0, test.size() - pos), random(0, maxString), (char)random(int8_t('a'), int8_t('z')));
     pos = random(0, test.size());
     if (avoidAliasing) {
         auto newString = String(test);
@@ -1034,7 +1035,7 @@ void clause11_21_4_6_6(String& test) {
     pos = random(0, test.size());
     // NOLINTNEXTLINE
     test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), random(0, maxString),
-                 random('a', 'z'));
+                 (char)random(int8_t('a'), int8_t('z')));
 }
 
 template <class String>
@@ -1075,7 +1076,7 @@ void arena_clause11_21_4_6_6(String& test) {
     randomString(&str, maxString);
     test.replace(pos, pos + random(0, test.size() - pos), str.c_str());
     pos = random(0, test.size());
-    test.replace(pos, random(0, test.size() - pos), random(0, maxString), random('a', 'z'));
+    test.replace(pos, random(0, test.size() - pos), random(0, maxString), (char)random(int8_t('a'), int8_t('z')));
     pos = random(0, test.size());
     if (avoidAliasing) {
         auto newString = String(test);
@@ -1109,7 +1110,7 @@ void arena_clause11_21_4_6_6(String& test) {
     pos = random(0, test.size());
     // NOLINTNEXTLINE
     test.replace(test.begin() + int(pos), test.begin() + int(pos + random(0, test.size() - pos)), random(0, maxString),
-                 random('a', 'z'));
+                 (char)random(int8_t('a'), int8_t('z')));
 }
 
 template <class String>
@@ -1300,12 +1301,12 @@ void arena_clause11_21_4_7_2_c2(String& test) {
 
 template <class String>
 void clause11_21_4_7_2_d(String& test) {
-    Num2String(test, test.find(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.find((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
 void arena_clause11_21_4_7_2_d(String& test) {
-    Num2String(test, test.find(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.find((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
@@ -1348,12 +1349,12 @@ void arena_clause11_21_4_7_3_c(String& test) {
 
 template <class String>
 void clause11_21_4_7_3_d(String& test) {
-    Num2String(test, test.rfind(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.rfind((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
 void arena_clause11_21_4_7_3_d(String& test) {
-    Num2String(test, test.rfind(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.rfind((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
@@ -1404,12 +1405,12 @@ void arena_clause11_21_4_7_4_c(String& test) {
 
 template <class String>
 void clause11_21_4_7_4_d(String& test) {
-    Num2String(test, test.find_first_of(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.find_first_of((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
 void arena_clause11_21_4_7_4_d(String& test) {
-    Num2String(test, test.find_first_of(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.find_first_of((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
@@ -1458,12 +1459,12 @@ void arena_clause11_21_4_7_5_c(String& test) {
 
 template <class String>
 void clause11_21_4_7_5_d(String& test) {
-    Num2String(test, test.find_last_of(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.find_last_of((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
 void arena_clause11_21_4_7_5_d(String& test) {
-    Num2String(test, test.find_last_of(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.find_last_of((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
@@ -1512,12 +1513,12 @@ void arena_clause11_21_4_7_6_c(String& test) {
 
 template <class String>
 void clause11_21_4_7_6_d(String& test) {
-    Num2String(test, test.find_first_not_of(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.find_first_not_of((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
 void arena_clause11_21_4_7_6_d(String& test) {
-    Num2String(test, test.find_first_not_of(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.find_first_not_of((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
@@ -1566,12 +1567,12 @@ void arena_clause11_21_4_7_7_c(String& test) {
 
 template <class String>
 void clause11_21_4_7_7_d(String& test) {
-    Num2String(test, test.find_last_not_of(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.find_last_not_of((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
 void arena_clause11_21_4_7_7_d(String& test) {
-    Num2String(test, test.find_last_not_of(random('a', 'z'), random(0, test.size())));
+    Num2String(test, test.find_last_not_of((char)random(int8_t('a'), int8_t('z')), random(0, test.size())));
 }
 
 template <class String>
@@ -1835,7 +1836,7 @@ void clause11_21_4_8_1_g(String& test) {
     String s;
     randomString(&s, maxString);
     // NOLINTNEXTLINE
-    test = typename String::value_type(random('a', 'z')) + s;
+    test = typename String::value_type(random(int8_t('a'), int8_t('z'))) + s;
 }
 
 template <class String>
@@ -1843,7 +1844,7 @@ void arena_clause11_21_4_8_1_g(String& test) {
     String s(test.get_allocator());
     randomString(&s, maxString);
     // NOLINTNEXTLINE
-    test = typename String::value_type(random('a', 'z')) + s;
+    test = typename String::value_type(random(int8_t('a'), int8_t('z'))) + s;
 }
 
 template <class String>
@@ -1851,7 +1852,7 @@ void clause11_21_4_8_1_h(String& test) {
     String s;
     randomString(&s, maxString);
     // NOLINTNEXTLINE
-    test = typename String::value_type(random('a', 'z')) + std::move(s);
+    test = typename String::value_type(random(int8_t('a'), int8_t('z'))) + std::move(s);
 }
 
 template <class String>
@@ -1859,7 +1860,7 @@ void arena_clause11_21_4_8_1_h(String& test) {
     String s(test.get_allocator());
     randomString(&s, maxString);
     // NOLINTNEXTLINE
-    test = typename String::value_type(random('a', 'z')) + std::move(s);
+    test = typename String::value_type(random(int8_t('a'), int8_t('z'))) + std::move(s);
 }
 
 template <class String>
@@ -1907,7 +1908,7 @@ void clause11_21_4_8_1_k(String& test) {
     String s;
     randomString(&s, maxString);
     // NOLINTNEXTLINE
-    test = s + typename String::value_type(random('a', 'z'));
+    test = s + typename String::value_type(random(int8_t('a'), int8_t('z')));
 }
 
 template <class String>
@@ -1915,7 +1916,7 @@ void arena_clause11_21_4_8_1_k(String& test) {
     String s(test.get_allocator());
     randomString(&s, maxString);
     // NOLINTNEXTLINE
-    test = s + typename String::value_type(random('a', 'z'));
+    test = s + typename String::value_type(random(int8_t('a'), int8_t('z')));
 }
 
 template <class String>

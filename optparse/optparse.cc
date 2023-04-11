@@ -42,9 +42,9 @@ namespace stdb::optparse {
 auto Option::validate() -> bool {
     // if _dest is empty, we will use the first long option name as the _dest.
     if (_dest.empty()) {
-        for (auto n : _names) {
-            if (_parser.extract_option_type(n)== OptionType::LongOpt) {
-                _dest = n.substr(2);
+        for (const auto& nnn : _names) {
+            if (_parser.extract_option_type(nnn)== OptionType::LongOpt) {
+                _dest = nnn.substr(2);
                 break;
             }
         }
@@ -55,7 +55,7 @@ auto Option::validate() -> bool {
 
 
 OptionParser::OptionParser(char prefix): _prefix(prefix) {
-    if (not(_prefix == '-' or _prefix == '+' or _prefix == '#' or _prefix == '$' or _prefix == '&' or _prefix == '%')) {
+    if (_prefix != '-' and _prefix != '+' and _prefix != '#' and _prefix != '$' and _prefix != '&' and _prefix != '%') {
         throw std::logic_error(fmt::format("Invalid prefix: {}, the prefix has to be one of -, +, #, $, &, %", _prefix));
     }
     _long_prefix = fmt::format("{}{}", _prefix, _prefix);
@@ -65,17 +65,17 @@ OptionParser::OptionParser(stdb::optparse::ConflictHandler handler): _conflict_h
 
 OptionParser::OptionParser(char prefix, stdb::optparse::ConflictHandler handler): _prefix{prefix}, _conflict_handler{handler} {}
 
-auto OptionParser::extract_option_type(stdb::optparse::string opt) const -> OptionType {
+auto OptionParser::extract_option_type(const string& opt) const -> OptionType {
     if (opt.size() == 2 and opt[0] == _prefix) {
         return OptionType::ShortOpt;
-    } else if (opt.size() > 2 and opt.substr(0, 2) == _long_prefix) {
-        return OptionType::LongOpt;
-    } else {
-        return OptionType::InvalidOpt;
     }
+    if (opt.size() > 2 and opt.substr(0, 2) == _long_prefix) {
+        return OptionType::LongOpt;
+    }
+    return OptionType::InvalidOpt;
 }
 
-auto OptionParser::extract_arg_type(stdb::optparse::string arg) const -> OptionType {
+auto OptionParser::extract_arg_type(const string& arg) const -> OptionType {
     if (not arg.starts_with(_prefix)) {
         return OptionType::InvalidOpt;
     }
@@ -116,24 +116,26 @@ auto OptionParser::add_option(std::initializer_list<string> names) -> Option& {
 }
 
 auto OptionParser::add_option(string short_name, string long_name) -> Option& {
-    Option option{*this, {short_name, long_name}};
+    Option option{*this, {std::move(short_name), std::move(long_name)}};
     return add_option(std::move(option));
 }
 
 auto OptionParser::add_help_option(string help_msg) -> void {
+    auto local_msg = std::move(help_msg);
     if (not _short_option_map.contains("-h") and not _long_option_map.contains("--help")) {
-        add_option("-h", "--help").dest("help").action(Action::StoreTrue).nargs(0).type(Type::Bool).help(help_msg.empty() ? fmt::format("show the help of the {}", _program): help_msg);
+        add_option("-h", "--help").dest("help").action(Action::StoreTrue).nargs(0).type(Type::Bool).help(local_msg.empty() ? fmt::format("show the help of the {}", _program): std::move(local_msg));
     }
 }
 
 auto OptionParser::add_usage_option(string usage_msg) -> void {
+    auto local_msg = std::move(usage_msg);
     if (not _short_option_map.contains("-u") and not _long_option_map.contains("--usage")) {
-        add_option("-u", "--usage").dest("usage").action(Action::StoreTrue).nargs(0).type(Type::Bool).help(usage_msg.empty()? fmt::format("show usage of the {}", _program) : usage_msg);
+        add_option("-u", "--usage").dest("usage").action(Action::StoreTrue).nargs(0).type(Type::Bool).help(local_msg.empty()? fmt::format("show usage of the {}", _program) : std::move(local_msg));
     }
 }
 
 auto OptionParser::add_option(string name) -> Option& {
-    Option option{*this, {name}};
+    Option option{*this, {std::move(name)}};
     return add_option(std::move(option));
 }
 
@@ -143,9 +145,9 @@ auto OptionParser::parse_args(int argc, char** argv) -> ValueStore {
         return {};
     }
     if (_program.empty()) {
-        _program.assign(argv[0]);
+        _program.assign(argv[0]);  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
-    return parse_args(vector<string>(&argv[1], &argv[argc]));
+    return parse_args(vector<string>(&argv[1], &argv[argc])); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore {
@@ -187,7 +189,7 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore
             auto dest = opt.dest();
             if (not store.user_set(dest)) {
                 // get the environment variable
-                auto env_val = std::getenv(opt.env().data());
+                auto* env_val = std::getenv(opt.env().data());
                 if (env_val != nullptr) {
                     process_opt(opt, store, env_val);
                 }
@@ -198,13 +200,13 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore
     return store;
 }
 template <typename T>
-concept OptValue = std::is_same_v<T, bool> or std::is_same_v<T, int> or std::is_same_v<T, long> or std::is_same_v<T, float> or std::is_same_v<T, double>;
+concept OptValue = std::is_same_v<T, bool> or std::is_same_v<T, int32_t> or std::is_same_v<T, int64_t> or std::is_same_v<T, float> or std::is_same_v<T, double>;
 
 template<OptValue T>
-auto parse_string(string v) -> T {
+auto parse_string(const string& str) -> T {
     T val;
-    std::stringstream ss(v.data());
-    ss >> val;
+    std::stringstream sst(str.data());
+    sst >> val;
     return val;
 }
 
@@ -216,7 +218,7 @@ auto parse_value(string val, Type typ, const Option* option = nullptr) -> std::o
         return parse_string<int>(val);
     }
     if (typ == Type::Long) {
-        return parse_string<long>(val);
+        return parse_string<int64_t>(val);
     }
     if (typ == Type::Float) {
         return parse_string<float>(val);
@@ -227,7 +229,7 @@ auto parse_value(string val, Type typ, const Option* option = nullptr) -> std::o
     if (typ == Type::Choice) {
         auto choice = val;
         if (option != nullptr) {
-            auto choices = option->choices();
+            const auto& choices = option->choices();
             if (choices.contains(choice)) {
                 return choice;
             }
@@ -461,7 +463,7 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
 
 
 auto to_upper(string& input) -> void {
-    std::transform(input.begin(), input.end(), input.begin(), [] (unsigned char c) {return std::toupper(c);});
+    std::transform(input.begin(), input.end(), input.begin(), [] (unsigned char c) {return std::toupper(c);}); // NOLINT(readability-identifier-length)
 }
 
 
