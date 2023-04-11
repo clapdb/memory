@@ -111,7 +111,7 @@ TEST_CASE("optparser::complex") {
 
     auto help_msg = parser.format_help();
     fmt::print("{}", help_msg);
-    CHECK_EQ(help_msg.size() > 0, true);
+    CHECK_EQ(help_msg.empty(), false);
 
     auto usage_options= parser.parse_args({"-u"});
     CHECK_EQ(usage_options.has("usage"), true);
@@ -121,4 +121,5 @@ TEST_CASE("optparser::complex") {
     fmt::print("------------\n");
     fmt::print("{}", parser.format_help());
 }
-}
+
+}  // namespace stdb::optparse
