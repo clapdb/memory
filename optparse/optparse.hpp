@@ -217,6 +217,12 @@ class Option {
       return *this;
   }
 
+  template<typename T>
+  inline auto default_value(T t) -> Option& {
+      _default = std::to_string(t);
+      return *this;
+  };
+
   inline auto default_value() const -> string {
       return _default;
   }

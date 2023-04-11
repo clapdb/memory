@@ -94,7 +94,7 @@ TEST_CASE("optparser::complex") {
       .dest("verbose")
       .type(Type::Bool)
       .nargs(0)
-      .default_value("false")
+      .default_value(0)
       .help("print status messages to stdout");
     parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
     parser.add_option("-r", "--ratio").type(Type::Int).action(Action::Append).nargs(2).help("ratios");
