@@ -1,18 +1,18 @@
-/* 
-* Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     https://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+/*
+ * Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  +------------------------------------------------------------------------------+
 |                                                                              |
@@ -31,39 +31,54 @@
 */
 
 #include "optparse/optparse.hpp"
-#include <optional>
-#include <algorithm>
-#include <ranges>
-#include <cctype>
 
+#include <algorithm>
+#include <cctype>
+#include <optional>
+#include <ranges>
 
 namespace stdb::optparse {
+
+template <>
+auto ValueStore::get<bool>(const string& key) const -> bool {
+    auto vit = _values.find(key);
+    if (vit == _values.end()) [[unlikely]] {
+        return false;
+    }
+    auto val = vit->second;
+    return std::get<bool>(val);
+}
+
+
 
 auto Option::validate() -> bool {
     // if _dest is empty, we will use the first long option name as the _dest.
     if (_dest.empty()) {
         for (const auto& nnn : _names) {
-            if (_parser.extract_option_type(nnn)== OptionType::LongOpt) {
+            if (_parser.extract_option_type(nnn) == OptionType::LongOpt) {
                 _dest = nnn.substr(2);
                 break;
             }
         }
     }
-    if (_names.empty() or _action == Action::Null or _dest.empty() or (_type != Type::Choice and not _choices.empty())) [[unlikely]] return false;
+    if (_names.empty() or _action == Action::Null or _dest.empty() or (_type != Type::Choice and not _choices.empty()))
+      [[unlikely]]
+        return false;
     return true;
 }
 
-
-OptionParser::OptionParser(char prefix): _prefix(prefix) {
+OptionParser::OptionParser(char prefix) : _prefix(prefix) {
     if (_prefix != '-' and _prefix != '+' and _prefix != '#' and _prefix != '$' and _prefix != '&' and _prefix != '%') {
-        throw std::logic_error(fmt::format("Invalid prefix: {}, the prefix has to be one of -, +, #, $, &, %", _prefix));
+        throw std::logic_error(
+          fmt::format("Invalid prefix: {}, the prefix has to be one of -, +, #, $, &, %", _prefix));
     }
     _long_prefix = fmt::format("{}{}", _prefix, _prefix);
 }
 
-OptionParser::OptionParser(stdb::optparse::ConflictHandler handler): _conflict_handler(handler) { }
+OptionParser::OptionParser(stdb::optparse::ConflictHandler handler) : _conflict_handler(handler) {}
 
-OptionParser::OptionParser(char prefix, stdb::optparse::ConflictHandler handler): _prefix{prefix}, _conflict_handler{handler} {}
+OptionParser::OptionParser(char prefix, stdb::optparse::ConflictHandler handler)
+    : _prefix{prefix}, _conflict_handler{handler} {}
 
 auto OptionParser::extract_option_type(const string& opt) const -> OptionType {
     if (opt.size() == 2 and opt[0] == _prefix) {
@@ -123,14 +138,24 @@ auto OptionParser::add_option(string short_name, string long_name) -> Option& {
 auto OptionParser::add_help_option(string help_msg) -> void {
     auto local_msg = std::move(help_msg);
     if (not _short_option_map.contains("-h") and not _long_option_map.contains("--help")) {
-        add_option("-h", "--help").dest("help").action(Action::StoreTrue).nargs(0).type(Type::Bool).help(local_msg.empty() ? fmt::format("show the help of the {}", _program): std::move(local_msg));
+        add_option("-h", "--help")
+          .dest("help")
+          .action(Action::StoreTrue)
+          .nargs(0)
+          .type(Type::Bool)
+          .help(local_msg.empty() ? fmt::format("show the help of the {}", _program) : std::move(local_msg));
     }
 }
 
 auto OptionParser::add_usage_option(string usage_msg) -> void {
     auto local_msg = std::move(usage_msg);
     if (not _short_option_map.contains("-u") and not _long_option_map.contains("--usage")) {
-        add_option("-u", "--usage").dest("usage").action(Action::StoreTrue).nargs(0).type(Type::Bool).help(local_msg.empty()? fmt::format("show usage of the {}", _program) : std::move(local_msg));
+        add_option("-u", "--usage")
+          .dest("usage")
+          .action(Action::StoreTrue)
+          .nargs(0)
+          .type(Type::Bool)
+          .help(local_msg.empty() ? fmt::format("show usage of the {}", _program) : std::move(local_msg));
     }
 }
 
@@ -147,7 +172,8 @@ auto OptionParser::parse_args(int argc, char** argv) -> ValueStore {
     if (_program.empty()) {
         _program.assign(argv[0]);  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
-    return parse_args(vector<string>(&argv[1], &argv[argc])); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return parse_args(
+      vector<string>(&argv[1], &argv[argc]));  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore {
@@ -200,9 +226,10 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore
     return store;
 }
 template <typename T>
-concept OptValue = std::is_same_v<T, bool> or std::is_same_v<T, int32_t> or std::is_same_v<T, int64_t> or std::is_same_v<T, float> or std::is_same_v<T, double>;
+concept OptValue = std::is_same_v<T, bool> or std::is_same_v<T, int32_t> or std::is_same_v<T, int64_t> or
+                   std::is_same_v<T, float> or std::is_same_v<T, double>;
 
-template<OptValue T>
+template <OptValue T>
 auto parse_string(const string& str) -> T {
     T val;
     std::stringstream sst(str.data());
@@ -239,12 +266,12 @@ auto parse_value(string val, Type typ, const Option* option = nullptr) -> std::o
     return val;
 }
 
-auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse::ValueStore& store, string str_val) -> bool {
+auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse::ValueStore& store, string str_val)
+  -> bool {
     auto dest = opt.dest();
     auto type = opt.type();
     switch (opt.action()) {
-        case Store:
-        {
+        case Store: {
             auto parsed_val = parse_value(str_val, type, &opt);
             if (parsed_val) {
                 store.set(dest, *parsed_val);
@@ -253,8 +280,7 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
             return false;
         }
 
-        case StoreTrue:
-        {
+        case StoreTrue: {
             if (str_val.empty()) {
                 store.set(dest, true);
             } else {
@@ -267,8 +293,7 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
             }
             return true;
         }
-        case StoreFalse:
-        {
+        case StoreFalse: {
             if (str_val.empty()) {
                 store.set(dest, false);
             } else {
@@ -281,8 +306,7 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
             }
             return true;
         }
-        case Append:
-        {
+        case Append: {
             auto parsed_val = parse_value(str_val, type, &opt);
             if (parsed_val) {
                 store.append(dest, *parsed_val);
@@ -290,23 +314,19 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
             }
             return false;
         }
-        case Count:
-        {
+        case Count: {
             store.increment(dest);
             return true;
         }
-        case Help:
-        {
+        case Help: {
             throw std::logic_error("Help action is not supported yet.");
             __builtin_unreachable();
         }
-        case Version:
-        {
+        case Version: {
             throw std::logic_error("Version action is not supported yet.");
             __builtin_unreachable();
         }
-        case Null:
-        {
+        case Null: {
             throw std::logic_error("Null action is init value of Action, that was incorrect.");
             __builtin_unreachable();
         }
@@ -315,9 +335,7 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
     return false;
 }
 
-auto extract_short_opt_name(string opt) -> string {
-    return opt.substr(0, 2);
-}
+auto extract_short_opt_name(string opt) -> string { return opt.substr(0, 2); }
 
 auto extract_short_opt_value(string opt) -> string {
     if (opt.size() == 2) return {};
@@ -461,11 +479,10 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
     return false;
 }
 
-
 auto to_upper(string& input) -> void {
-    std::transform(input.begin(), input.end(), input.begin(), [] (unsigned char c) {return std::toupper(c);}); // NOLINT(readability-identifier-length)
+    std::transform(input.begin(), input.end(), input.begin(),
+                   [](unsigned char c) { return std::toupper(c); });  // NOLINT(readability-identifier-length)
 }
-
 
 auto OptionParser::format_usage() -> string {
     if (_usage.empty()) {
@@ -517,7 +534,7 @@ auto OptionParser::format_help() -> string {
         if (space_width > 0) {
             // the line + help is shorter than 79
             auto spaces = string(static_cast<size_t>(space_width), ' ');
-            content +=  fmt::format("{}{}{}\n", line, spaces, help);
+            content += fmt::format("{}{}{}\n", line, spaces, help);
         } else {
             // newline and add help msg
             content += fmt::format("{}\n  {}\n", line, help);
@@ -526,9 +543,6 @@ auto OptionParser::format_help() -> string {
     return content;
 }
 
-auto OptionParser::print_help() -> void {
-    fmt::print("{}", format_help());
-}
-
+auto OptionParser::print_help() -> void { fmt::print("{}", format_help()); }
 
 }  // namespace stdb::optparse

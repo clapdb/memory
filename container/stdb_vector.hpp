@@ -1,18 +1,18 @@
-/* 
-* Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     https://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+/*
+ * Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  +------------------------------------------------------------------------------+
 |                                                                              |
@@ -44,6 +44,7 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
+
 #include "assert_config.hpp"
 
 namespace stdb {
@@ -462,7 +463,9 @@ class core
         destroy_range(_start, _finish);
     }
 
-    [[gnu::always_inline, nodiscard]] auto max_size() const noexcept -> size_type { return kFastVectorMaxSize / sizeof(T); }
+    [[gnu::always_inline, nodiscard]] auto max_size() const noexcept -> size_type {
+        return kFastVectorMaxSize / sizeof(T);
+    }
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(T* __restrict__ dst, T* __restrict__ src) {
@@ -559,13 +562,13 @@ class stdb_vector : public core<T>
         Assert(size >= 0);
         Assert((size_type)size <= this->max_size());
         if (size > 0) [[likely]] {
-            this->allocate((size_type)size);                // NOLINT
+            this->allocate((size_type)size);  // NOLINT
             copy_from_iterator(this->_start, first, last);
             this->_finish = this->_start + size;
         }
     }
 
-    constexpr stdb_vector(std::initializer_list<T> init) : stdb_vector(init.begin(), init.end()) { }
+    constexpr stdb_vector(std::initializer_list<T> init) : stdb_vector(init.begin(), init.end()) {}
 
     /*
      * copy constructor of stdb_vector
@@ -755,8 +758,10 @@ class stdb_vector : public core<T>
         IteratorT(IteratorT&& rhs) noexcept : _ptr(std::exchange(rhs._ptr, nullptr)) {}
         IteratorT(const IteratorT&) noexcept = default;
 
-        template<bool OtherIterator> requires(!OtherIterator && Const)
-        IteratorT(IteratorT<OtherIterator> rhs) noexcept : _ptr(rhs.operator->()) {} // NOLINT(google-explicit-constructor)
+        template <bool OtherIterator>
+            requires(!OtherIterator && Const)
+        IteratorT(IteratorT<OtherIterator> rhs) noexcept  // NOLINT(google-explicit-constructor)
+            : _ptr(rhs.operator->()) {}
 
         // assignment operators
         auto operator=(IteratorT&& rhs) noexcept -> IteratorT& {
@@ -1305,7 +1310,8 @@ class stdb_vector : public core<T>
     }
 
     template <Safety safety = Safety::Safe>
-    [[gnu::always_inline]] constexpr inline auto insert(const_iterator pos, std::initializer_list<T> ilist) -> iterator {
+    [[gnu::always_inline]] constexpr inline auto insert(const_iterator pos, std::initializer_list<T> ilist)
+      -> iterator {
         return insert<safety>(pos, ilist.begin(), ilist.end());
     }
 
@@ -1439,7 +1445,9 @@ constexpr auto erase_if(stdb::container::stdb_vector<T>& vec, Predicate pred) ->
 }  // namespace std
 
 namespace fmt {
-template <typename T> struct formatter<stdb::container::stdb_vector<T>> : formatter<T> {
+template <typename T>
+struct formatter<stdb::container::stdb_vector<T>> : formatter<T>
+{
     template <typename FormatContext>
     auto format(const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) -> decltype(ctx.out()) {
         return format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));

@@ -12,25 +12,26 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-  */
- /**
-  +------------------------------------------------------------------------------+
-  |                                                                              |
-  |                                                                              |
-  |                    ..######..########.########..########.                    |
-  |                    .##....##....##....##.....##.##.....##                    |
-  |                    .##..........##....##.....##.##.....##                    |
-  |                    ..######.....##....##.....##.########.                    |
-  |                    .......##....##....##.....##.##.....##                    |
-  |                    .##....##....##....##.....##.##.....##                    |
-  |                    ..######.....##....########..########.                    |
-  |                                                                              |
-  |                                                                              |
-  |                                                                              |
-  +------------------------------------------------------------------------------+
  */
+/**
+ +------------------------------------------------------------------------------+
+ |                                                                              |
+ |                                                                              |
+ |                    ..######..########.########..########.                    |
+ |                    .##....##....##....##.....##.##.....##                    |
+ |                    .##..........##....##.....##.##.....##                    |
+ |                    ..######.....##....##.....##.########.                    |
+ |                    .......##....##....##.....##.##.....##                    |
+ |                    .##....##....##....##.....##.##.....##                    |
+ |                    ..######.....##....########..########.                    |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ +------------------------------------------------------------------------------+
+*/
 
 #include "optparse/optparse.hpp"
+
 #include "doctest/doctest.h"
 
 namespace stdb::optparse {
@@ -53,7 +54,12 @@ TEST_CASE("optparser::smoke") {
       .default_value("false")
       .help("print status messages to stdout");
     parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
-    parser.add_option("-s", "--size").type(Type::Int).action(Action::Store).dest("size").nargs(1).help("size of the data");
+    parser.add_option("-s", "--size")
+      .type(Type::Int)
+      .action(Action::Store)
+      .dest("size")
+      .nargs(1)
+      .help("size of the data");
 
     auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "-s", "100"});
 
@@ -71,7 +77,13 @@ TEST_CASE("optparser::smoke") {
 
 TEST_CASE("optparser::choice") {
     auto parser = OptionParser();
-    parser.add_option("-m", "--mode").dest("mode").action(Action::Store).nargs(1).type(Type::Choice).choices({"work", "wait", "silent"}).help("show modes");
+    parser.add_option("-m", "--mode")
+      .dest("mode")
+      .action(Action::Store)
+      .nargs(1)
+      .type(Type::Choice)
+      .choices({"work", "wait", "silent"})
+      .help("show modes");
 
     parser.program("test");
     auto options = parser.parse_args({"-m", "work"});
@@ -98,10 +110,15 @@ TEST_CASE("optparser::complex") {
       .help("print status messages to stdout");
     parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
     parser.add_option("-r", "--ratio").type(Type::Int).action(Action::Append).nargs(2).help("ratios");
-    parser.add_option("--duration").type(Type::Double).action(Action::Store).nargs(1).help("print duration time for the loooooooooooooooooooooong running!! lasting lasting lasting for testing testing");
+    parser.add_option("--duration")
+      .type(Type::Double)
+      .action(Action::Store)
+      .nargs(1)
+      .help(
+        "print duration time for the loooooooooooooooooooooong running!! lasting lasting lasting for testing testing");
     parser.add_option("-t", "--test").type(Type::Bool).action(Action::Store).nargs(0).help("test");
 
-    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0" ,"-r1", "100"});
+    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0", "-r1", "100"});
 
     CHECK_EQ(options.get<string>("filename"), "test.txt");
     CHECK_EQ(options.get<bool>("verbose"), false);
@@ -115,7 +132,7 @@ TEST_CASE("optparser::complex") {
     fmt::print("{}", help_msg);
     CHECK_EQ(help_msg.empty(), false);
 
-    auto usage_options= parser.parse_args({"-u"});
+    auto usage_options = parser.parse_args({"-u"});
     CHECK_EQ(usage_options.has("usage"), true);
     CHECK_EQ(usage_options.get<bool>("usage"), true);
     fmt::print("============\n");
