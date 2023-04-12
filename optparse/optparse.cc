@@ -544,5 +544,6 @@ auto OptionParser::format_help() -> string {
 }
 
 auto OptionParser::print_help() -> void { fmt::print("{}", format_help()); }
+auto OptionParser::print_usage() -> void { fmt::print("{}", format_usage()); }
 
 }  // namespace stdb::optparse

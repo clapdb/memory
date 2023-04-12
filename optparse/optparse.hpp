@@ -362,6 +362,7 @@ class OptionParser
     auto format_usage() -> string;
     auto format_help() -> string;
     auto print_help() -> void;
+    auto print_usage() -> void;
 };
 
 }  // namespace stdb::optparse
