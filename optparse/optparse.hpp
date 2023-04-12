@@ -210,7 +210,7 @@ class Option
     inline auto default_value(T dft) -> Option& {
         _default = std::to_string(dft);
         return *this;
-    };
+    }
 
     [[nodiscard]] inline auto default_value() const -> string { return _default; }
 
