@@ -1,18 +1,18 @@
-/* 
-* Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     https://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+/*
+ * Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  +------------------------------------------------------------------------------+
 |                                                                              |
@@ -888,7 +888,7 @@ static void reserve_stdb_vector(benchmark::State& state) {
 }
 template <typename T>
 auto generate_t() -> T {
-    if constexpr(std::is_pointer_v<T>) {
+    if constexpr (std::is_pointer_v<T>) {
         return T(-1);
     } else {
         return T{1};
@@ -946,12 +946,11 @@ static void stack_like_std_vector_with_size(benchmark::State& state) {
             vec.push_back(generate_t<T>());
         }
         auto size = vec.size();
-        for (size_t  i = 0; i < size; ++i) {
+        for (size_t i = 0; i < size; ++i) {
             vec.pop_back();
         }
         benchmark::DoNotOptimize(vec);
     }
-
 }
 
 template <typename T>
@@ -967,12 +966,11 @@ static void stack_like_stdb_vector_with_size(benchmark::State& state) {
             vec.push_back(generate_t<T>());
         }
         auto size = vec.size();
-        for (size_t  i = 0; i < size; ++i) {
+        for (size_t i = 0; i < size; ++i) {
             vec.pop_back();
         }
         benchmark::DoNotOptimize(vec);
     }
-
 }
 
 BENCHMARK(init_std_vector);

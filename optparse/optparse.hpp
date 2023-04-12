@@ -1,18 +1,18 @@
-/* 
-* Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     https://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+/*
+ * Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  +------------------------------------------------------------------------------+
 |                                                                              |
@@ -32,48 +32,47 @@
 
 #pragma once
 #include <fmt/format.h>
-#include "string/string.hpp"
-#include <sstream>
-#include <map>
-#include <list>
-#include <set>
-#include <variant>
 
 #include <iterator>
+#include <list>
+#include <map>
+#include <set>
+#include <sstream>
+#include <variant>
+
 #include "container/stdb_vector.hpp"
+#include "string/string.hpp"
 
 namespace stdb::optparse {
 
 class Option;
 
 using string = memory::string;
-//using string = std::string;
+// using string = std::string;
 
-template<typename T>
+template <typename T>
 using vector = stdb::container::stdb_vector<T>;
 
 using Value = std::variant<bool, int32_t, int64_t, float, double, string>;
 
-class ValueStore {
+class ValueStore
+{
    private:
     std::map<string, Value> _values;
     std::map<string, vector<Value>> _list_values;
     std::set<string> _usr_set;
+
    public:
-    ValueStore(): _values{}, _list_values{}, _usr_set{} {}
+    ValueStore() : _values{}, _list_values{}, _usr_set{} {}
     ValueStore(const ValueStore&) = delete;
     ValueStore(ValueStore&&) noexcept = default;
     ~ValueStore() = default;
     auto operator=(const ValueStore&) -> ValueStore& = delete;
     auto operator=(ValueStore&&) noexcept -> ValueStore& = delete;
 
-    [[nodiscard]] inline auto has(const string& key) const -> bool {
-        return _values.find(key) != _values.end();
-    }
+    [[nodiscard]] inline auto has(const string& key) const -> bool { return _values.find(key) != _values.end(); }
 
-    [[nodiscard]] inline auto user_set(const string& key) const -> bool {
-        return _usr_set.find(key) != _usr_set.end();
-    }
+    [[nodiscard]] inline auto user_set(const string& key) const -> bool { return _usr_set.find(key) != _usr_set.end(); }
 
     inline auto set(const string& key, Value val) -> void {
         _values[key] = std::move(val);
@@ -113,8 +112,8 @@ class ValueStore {
         }
     }
 
-    template<typename T>
-    [[nodiscard]] inline auto get(const string& key) const -> T {
+    template <typename T>
+    [[nodiscard]] auto get(const string& key) const -> T {
         auto vit = _values.find(key);
         if (vit == _values.end()) [[unlikely]] {
             throw std::out_of_range{key.data()};
@@ -131,8 +130,7 @@ class ValueStore {
         return lit->second;
     }
 
-}; // class ValueStore
-
+};  // class ValueStore
 class OptionParser;
 enum Action : uint8_t
 {
@@ -157,124 +155,106 @@ enum Type : uint8_t
     String,
 };
 
-class Option {
- private:
-  const OptionParser& _parser;
-  vector<string> _names;
-  Action _action = Action::Null;
-  Type _type = Type::String;
-  string _dest = "";
-  string _default = "";
-  size_t _nargs = 0;
-  std::set<string> _choices{};
-  string _help = "";
-  string _env = "";
+class Option
+{
+   private:
+    const OptionParser& _parser;
+    vector<string> _names;
+    Action _action = Action::Null;
+    Type _type = Type::String;
+    string _dest = "";
+    string _default = "";
+    size_t _nargs = 0;
+    std::set<string> _choices{};
+    string _help = "";
+    string _env = "";
 
- public:
-  explicit Option(const OptionParser& opp): _parser(opp) {}
-  ~Option() = default;
+   public:
+    explicit Option(const OptionParser& opp) : _parser(opp) {}
+    ~Option() = default;
 
-  Option(const Option&) = default;
-  Option(Option&&) noexcept = default;
-  auto operator = (const Option&) -> Option& = delete;
-  auto operator = (Option&&) noexcept -> Option& = delete;
+    Option(const Option&) = default;
+    Option(Option&&) noexcept = default;
+    auto operator=(const Option&) -> Option& = delete;
+    auto operator=(Option&&) noexcept -> Option& = delete;
 
-  Option(const OptionParser& opp, vector<string> names):
-    _parser(opp), _names(std::move(names)) {}
+    Option(const OptionParser& opp, vector<string> names) : _parser(opp), _names(std::move(names)) {}
 
-  auto validate() -> bool;
+    auto validate() -> bool;
 
-  [[nodiscard]] inline auto names() const -> const vector<string>& {
-      return _names;
-  }
+    [[nodiscard]] inline auto names() const -> const vector<string>& { return _names; }
 
-  inline auto action(Action act) -> Option& {
-      _action = act;
-      return *this;
-  }
+    inline auto action(Action act) -> Option& {
+        _action = act;
+        return *this;
+    }
 
-  [[nodiscard]] inline auto action() const -> Action {
-      return _action;
-  }
+    [[nodiscard]] inline auto action() const -> Action { return _action; }
 
-  inline auto type(Type typ) -> Option& {
-      _type = typ;
-      return *this;
-  }
+    inline auto type(Type typ) -> Option& {
+        _type = typ;
+        return *this;
+    }
 
-  [[nodiscard]] inline auto type() const -> Type {
-      return _type;
-  }
+    [[nodiscard]] inline auto type() const -> Type { return _type; }
 
-  inline auto dest(string dst) -> Option& {
-      _dest = std::move(dst);
-      return *this;
-  }
+    inline auto dest(string dst) -> Option& {
+        _dest = std::move(dst);
+        return *this;
+    }
 
-  [[nodiscard]] inline auto dest() const -> string {
-      return _dest;
-  }
+    [[nodiscard]] inline auto dest() const -> string { return _dest; }
 
-  inline auto default_value(string dft) -> Option& {
-      _default = std::move(dft);
-      return *this;
-  }
+    inline auto default_value(string dft) -> Option& {
+        _default = std::move(dft);
+        return *this;
+    }
 
-  template<typename T>
-  inline auto default_value(T dft) -> Option& {
-      _default = std::to_string(dft);
-      return *this;
-  };
+    template <typename T>
+    inline auto default_value(T dft) -> Option& {
+        _default = std::to_string(dft);
+        return *this;
+    };
 
-  [[nodiscard]] inline auto default_value() const -> string {
-      return _default;
-  }
+    [[nodiscard]] inline auto default_value() const -> string { return _default; }
 
-  inline auto nargs(size_t n) -> Option& {
-      _nargs = n;
-      return *this;
-  }
+    inline auto nargs(size_t n) -> Option& {
+        _nargs = n;
+        return *this;
+    }
 
-  [[nodiscard]] inline auto nargs() const -> size_t {
-      return _nargs;
-  }
+    [[nodiscard]] inline auto nargs() const -> size_t { return _nargs; }
 
-  template<typename InputIterator>
-  inline auto choices(InputIterator begin, InputIterator end) -> Option& {
-      _choices.insert(begin, end);
-      type(Type::Choice);
-      return *this;
-  }
+    template <typename InputIterator>
+    inline auto choices(InputIterator begin, InputIterator end) -> Option& {
+        _choices.insert(begin, end);
+        type(Type::Choice);
+        return *this;
+    }
 
-  inline auto choices(::std::initializer_list<string> choices) -> Option& {
-      _choices.insert(choices.begin(), choices.end());
-      type(Type::Choice);
-      return *this;
-  }
+    inline auto choices(::std::initializer_list<string> choices) -> Option& {
+        _choices.insert(choices.begin(), choices.end());
+        type(Type::Choice);
+        return *this;
+    }
 
-  [[nodiscard]] inline auto choices() const -> const std::set<string>& {
-      return _choices;
-  }
+    [[nodiscard]] inline auto choices() const -> const std::set<string>& { return _choices; }
 
-  inline auto help(string msg) -> Option& {
-      _help = std::move(msg);
-      return *this;
-  }
+    inline auto help(string msg) -> Option& {
+        _help = std::move(msg);
+        return *this;
+    }
 
-  inline auto help() -> string {
-      return _help;
-  }
+    inline auto help() -> string { return _help; }
 
-  inline auto env(string var_name) -> Option& {
-      _env = std::move(var_name);
-      return *this;
-  }
+    inline auto env(string var_name) -> Option& {
+        _env = std::move(var_name);
+        return *this;
+    }
 
-  [[nodiscard]] inline auto env() const -> string {
-      return _env;
-  }
+    [[nodiscard]] inline auto env() const -> string { return _env; }
 
-}; // class Option
+};  // class Option
 
 enum ConflictHandler : uint8_t
 {
@@ -289,34 +269,31 @@ enum OptionType : uint8_t
     InvalidOpt,
 };
 
-class ArgList {
- private:
-  vector<string> _args;
-  vector<string>::iterator _it;
- public:
-  explicit ArgList(vector<string> args): _args(std::move(args)), _it(_args.begin()) {}
-  ~ArgList() = default;
-  ArgList(const ArgList&) = delete;
-  ArgList(ArgList&&) noexcept = delete;
-  auto operator=(const ArgList&) -> ArgList& = delete;
-  auto operator=(ArgList&&) noexcept -> ArgList& = delete;
+class ArgList
+{
+   private:
+    vector<string> _args;
+    vector<string>::iterator _it;
 
-  [[nodiscard]] inline auto empty() const -> bool {
-    return _it == _args.end();
-  }
-  inline auto pop() -> string {
-    return *_it++;
-  }
-  [[nodiscard]] inline auto peek() const -> string {
-    return *_it;
-  }
+   public:
+    explicit ArgList(vector<string> args) : _args(std::move(args)), _it(_args.begin()) {}
+    ~ArgList() = default;
+    ArgList(const ArgList&) = delete;
+    ArgList(ArgList&&) noexcept = delete;
+    auto operator=(const ArgList&) -> ArgList& = delete;
+    auto operator=(ArgList&&) noexcept -> ArgList& = delete;
 
-}; // class ArgList
+    [[nodiscard]] inline auto empty() const -> bool { return _it == _args.end(); }
+    inline auto pop() -> string { return *_it++; }
+    [[nodiscard]] inline auto peek() const -> string { return *_it; }
 
-class OptionParser {
-  private:
+};  // class ArgList
+
+class OptionParser
+{
+   private:
     const char _prefix = '-';
-    string  _long_prefix = "--";
+    string _long_prefix = "--";
     string _program;
     string _usage;
     string _version;
@@ -330,7 +307,7 @@ class OptionParser {
 
     auto add_option(Option option) -> Option&;
 
- public:
+   public:
     explicit OptionParser(char prefix);
     OptionParser(char prefix, ConflictHandler handler);
     explicit OptionParser(ConflictHandler handler);
@@ -338,9 +315,9 @@ class OptionParser {
     ~OptionParser() = default;
 
     OptionParser(const OptionParser&) = delete;
-    auto operator = (const OptionParser&) -> OptionParser& = delete;
+    auto operator=(const OptionParser&) -> OptionParser& = delete;
     OptionParser(OptionParser&&) noexcept = delete;
-    auto operator = (OptionParser&&) noexcept -> OptionParser& = delete;
+    auto operator=(OptionParser&&) noexcept -> OptionParser& = delete;
 
     [[nodiscard]] auto extract_option_type(const string& opt) const -> OptionType;
     inline auto program(string prog) -> OptionParser& {
@@ -348,27 +325,21 @@ class OptionParser {
         return *this;
     }
 
-    [[nodiscard]] inline auto program() const -> string {
-        return _program;
-    }
+    [[nodiscard]] inline auto program() const -> string { return _program; }
 
     inline auto usage(string msg) -> OptionParser& {
         _usage = std::move(msg);
         return *this;
     }
 
-    [[nodiscard]] inline auto usage() const -> string {
-        return _usage;
-    }
+    [[nodiscard]] inline auto usage() const -> string { return _usage; }
 
     inline auto version(string ver) -> OptionParser& {
-      _version = std::move(ver);
+        _version = std::move(ver);
         return *this;
     }
 
-    [[nodiscard]] inline auto version() const -> string {
-        return _version;
-    }
+    [[nodiscard]] inline auto version() const -> string { return _version; }
 
     auto add_option(std::initializer_list<string> names) -> Option&;
 
@@ -393,7 +364,4 @@ class OptionParser {
     auto print_help() -> void;
 };
 
-} // namespace stdb::optparse
-
-
-
+}  // namespace stdb::optparse

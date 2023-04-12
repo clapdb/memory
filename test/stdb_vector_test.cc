@@ -1,18 +1,18 @@
-/* 
-* Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     https://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+/*
+ * Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  +------------------------------------------------------------------------------+
  |                                                                              |
@@ -70,7 +70,6 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         stdb_vector<int> vec01(0, 1);
         CHECK_EQ(vec01.empty(), true);
         CHECK_EQ(vec01, vec);
-
     }
 
     SUBCASE("init with size (copy and move)") {
@@ -299,14 +298,13 @@ TEST_CASE("Hilbert::stdb_vector::int") {
     }
 
     SUBCASE("push_back_themselves") {
-        stdb_vector<int> vec {1,2,3,4,5,6,7,8};
+        stdb_vector<int> vec{1, 2, 3, 4, 5, 6, 7, 8};
         CHECK_EQ(vec.size(), 8);
         CHECK_EQ(vec.capacity(), 8);
         vec.push_back(vec.front());
         CHECK_EQ(vec.size(), 9);
         CHECK_EQ(vec.back(), 1);
         CHECK_EQ(vec.capacity(), 16);
-
     }
 
     SUBCASE("push_back_after_reserve") {
@@ -1819,8 +1817,6 @@ TEST_CASE("vector of bool works well") {
     v.push_back(false);
     CHECK_EQ(v.size(), 11);
     CHECK_EQ(v[10], false);
-
-
 }
 
 }  // namespace stdb::container
@@ -1839,6 +1835,5 @@ static_assert(IsZeroInitable<normal_class_with_traits>, "normal_class_with_trait
 
 }  // namespace container
 }  // namespace stdb
-
 
 // NOLINTEND

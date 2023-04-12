@@ -1,18 +1,18 @@
-/* 
-* Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     https://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+/*
+ * Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <cxxabi.h>     // for __forced_unwind
 #include <fmt/core.h>   // for format
 #include <sys/types.h>  // for uint
@@ -867,7 +867,8 @@ void clause11_21_4_6_4(String& test) {
     test.insert(random(0, test.size()), s.c_str());  // NOLINT
     test.insert(random(0, test.size()), random(0, maxString), (char)random(int8_t('a'), int8_t('z')));
     typename String::size_type pos = random(0, test.size());
-    typename String::iterator res = test.insert(test.begin() + int(pos), (char)random(int8_t('a'), int8_t('z')));  // NOLINT
+    typename String::iterator res =
+      test.insert(test.begin() + int(pos), (char)random(int8_t('a'), int8_t('z')));  // NOLINT
     CHECK_EQ(res - test.begin(), pos);
     std::list<char> lst(RandomList(maxString));
     pos = random(0, test.size());
@@ -900,7 +901,8 @@ void arena_clause11_21_4_6_4(String& test) {
     test.insert(random(0, test.size()), s.c_str());  // NOLINT
     test.insert(random(0, test.size()), random(0, maxString), (char)random(int8_t('a'), int8_t('z')));
     typename String::size_type pos = random(0, test.size());
-    typename String::iterator res = test.insert(test.begin() + int(pos), (char)random(int8_t('a'), int8_t('z')));  // NOLINT
+    typename String::iterator res =
+      test.insert(test.begin() + int(pos), (char)random(int8_t('a'), int8_t('z')));  // NOLINT
     CHECK_EQ(res - test.begin(), pos);
     std::list<char> lst(RandomList(maxString));
     pos = random(0, test.size());

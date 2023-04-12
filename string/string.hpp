@@ -1,18 +1,18 @@
-/* 
-* Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     https://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+/*
+ * Copyright (C) 2020 Beijing Jinyi Data Technology Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 // ported from https://github.com/facebook/folly/blob/9142bed8ded0add0492eaac3d250902015a08684/folly/FBString.h
 
 #pragma once
@@ -24,8 +24,8 @@
 #include <stdio.h>   // for getline, ssize_t
 #include <stdlib.h>  // for free, malloc, realloc
 
-#include <algorithm>         // for min, max, copy, fill
-#include <bit>               // for endian, endian::little, endian::native
+#include <algorithm>  // for min, max, copy, fill
+#include <bit>        // for endian, endian::little, endian::native
 #include <compare>
 #include <cstddef>           // for size_t, offsetof
 #include <cstring>           // for memcpy, memcmp, memmove, memset
@@ -2355,7 +2355,8 @@ inline auto operator+(basic_string<E, T, A, S>&& lhs, E rhs) -> basic_string<E, 
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<=>(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> std::strong_ordering {
+inline auto operator<=>(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept
+  -> std::strong_ordering {
     // return lhs.size() == rhs.size() && lhs.compare(rhs) == 0;
     auto const cmp = lhs.compare(rhs);
     if (cmp < 0) {
@@ -2373,14 +2374,14 @@ inline auto operator==(const basic_string<E, T, A, S>& lhs, const basic_string<E
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator==(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
-  -> bool {
+inline auto operator==(const typename basic_string<E, T, A, S>::value_type* lhs,
+                       const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return rhs == lhs;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator==(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
-  -> bool {
+inline auto operator==(const basic_string<E, T, A, S>& lhs,
+                       const typename basic_string<E, T, A, S>::value_type* rhs) noexcept -> bool {
     return lhs.compare(rhs) == 0;
 }
 
@@ -2390,14 +2391,14 @@ inline auto operator!=(const basic_string<E, T, A, S>& lhs, const basic_string<E
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator!=(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
-  -> bool {
+inline auto operator!=(const typename basic_string<E, T, A, S>::value_type* lhs,
+                       const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return !(lhs == rhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator!=(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
-  -> bool {
+inline auto operator!=(const basic_string<E, T, A, S>& lhs,
+                       const typename basic_string<E, T, A, S>::value_type* rhs) noexcept -> bool {
     return !(lhs == rhs);
 }
 
@@ -2407,14 +2408,14 @@ inline auto operator<(const basic_string<E, T, A, S>& lhs, const basic_string<E,
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
-  -> bool {
+inline auto operator<(const basic_string<E, T, A, S>& lhs,
+                      const typename basic_string<E, T, A, S>::value_type* rhs) noexcept -> bool {
     return lhs.compare(rhs) < 0;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
-  -> bool {
+inline auto operator<(const typename basic_string<E, T, A, S>::value_type* lhs,
+                      const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return rhs.compare(lhs) > 0;
 }
 
@@ -2424,14 +2425,14 @@ inline auto operator>(const basic_string<E, T, A, S>& lhs, const basic_string<E,
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator>(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
-  -> bool {
+inline auto operator>(const basic_string<E, T, A, S>& lhs,
+                      const typename basic_string<E, T, A, S>::value_type* rhs) noexcept -> bool {
     return rhs < lhs;
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator>(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
-  -> bool {
+inline auto operator>(const typename basic_string<E, T, A, S>::value_type* lhs,
+                      const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return rhs < lhs;
 }
 
@@ -2441,14 +2442,14 @@ inline auto operator<=(const basic_string<E, T, A, S>& lhs, const basic_string<E
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<=(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
-  -> bool {
+inline auto operator<=(const basic_string<E, T, A, S>& lhs,
+                       const typename basic_string<E, T, A, S>::value_type* rhs) noexcept -> bool {
     return !(rhs < lhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<=(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
-  -> bool {
+inline auto operator<=(const typename basic_string<E, T, A, S>::value_type* lhs,
+                       const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return !(rhs < lhs);
 }
 
@@ -2458,14 +2459,14 @@ inline auto operator>=(const basic_string<E, T, A, S>& lhs, const basic_string<E
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator>=(const basic_string<E, T, A, S>& lhs, const typename basic_string<E, T, A, S>::value_type* rhs) noexcept
-  -> bool {
+inline auto operator>=(const basic_string<E, T, A, S>& lhs,
+                       const typename basic_string<E, T, A, S>::value_type* rhs) noexcept -> bool {
     return !(lhs < rhs);
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator>=(const typename basic_string<E, T, A, S>::value_type* lhs, const basic_string<E, T, A, S>& rhs) noexcept
-  -> bool {
+inline auto operator>=(const typename basic_string<E, T, A, S>::value_type* lhs,
+                       const basic_string<E, T, A, S>& rhs) noexcept -> bool {
     return !(lhs < rhs);
 }
 
@@ -2553,7 +2554,8 @@ constexpr typename basic_string<E1, T, A, S>::size_type basic_string<E1, T, A, S
 // basic_string compatibility routines
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator<=>(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> std::strong_ordering {
+inline auto operator<=>(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept
+  -> std::strong_ordering {
     const auto cmp = lhs.compare(0, lhs.size(), rhs.data(), rhs.size());
     if (cmp < 0) {
         return std::strong_ordering::less;
@@ -2567,7 +2569,8 @@ inline auto operator<=>(const basic_string<E, T, A, S>& lhs, const std::basic_st
 
 // swap the lhs and rhs
 template <typename E, class T, class A, class S, class A2>
-inline auto operator<=>(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) noexcept -> std::strong_ordering {
+inline auto operator<=>(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) noexcept
+  -> std::strong_ordering {
     const auto cmp = lhs.compare(0, lhs.size(), rhs.data(), rhs.size());
     if (cmp < 0) {
         return std::strong_ordering::less;
@@ -2577,7 +2580,6 @@ inline auto operator<=>(const std::basic_string<E, T, A2>& lhs, const basic_stri
     }
     return std::strong_ordering::equal;
 }
-
 
 template <typename E, class T, class A, class S, class A2>
 inline auto operator==(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
