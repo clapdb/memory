@@ -39,18 +39,6 @@
 
 namespace stdb::optparse {
 
-template <>
-auto ValueStore::get<bool>(const string& key) const noexcept -> std::optional<bool> {
-    auto vit = _values.find(key);
-    if (vit == _values.end()) [[unlikely]] {
-        return false;
-    }
-    auto val = vit->second;
-    return std::get<bool>(val);
-}
-
-
-
 auto Option::validate() -> bool {
     // if _dest is empty, we will use the first long option name as the _dest.
     if (_dest.empty()) {
