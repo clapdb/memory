@@ -123,7 +123,18 @@ class ValueStore {
         return std::get<T>(val);
     }
 
-    [[nodiscard]] inline auto get_list(const string& key) const -> vector<Value> {
+
+    template<>
+    inline auto get<bool>(const string& key) const -> bool {
+        auto it = _values.find(key);
+        if (it == _values.end()) [[unlikely]] {
+            return false;
+        }
+        auto val = it->second;
+        return std::get<bool>(val);
+    }
+
+    inline auto get_list(const string& key) const -> vector<Value> {
         auto lit = _list_values.find(key);
         if (lit == _list_values.end()) [[unlikely]] {
             throw std::out_of_range{key.data()};

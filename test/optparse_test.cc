@@ -99,6 +99,7 @@ TEST_CASE("optparser::complex") {
     parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
     parser.add_option("-r", "--ratio").type(Type::Int).action(Action::Append).nargs(2).help("ratios");
     parser.add_option("--duration").type(Type::Double).action(Action::Store).nargs(1).help("print duration time for the loooooooooooooooooooooong running!! lasting lasting lasting for testing testing");
+    parser.add_option("-t", "--test").type(Type::Bool).action(Action::Store).nargs(0).help("test");
 
     auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0" ,"-r1", "100"});
 
@@ -108,6 +109,7 @@ TEST_CASE("optparser::complex") {
     CHECK_EQ(options.get_list("ratio").size(), 2);
     CHECK_EQ(options.get<double>("duration"), 2.0);
     CHECK_EQ(options.has("help"), false);
+    CHECK_EQ(options.get<bool>("test"), false);
 
     auto help_msg = parser.format_help();
     fmt::print("{}", help_msg);
