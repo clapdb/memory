@@ -40,7 +40,7 @@
 namespace stdb::optparse {
 
 template <>
-auto ValueStore::get<bool>(const string& key) const -> bool {
+auto ValueStore::get<bool>(const string& key) const noexcept -> std::optional<bool> {
     auto vit = _values.find(key);
     if (vit == _values.end()) [[unlikely]] {
         return false;

@@ -39,6 +39,7 @@
 #include <set>
 #include <sstream>
 #include <variant>
+#include <optional>
 
 #include "container/stdb_vector.hpp"
 #include "string/string.hpp"
@@ -69,8 +70,6 @@ class ValueStore
     ~ValueStore() = default;
     auto operator=(const ValueStore&) -> ValueStore& = delete;
     auto operator=(ValueStore&&) noexcept -> ValueStore& = delete;
-
-    [[nodiscard]] inline auto has(const string& key) const -> bool { return _values.find(key) != _values.end(); }
 
     [[nodiscard]] inline auto user_set(const string& key) const -> bool { return _usr_set.find(key) != _usr_set.end(); }
 
@@ -113,19 +112,18 @@ class ValueStore
     }
 
     template <typename T>
-    [[nodiscard]] auto get(const string& key) const -> T {
-        auto vit = _values.find(key);
-        if (vit == _values.end()) [[unlikely]] {
-            throw std::out_of_range{key.data()};
+    [[nodiscard]] auto get(const string& key) const noexcept -> std::optional<T> {
+        if (auto vit = _values.find(key); vit == _values.end()) {
+            return std::nullopt;
+        } else {
+            return std::get<T>(vit->second);
         }
-        auto val = vit->second;
-        return std::get<T>(val);
     }
 
-    [[nodiscard]] inline auto get_list(const string& key) const -> vector<Value> {
+    [[nodiscard]] inline auto get_list(const string& key) const noexcept -> std::optional<vector<Value>> {
         auto lit = _list_values.find(key);
         if (lit == _list_values.end()) [[unlikely]] {
-            throw std::out_of_range{key.data()};
+            return std::nullopt;
         }
         return lit->second;
     }
