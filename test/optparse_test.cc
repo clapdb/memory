@@ -123,9 +123,9 @@ TEST_CASE("optparser::complex") {
     CHECK_EQ(options.get<string>("filename"), "test.txt");
     CHECK_EQ(options.get<bool>("verbose"), false);
     CHECK_EQ(options.get<string>("config"), "config.txt");
-    CHECK_EQ(options.get_list("ratio").size(), 2);
+    CHECK_EQ(options.get_list("ratio")->size(), 2);
     CHECK_EQ(options.get<double>("duration"), 2.0);
-    CHECK_EQ(options.has("help"), false);
+    CHECK_EQ(options.get<bool>("help"), false);
     CHECK_EQ(options.get<bool>("test"), false);
 
     auto help_msg = parser.format_help();
@@ -133,12 +133,17 @@ TEST_CASE("optparser::complex") {
     CHECK_EQ(help_msg.empty(), false);
 
     auto usage_options = parser.parse_args({"-u"});
-    CHECK_EQ(usage_options.has("usage"), true);
     CHECK_EQ(usage_options.get<bool>("usage"), true);
     fmt::print("============\n");
     fmt::print("{}", parser.format_usage());
     fmt::print("------------\n");
     fmt::print("{}", parser.format_help());
+
+    auto options2 = parser.parse_args({"-f=test.txt", "--duration=2.0", "-r1", "100"});
+    // the bool type always has a default value
+    CHECK_EQ(options2.get<bool>("quiet"), false);
+    // the string type need to check if it has a value
+    CHECK_EQ(options2.get<string>("config").has_value(), false);
 }
 
 }  // namespace stdb::optparse
