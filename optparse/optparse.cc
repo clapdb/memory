@@ -39,18 +39,6 @@
 
 namespace stdb::optparse {
 
-template <>
-auto ValueStore::get<bool>(const string& key) const noexcept -> std::optional<bool> {
-    auto vit = _values.find(key);
-    if (vit == _values.end()) [[unlikely]] {
-        return false;
-    }
-    auto val = vit->second;
-    return std::get<bool>(val);
-}
-
-
-
 auto Option::validate() -> bool {
     // if _dest is empty, we will use the first long option name as the _dest.
     if (_dest.empty()) {
@@ -159,6 +147,18 @@ auto OptionParser::add_usage_option(string usage_msg) -> void {
     }
 }
 
+auto OptionParser::add_version_option(stdb::optparse::string version_msg) -> void {
+    auto local_msg = std::move(version_msg);
+    if (not _short_option_map.contains("-v") and not _long_option_map.contains("--version")) {
+        add_option("-v", "--version")
+          .dest("version")
+          .action(Action::StoreTrue)
+          .nargs(0)
+          .type(Type::Bool)
+          .help(local_msg.empty() ? fmt::format("show version of the {}", _program) : std::move(local_msg));
+    }
+}
+
 auto OptionParser::add_option(string name) -> Option& {
     Option option{*this, {std::move(name)}};
     return add_option(std::move(option));
@@ -184,6 +184,7 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore
     }
     add_usage_option({});
     add_help_option({});
+    add_version_option({});
     ArgList args_list{std::move(args)};
     ValueStore store;
     while (not args_list.empty()) {
@@ -504,6 +505,13 @@ auto OptionParser::format_usage() -> string {
     return _usage;
 }
 
+auto OptionParser::format_verison() -> string {
+    if (_version.empty()) {
+        _version = fmt::format("{} : {}", _program, _version);
+    }
+    return _version;
+}
+
 auto format_opt_names(const vector<string>& names, const string& dest) -> string {
     assert(not names.empty());
     auto opt_msg = fmt::format("{} {}", names.front(), dest);
@@ -545,5 +553,7 @@ auto OptionParser::format_help() -> string {
 
 auto OptionParser::print_help() -> void { fmt::print("{}", format_help()); }
 auto OptionParser::print_usage() -> void { fmt::print("{}", format_usage()); }
+
+auto OptionParser::print_version() -> void { fmt::print("{}", format_verison()); }
 
 }  // namespace stdb::optparse

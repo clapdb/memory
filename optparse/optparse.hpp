@@ -36,10 +36,10 @@
 #include <iterator>
 #include <list>
 #include <map>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <variant>
-#include <optional>
 
 #include "container/stdb_vector.hpp"
 #include "string/string.hpp"
@@ -113,19 +113,17 @@ class ValueStore
 
     template <typename T>
     [[nodiscard]] auto get(const string& key) const noexcept -> std::optional<T> {
-        if (auto vit = _values.find(key); vit == _values.end()) {
-            return std::nullopt;
-        } else {
+        if (auto vit = _values.find(key); vit != _values.end()) {
             return std::get<T>(vit->second);
         }
+        return std::nullopt;
     }
 
-    [[nodiscard]] inline auto get_list(const string& key) const noexcept -> std::optional<vector<Value>> {
-        auto lit = _list_values.find(key);
-        if (lit == _list_values.end()) [[unlikely]] {
-            return std::nullopt;
+    [[nodiscard]] inline auto get_list(const string& key) const -> std::optional<vector<Value>> {
+        if (auto lit = _list_values.find(key); lit != _list_values.end()) [[likely]] {
+            return lit->second;
         }
-        return lit->second;
+        return std::nullopt;
     }
 
 };  // class ValueStore
@@ -347,6 +345,7 @@ class OptionParser
 
     auto add_usage_option(string usage_msg) -> void;
     auto add_help_option(string help_msg) -> void;
+    auto add_version_option(string version_msg) -> void;
 
     auto handle_short_opt(ValueStore&, ArgList& args) -> bool;
     auto handle_long_opt(ValueStore&, ArgList& args) -> bool;
@@ -361,6 +360,8 @@ class OptionParser
     auto format_help() -> string;
     auto print_help() -> void;
     auto print_usage() -> void;
+    auto format_verison() -> string;
+    auto print_version() -> void;
 };
 
 }  // namespace stdb::optparse

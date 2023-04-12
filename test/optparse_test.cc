@@ -125,8 +125,8 @@ TEST_CASE("optparser::complex") {
     CHECK_EQ(options.get<string>("config"), "config.txt");
     CHECK_EQ(options.get_list("ratio")->size(), 2);
     CHECK_EQ(options.get<double>("duration"), 2.0);
-    CHECK_EQ(options.get<bool>("help"), false);
-    CHECK_EQ(options.get<bool>("test"), false);
+    CHECK_EQ(options.get<bool>("help"), std::nullopt);
+    CHECK_EQ(options.get<bool>("test"), std::nullopt);
 
     auto help_msg = parser.format_help();
     fmt::print("{}", help_msg);
@@ -142,6 +142,7 @@ TEST_CASE("optparser::complex") {
     auto options2 = parser.parse_args({"-f=test.txt", "--duration=2.0", "-r1", "100"});
     // the bool type always has a default value
     CHECK_EQ(options2.get<bool>("quiet"), false);
+    CHECK_EQ(options2.get<bool>("help"), std::nullopt);
     // the string type need to check if it has a value
     CHECK_EQ(options2.get<string>("config").has_value(), false);
 }
