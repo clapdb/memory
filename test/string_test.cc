@@ -503,8 +503,8 @@ void clause11_21_4_5(String& test) {
         test = test[i];
     }
 
-    CHECK_THROWS_AS(test.at(test.size()), std::out_of_range);
-    CHECK_THROWS_AS(test.at(test.size()), std::out_of_range);
+    CHECK_THROWS_AS((void)test.at(test.size()), std::out_of_range);
+    CHECK_THROWS_AS((void)test.at(test.size()), std::out_of_range);
 }
 
 template <class String>
@@ -518,8 +518,8 @@ void arena_clause11_21_4_5(String& test) {
         test = test[i];
     }
 
-    CHECK_THROWS_AS(test.at(test.size()), std::out_of_range);
-    CHECK_THROWS_AS(test.at(test.size()), std::out_of_range);
+    CHECK_THROWS_AS((void)test.at(test.size()), std::out_of_range);
+    CHECK_THROWS_AS((void)test.at(test.size()), std::out_of_range);
 }
 
 template <class String>
