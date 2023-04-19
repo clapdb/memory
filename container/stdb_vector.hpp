@@ -1449,7 +1449,7 @@ struct formatter<stdb::container::stdb_vector<T>> : formatter<T>
 {
     template <typename FormatContext>
     auto format(const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) -> decltype(ctx.out()) {
-        return format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));
+        return fmt::format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));
     }
 };
 }  // namespace fmt

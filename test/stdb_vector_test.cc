@@ -1819,6 +1819,13 @@ TEST_CASE("vector of bool works well") {
     CHECK_EQ(v[10], false);
 }
 
+TEST_CASE("format stdb_vector<STring>") {
+    stdb_vector<memory::string> vec_str{"ab", "cd"};
+    auto result = fmt::format("{}", vec_str);
+    CHECK_EQ("[ab, cd]", result);
+
+}
+
 }  // namespace stdb::container
 
 namespace stdb {
