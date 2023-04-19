@@ -66,8 +66,8 @@ concept IsRelocatable =
   std::is_trivially_copyable_v<T> || std::is_trivially_move_constructible_v<T> || Relocatable<T>::value;
 
 template <typename T>
-concept IsZeroInitable = std::is_trivially_default_constructible_v<T> || not
-std::is_class<T>::value || ZeroInitable<T>::value;
+concept IsZeroInitable =
+  std::is_trivially_default_constructible_v<T> || not std::is_class<T>::value || ZeroInitable<T>::value;
 
 enum class Safety : bool
 {
@@ -1083,9 +1083,8 @@ class stdb_vector : public core<T>
      * just like erase, but use a Pred function to test if the element should be erased
      */
     template <class Pred>
-        requires std::predicate<Pred, const T&> || std::predicate<Pred, T&> ||
-                 std::predicate<Pred, T>
-                 auto erase_if(Pred pred) -> size_type {  // NOLINT
+        requires std::predicate<Pred, const T&> || std::predicate<Pred, T&> || std::predicate<Pred, T>
+    auto erase_if(Pred pred) -> size_type {  // NOLINT
         if constexpr (IsRelocatable<T>) {
             size_t erased = 0;
             for (auto *src = this->_start, *dst = this->_start; src != this->_finish;) {

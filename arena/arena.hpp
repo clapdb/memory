@@ -482,7 +482,9 @@ class Arena
         if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
             if (addCleanup(element == nullptr ? ptr : element, cleanup)) [[likely]] {
                 if (_options.on_arena_allocation != nullptr) [[likely]] {
-                    { _options.on_arena_allocation(nullptr, bytes, _cookie); }
+                    {
+                        _options.on_arena_allocation(nullptr, bytes, _cookie);
+                    }
                 }
                 return ptr;
             }
