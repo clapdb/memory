@@ -135,7 +135,7 @@ class arena_string_core
 
     auto data() -> Char* { return c_str(); }
 
-    [[nodiscard]] inline auto get_allocator() const -> auto{ return allocator_; }
+    [[nodiscard]] inline auto get_allocator() const -> auto { return allocator_; }
 
     auto mutableData() -> Char* {
         switch (category()) {
