@@ -69,12 +69,14 @@ OptionParser::OptionParser(char prefix, stdb::optparse::ConflictHandler handler)
     : _prefix{prefix}, _conflict_handler{handler} {}
 
 auto OptionParser::extract_option_type(const string& opt) const -> OptionType {
-    if (opt.size() == 2 and opt[0] == _prefix) {
-        return OptionType::ShortOpt;
-    }
     if (opt.size() > 2 and opt.substr(0, 2) == _long_prefix) {
         return OptionType::LongOpt;
     }
+
+    if (opt[0] == _prefix) {
+        return OptionType::ShortOpt;
+    }
+
     return OptionType::InvalidOpt;
 }
 
@@ -336,19 +338,16 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
     return false;
 }
 
-auto extract_short_opt_name(string opt) -> string { return opt.substr(0, 2); }
-
-auto extract_short_opt_value(string opt) -> string {
-    if (opt.size() == 2) return {};
-    return opt.find('=') == string::npos ? opt.substr(2) : opt.substr(3);
-}
-
 auto extract_long_opt_name(string opt) -> string {
     auto delim = opt.find('=');
     if (delim == string::npos) {
         return opt;
     }
     return opt.substr(0, delim);
+}
+
+auto extract_short_opt_name(string opt) -> string { /*return opt.substr(0, 2);*/
+    return extract_long_opt_name(opt);
 }
 
 auto extract_long_opt_value(string opt) -> string {
@@ -359,10 +358,20 @@ auto extract_long_opt_value(string opt) -> string {
     return opt.substr(delim + 1);
 }
 
+auto extract_short_opt_value(string opt) -> string {
+    /*
+    if (opt.size() == 2) return {};
+    return opt.find('=') == string::npos ? opt.substr(2) : opt.substr(3);
+     */
+    return extract_long_opt_value(opt);
+}
+
+
 auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
     if (not args.empty()) {
         // get front of args
         auto front = args.pop();
+        // we do not use other prefix except '-' for short options.
         if (front == "-h") {
             // if the front is -h, then print help message and exit.
             print_help();

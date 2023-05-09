@@ -54,21 +54,21 @@ TEST_CASE("optparser::smoke") {
       .default_value("false")
       .help("print status messages to stdout");
     parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
-    parser.add_option("-s", "--size")
+    parser.add_option("-sz", "--size")
       .type(Type::Int)
       .action(Action::Store)
       .dest("size")
       .nargs(1)
       .help("size of the data");
 
-    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "-s", "100"});
+    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "-sz", "100"});
 
     CHECK_EQ(options.get<string>("filename"), "test.txt");
     CHECK_EQ(options.get<bool>("verbose"), false);
     CHECK_EQ(options.get<string>("config"), "config.txt");
     CHECK_EQ(options.get<int>("size"), 100);
 
-    auto options2 = parser.parse_args({"-f=test.txt", "-q", "-cconfig.txt", "--size=100"});
+    auto options2 = parser.parse_args({"-f=test.txt", "-q", "-c=config.txt", "--size=100"});
     CHECK_EQ(options2.get<string>("filename"), "test.txt");
     CHECK_EQ(options2.get<bool>("verbose"), false);
     CHECK_EQ(options2.get<string>("config"), "config.txt");
@@ -118,7 +118,7 @@ TEST_CASE("optparser::complex") {
         "print duration time for the loooooooooooooooooooooong running!! lasting lasting lasting for testing testing");
     parser.add_option("-t", "--test").type(Type::Bool).action(Action::Store).nargs(0).help("test");
 
-    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0", "-r1", "100"});
+    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0", "-r=1", "100"});
 
     CHECK_EQ(options.get<string>("filename"), "test.txt");
     CHECK_EQ(options.get<bool>("verbose"), false);
