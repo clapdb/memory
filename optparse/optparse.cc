@@ -381,7 +381,7 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
         // get front of args
         auto front = args.pop();
         // we do not use other prefix except '-' for short options.
-        if (front == "-h") {
+        if (front[0] == _prefix and front[1] == 'h') {
             // if the front is -h, then print help message and exit.
             print_help();
             exit(0);
@@ -443,7 +443,7 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
 auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& args) -> bool {
     if (not args.empty()) {
         auto front = args.pop();
-        if (front == "--help") {
+        if (front.ends_with("help") and front.starts_with(_long_prefix)) {
             print_help();
             exit(0);
         }
