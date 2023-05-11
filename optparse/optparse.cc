@@ -39,6 +39,15 @@
 
 namespace stdb::optparse {
 
+auto trim_string(string input) -> string {
+    size_t end_pos = input.find_last_not_of(" \t\n\r\f\v");
+    size_t start_pos = input.find_first_not_of(" \t\n\r\f\v");
+    if (end_pos == string::npos or start_pos == string::npos) {
+        return "";
+    }
+    return input.substr(start_pos, end_pos - start_pos + 1);
+}
+
 auto Option::validate() -> bool {
     // if _dest is empty, we will use the first long option name as the _dest.
     if (_dest.empty()) {
@@ -69,12 +78,14 @@ OptionParser::OptionParser(char prefix, stdb::optparse::ConflictHandler handler)
     : _prefix{prefix}, _conflict_handler{handler} {}
 
 auto OptionParser::extract_option_type(const string& opt) const -> OptionType {
-    if (opt.size() == 2 and opt[0] == _prefix) {
-        return OptionType::ShortOpt;
-    }
     if (opt.size() > 2 and opt.substr(0, 2) == _long_prefix) {
         return OptionType::LongOpt;
     }
+
+    if (opt[0] == _prefix) {
+        return OptionType::ShortOpt;
+    }
+
     return OptionType::InvalidOpt;
 }
 
@@ -191,13 +202,13 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore
         auto front = args_list.peek();
         auto arg_type = extract_arg_type(front);
         if (arg_type == OptionType::InvalidOpt) {
-            // do nothing if the first argument is not an option.
-            _invalid_args.emplace_back(std::move(front));
-            continue;
-        }
-        if (arg_type == OptionType::ShortOpt) {
+            // pop the first argument is not an option, and drag-and-drop to the invalid args list.
+            auto the_invalid_arg = args_list.pop();
+            _invalid_args.emplace_back(std::move(the_invalid_arg));
+        } else if (arg_type == OptionType::ShortOpt) {
             handle_short_opt(store, args_list);
-        } else if (arg_type == OptionType::LongOpt) {
+        } else {
+            // arg_type == OptionType::LongOpt
             handle_long_opt(store, args_list);
         }
     }
@@ -336,19 +347,16 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
     return false;
 }
 
-auto extract_short_opt_name(string opt) -> string { return opt.substr(0, 2); }
-
-auto extract_short_opt_value(string opt) -> string {
-    if (opt.size() == 2) return {};
-    return opt.find('=') == string::npos ? opt.substr(2) : opt.substr(3);
-}
-
 auto extract_long_opt_name(string opt) -> string {
     auto delim = opt.find('=');
     if (delim == string::npos) {
         return opt;
     }
     return opt.substr(0, delim);
+}
+
+auto extract_short_opt_name(string opt) -> string { /*return opt.substr(0, 2);*/
+    return extract_long_opt_name(opt);
 }
 
 auto extract_long_opt_value(string opt) -> string {
@@ -359,16 +367,27 @@ auto extract_long_opt_value(string opt) -> string {
     return opt.substr(delim + 1);
 }
 
+auto extract_short_opt_value(string opt) -> string {
+    /*
+    if (opt.size() == 2) return {};
+    return opt.find('=') == string::npos ? opt.substr(2) : opt.substr(3);
+     */
+    return extract_long_opt_value(opt);
+}
+
+
 auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
     if (not args.empty()) {
         // get front of args
         auto front = args.pop();
+        // we do not use other prefix except '-' for short options.
         if (front == "-h") {
             // if the front is -h, then print help message and exit.
             print_help();
             exit(0);
         }
         auto short_name = extract_short_opt_name(front);
+        short_name = trim_string(short_name);
 
         // lookup the option of short options.
         auto opt_it = _short_option_map.find(short_name);
@@ -429,6 +448,9 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
             exit(0);
         }
         auto long_name = extract_long_opt_name(front);
+
+        long_name = trim_string(long_name);
+
         auto opt_it = _long_option_map.find(long_name);
         if (opt_it == _long_option_map.end()) {
             _invalid_args.emplace_back(std::move(front));
@@ -555,5 +577,9 @@ auto OptionParser::print_help() -> void { fmt::print("{}", format_help()); }
 auto OptionParser::print_usage() -> void { fmt::print("{}", format_usage()); }
 
 auto OptionParser::print_version() -> void { fmt::print("{}", format_verison()); }
+
+auto OptionParser::invalid_args() -> vector<string> {
+    return std::move(_invalid_args);
+}
 
 }  // namespace stdb::optparse

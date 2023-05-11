@@ -54,25 +54,31 @@ TEST_CASE("optparser::smoke") {
       .default_value("false")
       .help("print status messages to stdout");
     parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
-    parser.add_option("-s", "--size")
+    parser.add_option("-sz", "--size")
       .type(Type::Int)
       .action(Action::Store)
       .dest("size")
       .nargs(1)
       .help("size of the data");
 
-    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "-s", "100"});
+    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "-sz", "100"});
 
     CHECK_EQ(options.get<string>("filename"), "test.txt");
     CHECK_EQ(options.get<bool>("verbose"), false);
     CHECK_EQ(options.get<string>("config"), "config.txt");
     CHECK_EQ(options.get<int>("size"), 100);
 
-    auto options2 = parser.parse_args({"-f=test.txt", "-q", "-cconfig.txt", "--size=100"});
+    auto options2 = parser.parse_args({"-f=test.txt", "-q", "-c=config.txt", "--size=100"});
     CHECK_EQ(options2.get<string>("filename"), "test.txt");
     CHECK_EQ(options2.get<bool>("verbose"), false);
     CHECK_EQ(options2.get<string>("config"), "config.txt");
     CHECK_EQ(options2.get<int>("size"), 100);
+
+    auto option3 = parser.parse_args({"-f", "test.txt", "-q", "-cconfig.txt", "-sz", "100", "-v"});
+    auto invalid_args = parser.invalid_args();
+    CHECK_EQ(invalid_args.size(), 1);
+    CHECK_EQ(invalid_args[0], "-cconfig.txt");
+
 }
 
 TEST_CASE("optparser::choice") {
@@ -118,7 +124,7 @@ TEST_CASE("optparser::complex") {
         "print duration time for the loooooooooooooooooooooong running!! lasting lasting lasting for testing testing");
     parser.add_option("-t", "--test").type(Type::Bool).action(Action::Store).nargs(0).help("test");
 
-    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0", "-r1", "100"});
+    auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0", "-r=1", "100"});
 
     CHECK_EQ(options.get<string>("filename"), "test.txt");
     CHECK_EQ(options.get<bool>("verbose"), false);
@@ -139,12 +145,22 @@ TEST_CASE("optparser::complex") {
     fmt::print("------------\n");
     fmt::print("{}", parser.format_help());
 
-    auto options2 = parser.parse_args({"-f=test.txt", "--duration=2.0", "-r1", "100"});
+    auto options2 = parser.parse_args({"-f=test.txt", "--duration=2.0", "-r =1", "100"});
     // the bool type always has a default value
     CHECK_EQ(options2.get<bool>("quiet"), false);
     CHECK_EQ(options2.get<bool>("help"), std::nullopt);
     // the string type need to check if it has a value
     CHECK_EQ(options2.get<string>("config").has_value(), false);
+    auto ratios = options2.get_list("ratio");
+
+    CHECK_EQ(ratios->size(), 2);
+    auto ratio1 = std::get<int>(ratios->at(0));
+    auto ratio2 = std::get<int>(ratios->at(1));
+
+    CHECK_EQ(ratio1, 1);
+    CHECK_EQ(ratio2, 100);
+
 }
+
 
 }  // namespace stdb::optparse

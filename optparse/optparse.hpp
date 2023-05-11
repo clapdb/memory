@@ -362,6 +362,13 @@ class OptionParser
     auto print_usage() -> void;
     auto format_verison() -> string;
     auto print_version() -> void;
+
+    /**
+     * @brief move the invalid args vector out of the Object.
+     *
+     * @return the moved invalid args vector.
+     */
+    auto invalid_args() -> vector<string>;
 };
 
 }  // namespace stdb::optparse
