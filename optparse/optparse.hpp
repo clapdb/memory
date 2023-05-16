@@ -89,20 +89,20 @@ class ValueStore
         _usr_set.insert(key);
     }
 
-    inline auto append(const string& key, std::initializer_list<Value> vals) -> void {
+    inline auto append(string key, std::initializer_list<Value> values) -> void {
         auto lit = _list_values.find(key);
         if (lit == _list_values.end()) {
-            _list_values[key] = vector<Value>{vals};
+            _list_values[key] = vector<Value>{values};
         } else {
             auto& list_values = lit->second;
-            for (const auto& val : vals) {
+            for (const auto& val : values) {
                 list_values.push_back(val);
             }
         }
         _usr_set.insert(key);
     }
 
-    inline auto increment(const string& key) -> void {
+    inline auto increment(string key) -> void {
         auto vit = _values.find(key);
         if (vit == _values.end()) {
             _values[key] = 1;
@@ -112,16 +112,28 @@ class ValueStore
     }
 
     template <typename T>
-    [[nodiscard]] auto get(const string& key) const noexcept -> std::optional<T> {
+    [[nodiscard]] auto get(string key) const noexcept -> std::optional<T> {
         if (auto vit = _values.find(key); vit != _values.end()) {
             return std::get<T>(vit->second);
         }
         return std::nullopt;
     }
 
-    [[nodiscard]] inline auto get_list(const string& key) const -> std::optional<vector<Value>> {
+    [[nodiscard]] inline auto get_list(string key) const -> std::optional<vector<Value>> {
         if (auto lit = _list_values.find(key); lit != _list_values.end()) [[likely]] {
             return lit->second;
+        }
+        return std::nullopt;
+    }
+
+    template<typename T>
+    [[nodiscard]] inline auto get_list(string key) const -> std::optional<vector<T>> {
+        if (auto variant_vector = get_list(key)) {
+            vector<T> ret;
+            for (const auto& val : *variant_vector) {
+                ret.push_back(std::get<T>(val));
+            }
+            return ret;
         }
         return std::nullopt;
     }

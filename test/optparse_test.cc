@@ -160,6 +160,10 @@ TEST_CASE("optparser::complex") {
     CHECK_EQ(ratio1, 1);
     CHECK_EQ(ratio2, 100);
 
+    auto int_ratios = options2.get_list<int>("ratio");
+    CHECK_EQ(int_ratios->size(), 2);
+    CHECK_EQ(int_ratios->at(0), 1);
+    CHECK_EQ(int_ratios->at(1), 100);
 }
 
 
