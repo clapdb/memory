@@ -126,6 +126,18 @@ class ValueStore
         return std::nullopt;
     }
 
+    template<typename T>
+    [[nodiscard]] inline auto get_list(string key) const -> std::optional<vector<T>> {
+        if (auto variant_vector = get_list(key)) {
+            vector<T> ret;
+            for (const auto& val : *variant_vector) {
+                ret.push_back(std::get<T>(val));
+            }
+            return ret;
+        }
+        return std::nullopt;
+    }
+
 };  // class ValueStore
 class OptionParser;
 enum Action : uint8_t
