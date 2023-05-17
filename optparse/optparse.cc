@@ -136,8 +136,10 @@ auto OptionParser::add_option(string short_name, string long_name) -> Option& {
 
 auto OptionParser::add_help_option(string help_msg) -> void {
     auto local_msg = std::move(help_msg);
-    if (not _short_option_map.contains("-h") and not _long_option_map.contains("--help")) {
-        add_option("-h", "--help")
+    auto short_help_name = fmt::format("{}h", _prefix);
+    auto long_help_name = fmt::format("{}help", _long_prefix);
+    if (not _short_option_map.contains(short_help_name) and not _long_option_map.contains(long_help_name)) {
+        add_option(short_help_name, long_help_name)
           .dest("help")
           .action(Action::StoreTrue)
           .nargs(0)
@@ -148,8 +150,10 @@ auto OptionParser::add_help_option(string help_msg) -> void {
 
 auto OptionParser::add_usage_option(string usage_msg) -> void {
     auto local_msg = std::move(usage_msg);
-    if (not _short_option_map.contains("-u") and not _long_option_map.contains("--usage")) {
-        add_option("-u", "--usage")
+    auto short_usage_name = fmt::format("{}u", _prefix);
+    auto long_usage_name = fmt::format("{}usage", _long_prefix);
+    if (not _short_option_map.contains(short_usage_name) and not _long_option_map.contains(long_usage_name)) {
+        add_option(short_usage_name, long_usage_name)
           .dest("usage")
           .action(Action::StoreTrue)
           .nargs(0)
@@ -160,8 +164,10 @@ auto OptionParser::add_usage_option(string usage_msg) -> void {
 
 auto OptionParser::add_version_option(stdb::optparse::string version_msg) -> void {
     auto local_msg = std::move(version_msg);
-    if (not _short_option_map.contains("-v") and not _long_option_map.contains("--version")) {
-        add_option("-v", "--version")
+    auto short_version_name = fmt::format("{}v", _prefix);
+    auto long_version_name = fmt::format("{}version", _long_prefix);
+    if (not _short_option_map.contains(short_version_name) and not _long_option_map.contains(long_version_name)) {
+        add_option(short_version_name, long_version_name)
           .dest("version")
           .action(Action::StoreTrue)
           .nargs(0)
