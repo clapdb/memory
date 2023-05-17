@@ -163,7 +163,7 @@ auto OptionParser::add_usage_option(string usage_msg) -> void {
 }
 
 auto OptionParser::add_version_option(stdb::optparse::string version_msg) -> void {
-    auto local_msg = std::move(version_msg);
+    _version = std::move(version_msg);
     auto short_version_name = fmt::format("{}v", _prefix);
     auto long_version_name = fmt::format("{}version", _long_prefix);
     if (not _short_option_map.contains(short_version_name) and not _long_option_map.contains(long_version_name)) {
@@ -172,7 +172,7 @@ auto OptionParser::add_version_option(stdb::optparse::string version_msg) -> voi
           .action(Action::StoreTrue)
           .nargs(0)
           .type(Type::Bool)
-          .help(local_msg.empty() ? fmt::format("show version of the {}", _program) : std::move(local_msg));
+          .help(fmt::format("show version of the {}", _program));
     }
 }
 
@@ -386,12 +386,7 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
     if (not args.empty()) {
         // get front of args
         auto front = args.pop();
-        // we do not use other prefix except '-' for short options.
-        if (front[0] == _prefix and front[1] == 'h') {
-            // if the front is -h, then print help message and exit.
-            print_help();
-            exit(0);
-        }
+
         auto short_name = extract_short_opt_name(front);
         short_name = trim_string(short_name);
 
@@ -449,10 +444,7 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
 auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& args) -> bool {
     if (not args.empty()) {
         auto front = args.pop();
-        if (front.ends_with("help") and front.starts_with(_long_prefix)) {
-            print_help();
-            exit(0);
-        }
+
         auto long_name = extract_long_opt_name(front);
 
         long_name = trim_string(long_name);
@@ -535,7 +527,7 @@ auto OptionParser::format_usage() -> string {
 
 auto OptionParser::format_verison() -> string {
     if (_version.empty()) {
-        _version = fmt::format("{} : {}", _program, _version);
+        _version = fmt::format("{} : {}", _program, "0.0.0");
     }
     return _version;
 }
