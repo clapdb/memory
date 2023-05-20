@@ -381,6 +381,7 @@ class OptionParser
      * @return the moved invalid args vector.
      */
     auto invalid_args() -> vector<string>;
+    bool has_value_to_process(string current_arg, const ArgList& args) const;
 };
 
 }  // namespace stdb::optparse

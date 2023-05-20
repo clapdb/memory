@@ -369,12 +369,8 @@ auto extract_opt_value(string opt) -> string {
     return opt.substr(delim + 1);
 }
 
-auto extract_short_opt_value(string opt) -> string {
-    /*
-    if (opt.size() == 2) return {};
-    return opt.find('=') == string::npos ? opt.substr(2) : opt.substr(3);
-     */
-    return extract_long_opt_value(opt);
+auto OptionParser::has_value_to_process(string current_arg, const ArgList& args) const -> bool {
+    return current_arg.find('=') != string::npos or (not args.empty() and not args.peek().starts_with(_prefix));
 }
 
 
