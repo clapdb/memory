@@ -353,7 +353,7 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
     return false;
 }
 
-auto extract_long_opt_name(string opt) -> string {
+auto extract_opt_name(string opt) -> string {
     auto delim = opt.find('=');
     if (delim == string::npos) {
         return opt;
@@ -361,11 +361,7 @@ auto extract_long_opt_name(string opt) -> string {
     return opt.substr(0, delim);
 }
 
-auto extract_short_opt_name(string opt) -> string { /*return opt.substr(0, 2);*/
-    return extract_long_opt_name(opt);
-}
-
-auto extract_long_opt_value(string opt) -> string {
+auto extract_opt_value(string opt) -> string {
     auto delim = opt.find('=');
     if (delim == string::npos) {
         return {};
@@ -387,7 +383,7 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
         // get front of args
         auto front = args.pop();
 
-        auto short_name = extract_short_opt_name(front);
+        auto short_name = extract_opt_name(front);
         short_name = trim_string(short_name);
 
         // lookup the option of short options.
@@ -407,7 +403,7 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
         }
         // if nargs is 1, then process the option and pop the next 1 argument.
         if (opt.nargs() == 1) {
-            if (auto val = extract_short_opt_value(front); val.empty()) {
+            if (auto val = extract_opt_value(front); val.empty()) {
                 // if the value is empty, then pop the next argument.
                 if (not args.empty()) {
                     auto next_val = args.pop();
@@ -421,7 +417,7 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
             return true;
         }
         auto nargs = opt.nargs();
-        if (auto val = extract_short_opt_value(front); not val.empty()) {
+        if (auto val = extract_opt_value(front); not val.empty()) {
             process_opt(opt, values, val);
             --nargs;
         }
@@ -445,7 +441,7 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
     if (not args.empty()) {
         auto front = args.pop();
 
-        auto long_name = extract_long_opt_name(front);
+        auto long_name = extract_opt_name(front);
 
         long_name = trim_string(long_name);
 
@@ -464,7 +460,7 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
         }
         // if nargs is 2, then process the option and pop the next 2 arguments.
         if (opt.nargs() == 1) {
-            if (auto val = extract_long_opt_value(front); val.empty()) {
+            if (auto val = extract_opt_value(front); val.empty()) {
                 // if the value is empty, then pop the next argument.
                 if (not args.empty()) {
                     auto next_val = args.pop();
@@ -480,7 +476,7 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
         // if nargs is greater than 2, then it is an invalid option.
 
         auto nargs = opt.nargs();
-        if (auto val = extract_long_opt_value(front); not val.empty()) {
+        if (auto val = extract_opt_value(front); not val.empty()) {
             process_opt(opt, values, val);
             --nargs;
         }
