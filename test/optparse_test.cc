@@ -38,11 +38,10 @@ namespace stdb::optparse {
 TEST_CASE("optparser::smoke") {
     auto parser = OptionParser();
     parser.program("test");
-    parser.add_option({"-f", "--file"}).dest("filename").action(Action::Store).nargs(1).help("write report to FILE");
+    parser.add_option({"-f", "--file"}).dest("filename").action(Action::Store).help("write report to FILE");
     parser.add_option("-q", "--quiet")
       .action(Action::StoreFalse)
       .type(Type::Bool)
-      .nargs(0)
       .dest("quiet")
       .default_value("true")
       .help("don't print status messages to stdout");
@@ -50,15 +49,13 @@ TEST_CASE("optparser::smoke") {
       .action(Action::StoreTrue)
       .dest("verbose")
       .type(Type::Bool)
-      .nargs(0)
       .default_value("false")
       .help("print status messages to stdout");
-    parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
+    parser.add_option("-c", "--config").dest("config").action(Action::Store).help("config file");
     parser.add_option("-sz", "--size")
       .type(Type::Int)
       .action(Action::Store)
       .dest("size")
-      .nargs(1)
       .help("size of the data");
 
     auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "-sz", "100"});
@@ -78,7 +75,23 @@ TEST_CASE("optparser::smoke") {
     auto invalid_args = parser.invalid_args();
     CHECK_EQ(invalid_args.size(), 1);
     CHECK_EQ(invalid_args[0], "-cconfig.txt");
+}
 
+TEST_CASE("optparser::comma_split") {
+    auto parser = OptionParser('-');
+    parser.add_option({"-f", "--file"}).dest("files").action(Action::Append).help("input files");
+    parser.add_option("-q", "--quiet")
+      .action(Action::StoreFalse)
+      .type(Type::Bool)
+      .dest("quiet")
+      .default_value("true")
+      .help("don't print status messages to stdout");
+
+    auto options = parser.parse_args({"-f=test.txt,  test2.txt", "-q"});
+    auto file_list = options.get_list<string>("files");
+    CHECK_EQ(file_list->size(), 2);
+    CHECK_EQ(file_list->at(0), "test.txt");
+    CHECK_EQ(file_list->at(1), "test2.txt");
 }
 
 TEST_CASE("optparser::choice") {
@@ -86,7 +99,6 @@ TEST_CASE("optparser::choice") {
     parser.add_option("-m", "--mode")
       .dest("mode")
       .action(Action::Store)
-      .nargs(1)
       .type(Type::Choice)
       .choices({"work", "wait", "silent"})
       .help("show modes");
@@ -99,11 +111,10 @@ TEST_CASE("optparser::choice") {
 TEST_CASE("optparser::complex") {
     auto parser = OptionParser();
     parser.program("test");
-    parser.add_option({"-f", "--file"}).dest("filename").action(Action::Store).nargs(1).help("write report to FILE");
+    parser.add_option({"-f", "--file"}).dest("filename").action(Action::Store).help("write report to FILE");
     parser.add_option("-q", "--quiet")
       .action(Action::StoreFalse)
       .type(Type::Bool)
-      .nargs(0)
       .dest("quiet")
       .default_value("true")
       .help("don't print status messages to stdout");
@@ -111,18 +122,16 @@ TEST_CASE("optparser::complex") {
       .action(Action::StoreTrue)
       .dest("verbose")
       .type(Type::Bool)
-      .nargs(0)
       .default_value(0)
       .help("print status messages to stdout");
-    parser.add_option("-c", "--config").dest("config").action(Action::Store).nargs(1).help("config file");
-    parser.add_option("-r", "--ratio").type(Type::Int).action(Action::Append).nargs(2).help("ratios");
+    parser.add_option("-c", "--config").dest("config").action(Action::Store).help("config file");
+    parser.add_option("-r", "--ratio").type(Type::Int).action(Action::Append).help("ratios");
     parser.add_option("--duration")
       .type(Type::Double)
       .action(Action::Store)
-      .nargs(1)
       .help(
         "print duration time for the loooooooooooooooooooooong running!! lasting lasting lasting for testing testing");
-    parser.add_option("-t", "--test").type(Type::Bool).action(Action::Store).nargs(0).help("test");
+    parser.add_option("-t", "--test").type(Type::Bool).action(Action::Store).help("test");
 
     auto options = parser.parse_args({"-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0", "-r=1", "100"});
 
