@@ -48,6 +48,31 @@ auto trim_string(string input) -> string {
     return input.substr(start_pos, end_pos - start_pos + 1);
 }
 
+inline auto split(std::string_view str, std::string_view delimiter, bool skip_empty) -> vector<string> {
+    vector<string> tokens;
+
+    size_t pos_current = 0;
+    size_t pos_last = 0;
+    size_t length = 0;
+
+    while (true)
+    {
+        pos_current = str.find(delimiter, pos_last);
+        if (pos_current == string::npos)
+            pos_current = str.size();
+
+        length = pos_current - pos_last;
+        if (!skip_empty || (length != 0))
+            tokens.emplace_back(str.substr(pos_last, length));
+
+        if (pos_current == str.size()) {
+            break;
+        }
+        pos_last = pos_current + delimiter.size();
+    }
+    return tokens;
+}
+
 auto Option::validate() -> bool {
     // if _dest is empty, we will use the first long option name as the _dest.
     if (_dest.empty()) {
@@ -255,6 +280,10 @@ auto parse_string(const string& str) -> T {
     return val;
 }
 
+auto is_mutli_value(const string& val_str) -> bool {
+    return val_str.find(',') != string::npos;
+}
+
 auto parse_value(string val, Type typ, const Option* option = nullptr) -> std::optional<Value> {
     if (typ == Type::Bool) {
         return parse_string<bool>(val);
@@ -325,12 +354,25 @@ auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse
             return true;
         }
         case Append: {
-            auto parsed_val = parse_value(str_val, type, &opt);
-            if (parsed_val) {
-                store.append(dest, *parsed_val);
-                return true;
+            if (not is_mutli_value(str_val)) {
+                auto parsed_val = parse_value(str_val, type, &opt);
+                if (parsed_val) {
+                    store.append(dest, *parsed_val);
+                    return true;
+                }
+                return false;
             }
-            return false;
+            // split the string by ',' to get the arg values
+            auto values = split(str_val, ",", true);
+            for (auto& val : values) {
+                auto parsed_val = parse_value(val, type, &opt);
+                if (parsed_val) {
+                    store.append(dest, *parsed_val);
+                } else {
+                    return false;
+                }
+            }
+            return true;
         }
         case Count: {
             store.increment(dest);
@@ -393,11 +435,14 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
         }
         size_t opt_offset = opt_it->second;
         auto& opt = _options[opt_offset];
-        if (opt.nargs() == 0) {
-            process_opt(opt, values, {});
-            return true;
+        if (not has_value_to_process(front, args)) {
+            if (opt.type() == Type::Bool) {
+                process_opt(opt, values, {});
+                return true;
+            }
+            throw std::logic_error(fmt::format("option {} is not Bool, so requires an value-argument", opt.dest()));
         }
-        // if nargs is 1, then process the option and pop the next 1 argument.
+
         if (opt.nargs() == 1) {
             if (auto val = extract_opt_value(front); val.empty()) {
                 // if the value is empty, then pop the next argument.
@@ -450,9 +495,13 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
         }
         size_t opt_offset = opt_it->second;
         auto& opt = _options[opt_offset];
-        if (opt.nargs() == 0) {
-            process_opt(opt, values, {});
-            return true;
+        if (has_value_to_process(front, args)) {
+            if (opt.type() == Type::Bool) {
+                process_opt(opt, values, {});
+                return true;
+            }
+            // raise error if the option is not a bool option.
+            throw std::logic_error(fmt::format("option {} is not Bool, and it requires an argument", front));
         }
         // if nargs is 2, then process the option and pop the next 2 arguments.
         if (opt.nargs() == 1) {
@@ -525,7 +574,9 @@ auto OptionParser::format_verison() -> string {
 }
 
 auto format_opt_names(const vector<string>& names, const string& dest) -> string {
-    assert(not names.empty());
+    if (names.empty()) {
+        throw std::logic_error("names should not be empty vector");
+    }
     auto opt_msg = fmt::format("{} {}", names.front(), dest);
     if (names.size() == 1) {
         return opt_msg;
