@@ -63,7 +63,7 @@ inline auto split(std::string_view str, std::string_view delimiter, bool skip_em
 
         length = pos_current - pos_last;
         if (!skip_empty || (length != 0))
-            tokens.emplace_back(str.substr(pos_last, length));
+            tokens.emplace_back(trim_string(str.substr(pos_last, length)));
 
         if (pos_current == str.size()) {
             break;
@@ -167,7 +167,6 @@ auto OptionParser::add_help_option(string help_msg) -> void {
         add_option(short_help_name, long_help_name)
           .dest("help")
           .action(Action::StoreTrue)
-          .nargs(0)
           .type(Type::Bool)
           .help(local_msg.empty() ? fmt::format("show the help of the {}", _program) : std::move(local_msg));
     }
@@ -181,7 +180,6 @@ auto OptionParser::add_usage_option(string usage_msg) -> void {
         add_option(short_usage_name, long_usage_name)
           .dest("usage")
           .action(Action::StoreTrue)
-          .nargs(0)
           .type(Type::Bool)
           .help(local_msg.empty() ? fmt::format("show usage of the {}", _program) : std::move(local_msg));
     }
@@ -195,7 +193,6 @@ auto OptionParser::add_version_option(stdb::optparse::string version_msg) -> voi
         add_option(short_version_name, long_version_name)
           .dest("version")
           .action(Action::StoreTrue)
-          .nargs(0)
           .type(Type::Bool)
           .help(fmt::format("show version of the {}", _program));
     }
@@ -236,11 +233,9 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore
             // pop the first argument is not an option, and drag-and-drop to the invalid args list.
             auto the_invalid_arg = args_list.pop();
             _invalid_args.emplace_back(std::move(the_invalid_arg));
-        } else if (arg_type == OptionType::ShortOpt) {
-            handle_short_opt(store, args_list);
         } else {
-            // arg_type == OptionType::LongOpt
-            handle_long_opt(store, args_list);
+            // arg_type == OptionType::LongOpt or OptionType::ShortOpt
+            handle_opt(store, args_list);
         }
     }
     // check defaults
@@ -416,25 +411,33 @@ auto OptionParser::has_value_to_process(string current_arg, const ArgList& args)
 }
 
 
-auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
+auto OptionParser::find_opt(string opt_name) -> Option* {
+    if (opt_name.starts_with(_long_prefix)) {
+        if (auto opt_it = _long_option_map.find(opt_name); opt_it != _long_option_map.end()) [[likely]] {
+            return &_options[opt_it->second];
+        }
+    } else if (opt_name.starts_with(_prefix)) {
+        if (auto opt_it = _short_option_map.find(opt_name); opt_it != _short_option_map.end()) [[likely]] {
+            return &_options[opt_it->second];
+        }
+    }
+    _invalid_args.emplace_back(std::move(opt_name));
+    return nullptr;
+}
+
+auto OptionParser::handle_opt(ValueStore& values, ArgList& args) -> bool {
     if (not args.empty()) {
         // get front of args
         auto front = args.pop();
 
-        auto short_name = extract_opt_name(front);
-        short_name = trim_string(short_name);
+        auto opt_name = extract_opt_name(front);
+        opt_name = trim_string(opt_name);
 
-        // lookup the option of short options.
-        auto opt_it = _short_option_map.find(short_name);
-        if (opt_it == _short_option_map.end()) {
-            // if the option is not found, then it is an invalid option.
-            _invalid_args.emplace_back(std::move(front));
-            // TODO(hurricane):maybe use enum to represent the return value.
-            // for telling the caller the next arg is not valid for any option.
-            return true;
+        auto* opt_ptr  = find_opt(opt_name);
+        if (opt_ptr == nullptr) [[unlikely]]{
+            return false;
         }
-        size_t opt_offset = opt_it->second;
-        auto& opt = _options[opt_offset];
+        auto& opt = *opt_ptr;
         if (not has_value_to_process(front, args)) {
             if (opt.type() == Type::Bool) {
                 process_opt(opt, values, {});
@@ -442,44 +445,40 @@ auto OptionParser::handle_short_opt(ValueStore& values, ArgList& args) -> bool {
             }
             throw std::logic_error(fmt::format("option {} is not Bool, so requires an value-argument", opt.dest()));
         }
-
-        if (opt.nargs() == 1) {
-            if (auto val = extract_opt_value(front); val.empty()) {
-                // if the value is empty, then pop the next argument.
-                if (not args.empty()) {
-                    auto next_val = args.pop();
-                    process_opt(opt, values, next_val);
-                } else {
-                    return false;
-                }
-            } else {
-                process_opt(opt, values, val);
-            }
-            return true;
-        }
-        auto nargs = opt.nargs();
-        if (auto val = extract_opt_value(front); not val.empty()) {
-            process_opt(opt, values, val);
-            --nargs;
-        }
-        // if nargs is greater than 2, then it is an append option to a list.
-        for (size_t i = 0; i < nargs; ++i) {
+        // has_value_to_process in the front
+        if (auto val = extract_opt_value(front); val.empty()) {
+            // if the value is empty, then pop the next argument.
             if (not args.empty()) {
                 auto next_val = args.pop();
-                // should make sure the action is Append
-                assert(opt.action() == Append);
                 process_opt(opt, values, next_val);
             } else {
                 return false;
             }
+        } else {
+            process_opt(opt, values, val);
+        }
+        // continue process following values for Append opt
+        while(not args.empty()) {
+            auto next_arg = args.peek();
+            // if the next arg is not start with prefix, then it is a value
+            if (next_arg.starts_with(_prefix)) {
+                break;
+            }
+            // make sure the opt is Append type
+            if (opt.action() != Append) {
+                throw std::logic_error(fmt::format("option {} is not Append type, so requires no more value-argument", opt.dest()));
+            }
+            auto next_val = args.pop();
+            process_opt(opt, values, next_val);
         }
         return true;
     }
     return false;
 }
 
+/*
 auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& args) -> bool {
-    if (not args.empty()) {
+    if (not args.empty()) [[likely]] {
         auto front = args.pop();
 
         auto long_name = extract_opt_name(front);
@@ -540,6 +539,7 @@ auto OptionParser::handle_long_opt(stdb::optparse::ValueStore& values, ArgList& 
     }
     return false;
 }
+ */
 
 auto to_upper(string& input) -> void {
     std::transform(input.begin(), input.end(), input.begin(),
@@ -551,7 +551,7 @@ auto OptionParser::format_usage() -> string {
         // enrich the _usage message.
         _usage = fmt::format("usage: {}", _program);
         for (auto& opt : _options) {
-            if (opt.nargs() > 0) {
+            if (opt.type() == Type::Bool) {
                 auto upper_dest = opt.dest();
                 to_upper(upper_dest);
                 auto opt_msg = fmt::format(" [{} {}]", opt.names().front(), upper_dest);
@@ -593,7 +593,7 @@ auto OptionParser::format_help() -> string {
     auto content = fmt::format("{} \n options: \n", format_usage());
     for (auto& opt : _options) {
         string line;
-        if (opt.nargs() > 0) {
+        if (opt.type() != Type::Bool) {
             auto upper_dest = opt.dest();
             to_upper(upper_dest);
             line = fmt::format("  {}", format_opt_names(opt.names(), upper_dest));

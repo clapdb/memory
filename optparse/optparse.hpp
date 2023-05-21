@@ -172,7 +172,6 @@ class Option
     Type _type = Type::String;
     string _dest = "";
     string _default = "";
-    size_t _nargs = 0;
     std::set<string> _choices{};
     string _help = "";
     string _env = "";
@@ -225,13 +224,6 @@ class Option
     }
 
     [[nodiscard]] inline auto default_value() const -> string { return _default; }
-
-    inline auto nargs(size_t n) -> Option& {
-        _nargs = n;
-        return *this;
-    }
-
-    [[nodiscard]] inline auto nargs() const -> size_t { return _nargs; }
 
     template <typename InputIterator>
     inline auto choices(InputIterator begin, InputIterator end) -> Option& {
@@ -315,6 +307,8 @@ class OptionParser
 
     auto add_option(Option option) -> Option&;
 
+    auto find_opt(string opt_name) -> Option*;
+
    public:
     explicit OptionParser(char prefix);
     OptionParser(char prefix, ConflictHandler handler);
@@ -359,8 +353,8 @@ class OptionParser
     auto add_help_option(string help_msg) -> void;
     auto add_version_option(string version_msg) -> void;
 
-    auto handle_short_opt(ValueStore&, ArgList& args) -> bool;
-    auto handle_long_opt(ValueStore&, ArgList& args) -> bool;
+    auto handle_opt(ValueStore&, ArgList& args) -> bool;
+//    auto handle_long_opt(ValueStore&, ArgList& args) -> bool;
 
     static auto process_opt(const Option&, ValueStore&, string) -> bool;
 
