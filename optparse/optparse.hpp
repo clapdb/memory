@@ -316,9 +316,9 @@ class OptionParser
     OptionParser() = default;
     ~OptionParser() = default;
 
-    OptionParser(const OptionParser&) = delete;
+    OptionParser(const OptionParser&) = default;
     auto operator=(const OptionParser&) -> OptionParser& = delete;
-    OptionParser(OptionParser&&) noexcept = delete;
+    OptionParser(OptionParser&&) noexcept = default;
     auto operator=(OptionParser&&) noexcept -> OptionParser& = delete;
 
     [[nodiscard]] auto extract_option_type(const string& opt) const -> OptionType;
