@@ -620,7 +620,22 @@ auto OptionParser::print_usage() -> void { fmt::print("{}", format_usage()); }
 auto OptionParser::print_version() -> void { fmt::print("{}", format_verison()); }
 
 auto OptionParser::invalid_args() -> vector<string> {
-    return std::move(_invalid_args);
+    vector<string> output;
+    _invalid_args.swap(output);
+    return output;
+}
+
+auto OptionParser::invalid_args_to_str() -> string {
+    if (_invalid_args.empty()) [[unlikely]] {
+        return {};
+    }
+    auto arg_it = _invalid_args.begin();
+    auto output = *arg_it;
+    for (arg_it = std::next(arg_it); arg_it != _invalid_args.end(); ++arg_it) {
+        output += " ";
+        output += *arg_it;
+    }
+    return output;
 }
 
 }  // namespace stdb::optparse
