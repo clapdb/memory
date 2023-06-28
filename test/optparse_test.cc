@@ -77,9 +77,9 @@ TEST_CASE("optparser::smoke") {
     CHECK_EQ(invalid_args[0], "-cconfig.txt");
 
     CHECK_EQ(parser.invalid_args_to_str(), "-cconfig.txt");
-    CHECK_EQ(parser.invalid_argc(), 2);
-    CHECK_EQ(strcmp(parser.get_invalid_argv()[0], "test"), 0);
-    CHECK_EQ(strcmp(parser.get_invalid_argv()[1], "-cconfig.txt"), 0);
+    CHECK_EQ(parser.invalid_argc(invalid_args), 2);
+    CHECK_EQ(strcmp(parser.get_invalid_argv("test", invalid_args)[0], "test"), 0);
+    CHECK_EQ(strcmp(parser.get_invalid_argv("test", invalid_args)[1], "-cconfig.txt"), 0);
 
 }
 
