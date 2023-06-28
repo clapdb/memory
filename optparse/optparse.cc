@@ -620,9 +620,7 @@ auto OptionParser::print_usage() -> void { fmt::print("{}", format_usage()); }
 auto OptionParser::print_version() -> void { fmt::print("{}", format_verison()); }
 
 auto OptionParser::invalid_args() -> vector<string> {
-    vector<string> output;
-    _invalid_args.swap(output);
-    return output;
+    return _invalid_args;
 }
 
 auto OptionParser::invalid_args_to_str() -> string {
@@ -637,5 +635,22 @@ auto OptionParser::invalid_args_to_str() -> string {
     }
     return output;
 }
+
+auto OptionParser::invalid_argc() -> int { return static_cast<int>(_invalid_args.size() + 1); }
+
+auto OptionParser::get_invalid_argv() -> std::unique_ptr<char*[]> { // NOLINT(modernize-avoid-c-arrays)
+    auto argc = _invalid_args.size();
+    if (argc == 0) {
+        return {nullptr};
+    }
+    // create a new array of char* with argc + 1: flag_num + program
+    auto argv = std::make_unique<char*[]>(argc + 1);  // NOLINT(modernize-avoid-c-arrays)
+    argv[0] = _program.data();
+    for (size_t i = 0; i < argc; ++i) {
+        argv[i + 1] = _invalid_args[i].data();
+    }
+    return argv;
+}
+
 
 }  // namespace stdb::optparse
