@@ -377,6 +377,11 @@ class OptionParser
     auto invalid_args() -> vector<string>;
 
     [[nodiscard]] auto invalid_args_to_str() -> string;
+
+    [[nodiscard]] auto invalid_argc() -> int;
+
+    [[nodiscard]] auto get_invalid_argv() -> std::unique_ptr<char*[]>; // NOLINT(modernize-avoid-c-arrays)
+
     [[nodiscard]] auto has_value_to_process(string current_arg, const ArgList& args) const -> bool;
 };
 

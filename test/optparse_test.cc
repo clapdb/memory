@@ -75,6 +75,12 @@ TEST_CASE("optparser::smoke") {
     auto invalid_args = parser.invalid_args();
     CHECK_EQ(invalid_args.size(), 1);
     CHECK_EQ(invalid_args[0], "-cconfig.txt");
+
+    CHECK_EQ(parser.invalid_args_to_str(), "-cconfig.txt");
+    CHECK_EQ(parser.invalid_argc(), 2);
+    CHECK_EQ(strcmp(parser.get_invalid_argv()[0], "test"), 0);
+    CHECK_EQ(strcmp(parser.get_invalid_argv()[1], "-cconfig.txt"), 0);
+
 }
 
 TEST_CASE("optparser::comma_split") {
