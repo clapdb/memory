@@ -636,18 +636,18 @@ auto OptionParser::invalid_args_to_str() -> string {
     return output;
 }
 
-auto OptionParser::invalid_argc() -> int { return static_cast<int>(_invalid_args.size() + 1); }
+auto OptionParser::invalid_argc(const vector<string>& invalid_args) -> int { return static_cast<int>(invalid_args.size() + 1); }
 
-auto OptionParser::get_invalid_argv() -> std::unique_ptr<char*[]> { // NOLINT(modernize-avoid-c-arrays)
-    auto argc = _invalid_args.size();
+auto OptionParser::get_invalid_argv(const char* argv0, const vector<string>& invalid_args) -> std::unique_ptr<const char*[]> { // NOLINT(modernize-avoid-c-arrays)
+    auto argc = invalid_args.size();
     if (argc == 0) {
         return {nullptr};
     }
     // create a new array of char* with argc + 1: flag_num + program
-    auto argv = std::make_unique<char*[]>(argc + 1);  // NOLINT(modernize-avoid-c-arrays)
-    argv[0] = _program.data();
+    auto argv = std::make_unique<const char*[]>(argc + 1);  // NOLINT(modernize-avoid-c-arrays)
+    argv[0] = argv0;  // NOLINT(cppcoreguidelines-pro-type-const-cast)
     for (size_t i = 0; i < argc; ++i) {
-        argv[i + 1] = _invalid_args[i].data();
+        argv[i + 1] = invalid_args[i].data();
     }
     return argv;
 }
