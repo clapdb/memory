@@ -55,15 +55,12 @@ inline auto split(std::string_view str, std::string_view delimiter, bool skip_em
     size_t pos_last = 0;
     size_t length = 0;
 
-    while (true)
-    {
+    while (true) {
         pos_current = str.find(delimiter, pos_last);
-        if (pos_current == string::npos)
-            pos_current = str.size();
+        if (pos_current == string::npos) pos_current = str.size();
 
         length = pos_current - pos_last;
-        if (!skip_empty || (length != 0))
-            tokens.emplace_back(trim_string(str.substr(pos_last, length)));
+        if (!skip_empty || (length != 0)) tokens.emplace_back(trim_string(str.substr(pos_last, length)));
 
         if (pos_current == str.size()) {
             break;
@@ -275,9 +272,7 @@ auto parse_string(const string& str) -> T {
     return val;
 }
 
-auto is_mutli_value(const string& val_str) -> bool {
-    return val_str.find(',') != string::npos;
-}
+auto is_mutli_value(const string& val_str) -> bool { return val_str.find(',') != string::npos; }
 
 auto parse_value(string val, Type typ, const Option* option = nullptr) -> std::optional<Value> {
     if (typ == Type::Bool) {
@@ -410,7 +405,6 @@ auto OptionParser::has_value_to_process(string current_arg, const ArgList& args)
     return current_arg.find('=') != string::npos or (not args.empty() and not args.peek().starts_with(_prefix));
 }
 
-
 auto OptionParser::find_opt(string opt_name) -> Option* {
     if (opt_name.starts_with(_long_prefix)) {
         if (auto opt_it = _long_option_map.find(opt_name); opt_it != _long_option_map.end()) [[likely]] {
@@ -433,8 +427,8 @@ auto OptionParser::handle_opt(ValueStore& values, ArgList& args) -> bool {
         auto opt_name = extract_opt_name(front);
         opt_name = trim_string(opt_name);
 
-        auto* opt_ptr  = find_opt(opt_name);
-        if (opt_ptr == nullptr) [[unlikely]]{
+        auto* opt_ptr = find_opt(opt_name);
+        if (opt_ptr == nullptr) [[unlikely]] {
             return false;
         }
         auto& opt = *opt_ptr;
@@ -458,7 +452,7 @@ auto OptionParser::handle_opt(ValueStore& values, ArgList& args) -> bool {
             process_opt(opt, values, val);
         }
         // continue process following values for Append opt
-        while(not args.empty()) {
+        while (not args.empty()) {
             auto next_arg = args.peek();
             // if the next arg is not start with prefix, then it is a value
             if (next_arg.starts_with(_prefix)) {
@@ -466,7 +460,8 @@ auto OptionParser::handle_opt(ValueStore& values, ArgList& args) -> bool {
             }
             // make sure the opt is Append type
             if (opt.action() != Append) {
-                throw std::logic_error(fmt::format("option {} is not Append type, so requires no more value-argument", opt.dest()));
+                throw std::logic_error(
+                  fmt::format("option {} is not Append type, so requires no more value-argument", opt.dest()));
             }
             auto next_val = args.pop();
             process_opt(opt, values, next_val);
@@ -619,9 +614,7 @@ auto OptionParser::print_usage() -> void { fmt::print("{}", format_usage()); }
 
 auto OptionParser::print_version() -> void { fmt::print("{}", format_verison()); }
 
-auto OptionParser::invalid_args() -> vector<string> {
-    return _invalid_args;
-}
+auto OptionParser::invalid_args() -> vector<string> { return _invalid_args; }
 
 auto OptionParser::invalid_args_to_str() -> string {
     if (_invalid_args.empty()) [[unlikely]] {
@@ -636,21 +629,20 @@ auto OptionParser::invalid_args_to_str() -> string {
     return output;
 }
 
-auto OptionParser::invalid_argc(const vector<string>& invalid_args) -> int { return static_cast<int>(invalid_args.size() + 1); }
+auto OptionParser::invalid_argc(const vector<string>& invalid_args) -> int {
+    return static_cast<int>(invalid_args.size() + 1);
+}
 
-auto OptionParser::get_invalid_argv(const char* argv0, const vector<string>& invalid_args) -> std::unique_ptr<const char*[]> { // NOLINT(modernize-avoid-c-arrays)
+auto OptionParser::get_invalid_argv(const char* argv0, const vector<string>& invalid_args)
+  -> std::unique_ptr<const char*[]> {  // NOLINT(modernize-avoid-c-arrays)
     auto argc = invalid_args.size();
-    if (argc == 0) {
-        return {nullptr};
-    }
     // create a new array of char* with argc + 1: flag_num + program
     auto argv = std::make_unique<const char*[]>(argc + 1);  // NOLINT(modernize-avoid-c-arrays)
-    argv[0] = argv0;  // NOLINT(cppcoreguidelines-pro-type-const-cast)
+    argv[0] = argv0;                                        // NOLINT(cppcoreguidelines-pro-type-const-cast)
     for (size_t i = 0; i < argc; ++i) {
         argv[i + 1] = invalid_args[i].data();
     }
     return argv;
 }
-
 
 }  // namespace stdb::optparse
