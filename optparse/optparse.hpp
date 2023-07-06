@@ -287,6 +287,8 @@ class ArgList
     inline auto pop() -> string { return *_it++; }
     [[nodiscard]] inline auto peek() const -> string { return *_it; }
 
+    [[nodiscard]] inline auto pos() -> int64_t { return std::distance(_args.begin(), _it);}
+
 };  // class ArgList
 
 class OptionParser
@@ -294,13 +296,15 @@ class OptionParser
    private:
     const char _prefix = '-';
     string _long_prefix = "--";
+    int _argc = 0;
+    const char** _argv = nullptr;
     string _program;
     string _usage;
     string _version;
     vector<Option> _options;
     std::map<string, size_t> _long_option_map;
     std::map<string, size_t> _short_option_map;
-    vector<string> _invalid_args;
+    vector<const char*> _invalid_args;
     ConflictHandler _conflict_handler = ConflictHandler::Error;
 
     [[nodiscard]] auto extract_arg_type(const string& arg) const -> OptionType;
@@ -358,9 +362,9 @@ class OptionParser
 
     static auto process_opt(const Option&, ValueStore&, string) -> bool;
 
-    auto parse_args(vector<string> args) -> ValueStore;
+    auto parse_args(vector<string> args, const char** argv) -> ValueStore;
 
-    auto parse_args(int argc, char** argv) -> ValueStore;
+    auto parse_args(int argc, const char** argv) -> ValueStore;
 
     auto format_usage() -> string;
     auto format_help() -> string;
@@ -374,13 +378,11 @@ class OptionParser
      *
      * @return the moved invalid args vector.
      */
-    auto invalid_args() -> vector<string>;
+    auto invalid_args() -> vector<const char*>;
 
-    [[nodiscard]] auto invalid_args_to_str() -> string;
+    [[nodiscard]] auto get_raw_argc() const -> int;
 
-    [[nodiscard]] static auto invalid_argc(const vector<string>& invalid_args) -> int;
-
-    [[nodiscard]] static auto get_invalid_argv(const char* argv0, const vector<string>& invalid_args) -> std::unique_ptr<const char*[]>; // NOLINT(modernize-avoid-c-arrays)
+    [[nodiscard]] auto get_raw_argv() const -> std::unique_ptr<const char*[]>; // NOLINT
 
     [[nodiscard]] auto has_value_to_process(string current_arg, const ArgList& args) const -> bool;
 };
