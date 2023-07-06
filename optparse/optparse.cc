@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <memory>
 #include <optional>
 #include <ranges>
 
@@ -203,19 +204,23 @@ auto OptionParser::add_option(string name) -> Option& {
     return add_option(std::move(option));
 }
 
-auto OptionParser::parse_args(int argc, char** argv) -> ValueStore {
+auto OptionParser::parse_args(int argc, const char** argv) -> ValueStore {
     if (argc == 0) {
         // do nothing if argc is 0
-        return {};
+        throw std::logic_error("argc is 0");
     }
     if (_program.empty()) {
         _program.assign(argv[0]);  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
+    _argc = argc;
+    _argv = argv;
     return parse_args(
-      vector<string>(&argv[1], &argv[argc]));  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      {&argv[1], &argv[argc]}, argv);  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
-auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore {
+auto OptionParser::parse_args(vector<stdb::optparse::string> args, const char** argv) -> ValueStore {
+    // once parse args, clear all invalid_args
+    _invalid_args.clear();
     for (auto& opt : _options) {
         if (not opt.validate()) {
             throw std::logic_error(fmt::format("incomplete option: {}", opt.names().front()));
@@ -232,10 +237,13 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args) -> ValueStore
         if (arg_type == OptionType::InvalidOpt) {
             // pop the first argument is not an option, and drag-and-drop to the invalid args list.
             auto the_invalid_arg = args_list.pop();
-            _invalid_args.emplace_back(std::move(the_invalid_arg));
+            // _invalid_args.emplace_back(std::move(the_invalid_arg));
+            _invalid_args.push_back(argv[args_list.pos()]);
         } else {
             // arg_type == OptionType::LongOpt or OptionType::ShortOpt
-            handle_opt(store, args_list);
+            if (not handle_opt(store, args_list)) {
+                _invalid_args.push_back(argv[args_list.pos()]);
+            }
         }
     }
     // check defaults
@@ -421,7 +429,6 @@ auto OptionParser::find_opt(string opt_name) -> Option* {
             return &_options[opt_it->second];
         }
     }
-    _invalid_args.emplace_back(std::move(opt_name));
     return nullptr;
 }
 
@@ -434,7 +441,8 @@ auto OptionParser::handle_opt(ValueStore& values, ArgList& args) -> bool {
         opt_name = trim_string(opt_name);
 
         auto* opt_ptr  = find_opt(opt_name);
-        if (opt_ptr == nullptr) [[unlikely]]{
+        if (opt_ptr == nullptr) {
+            // if the opt is not found, then it is an invalid option.
             return false;
         }
         auto& opt = *opt_ptr;
@@ -466,10 +474,14 @@ auto OptionParser::handle_opt(ValueStore& values, ArgList& args) -> bool {
             }
             // make sure the opt is Append type
             if (opt.action() != Append) {
-                throw std::logic_error(fmt::format("option {} is not Append type, so requires no more value-argument", opt.dest()));
+                // pop the first argument is not an option, and drag-and-drop to the invalid args list.
+                auto the_invalid_arg = args.pop();
+                // _invalid_args.emplace_back(std::move(the_invalid_arg));
+                _invalid_args.push_back(_argv[args.pos()]);
+            } else {
+                auto next_val = args.pop();
+                process_opt(opt, values, next_val);
             }
-            auto next_val = args.pop();
-            process_opt(opt, values, next_val);
         }
         return true;
     }
@@ -619,38 +631,22 @@ auto OptionParser::print_usage() -> void { fmt::print("{}", format_usage()); }
 
 auto OptionParser::print_version() -> void { fmt::print("{}", format_verison()); }
 
-auto OptionParser::invalid_args() -> vector<string> {
+auto OptionParser::invalid_args() -> vector<const char*> {
     return _invalid_args;
 }
 
-auto OptionParser::invalid_args_to_str() -> string {
-    if (_invalid_args.empty()) [[unlikely]] {
-        return {};
-    }
-    auto arg_it = _invalid_args.begin();
-    auto output = *arg_it;
-    for (arg_it = std::next(arg_it); arg_it != _invalid_args.end(); ++arg_it) {
-        output += " ";
-        output += *arg_it;
-    }
-    return output;
+auto OptionParser::get_raw_argc() const -> int { 
+    // the first argument is the program name.
+    return _invalid_args.size() + 1; 
 }
 
-auto OptionParser::invalid_argc(const vector<string>& invalid_args) -> int { return static_cast<int>(invalid_args.size() + 1); }
-
-auto OptionParser::get_invalid_argv(const char* argv0, const vector<string>& invalid_args) -> std::unique_ptr<const char*[]> { // NOLINT(modernize-avoid-c-arrays)
-    auto argc = invalid_args.size();
-    if (argc == 0) {
-        return {nullptr};
+auto OptionParser::get_raw_argv() const -> std::unique_ptr<const char*[]> { // NOLINT
+    auto new_argv_size = _invalid_args.size() + 1;
+    auto rst = std::unique_ptr<const char*[]>(new const char*[new_argv_size]); // NOLINT
+    rst[0] = _argv[0];
+    for (size_t i = 1; i < new_argv_size; ++i) {
+        rst[i] = _invalid_args[i - 1];
     }
-    // create a new array of char* with argc + 1: flag_num + program
-    auto argv = std::make_unique<const char*[]>(argc + 1);  // NOLINT(modernize-avoid-c-arrays)
-    argv[0] = argv0;  // NOLINT(cppcoreguidelines-pro-type-const-cast)
-    for (size_t i = 0; i < argc; ++i) {
-        argv[i + 1] = invalid_args[i].data();
-    }
-    return argv;
+    return rst;
 }
-
-
 }  // namespace stdb::optparse
