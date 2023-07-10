@@ -609,7 +609,8 @@ class stdb_vector : public core<T>
 
     template <std::forward_iterator Iterator>
     constexpr void assign(Iterator first, Iterator last) {
-        int64_t size_to_assign = last - first;
+        // int64_t size_to_assign = last - first;
+        auto size_to_assign = std::distance(first, last);
         Assert(size_to_assign >= 0);
         auto count = (size_type)size_to_assign;  // NOLINT
         if (count > this->capacity()) {
