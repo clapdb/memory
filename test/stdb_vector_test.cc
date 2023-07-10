@@ -36,6 +36,7 @@
 
 #include <iostream>
 #include <span>
+#include <set>
 
 #include "string/string.hpp"
 
@@ -231,6 +232,18 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         CHECK_EQ(vec.front(), 1);
         CHECK_EQ(vec.back(), 20);
     }
+
+    SUBCASE("assign vector with set iterator") {
+        std::set<int> set_to_assign = {1,2,3,4,5,6};
+        stdb_vector<int> vec;
+        vec.assign(set_to_assign.begin(), set_to_assign.end());
+        CHECK_EQ(vec.size(), 6);
+        CHECK_EQ(vec.capacity(), 6);
+        CHECK_EQ(vec[0], 1);
+        CHECK_EQ(vec[1], 2);
+        CHECK_EQ(vec[5], 6);
+    }
+
     SUBCASE("copy_vector") {
         stdb_vector<int> vec;
         auto vec_copy(vec);
@@ -1825,6 +1838,7 @@ TEST_CASE("format stdb_vector<STring>") {
     CHECK_EQ("[ab, cd]", result);
 
 }
+
 
 }  // namespace stdb::container
 
