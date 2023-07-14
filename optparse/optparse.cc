@@ -56,15 +56,12 @@ inline auto split(std::string_view str, std::string_view delimiter, bool skip_em
     size_t pos_last = 0;
     size_t length = 0;
 
-    while (true)
-    {
+    while (true) {
         pos_current = str.find(delimiter, pos_last);
-        if (pos_current == string::npos)
-            pos_current = str.size();
+        if (pos_current == string::npos) pos_current = str.size();
 
         length = pos_current - pos_last;
-        if (!skip_empty || (length != 0))
-            tokens.emplace_back(trim_string(str.substr(pos_last, length)));
+        if (!skip_empty || (length != 0)) tokens.emplace_back(trim_string(str.substr(pos_last, length)));
 
         if (pos_current == str.size()) {
             break;
@@ -214,8 +211,7 @@ auto OptionParser::parse_args(int argc, const char** argv) -> ValueStore {
     }
     _argc = argc;
     _argv = argv;
-    return parse_args(
-      {&argv[1], &argv[argc]}, argv);  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return parse_args({&argv[1], &argv[argc]}, argv);  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 auto OptionParser::parse_args(vector<stdb::optparse::string> args, const char** argv) -> ValueStore {
@@ -283,9 +279,7 @@ auto parse_string(const string& str) -> T {
     return val;
 }
 
-auto is_mutli_value(const string& val_str) -> bool {
-    return val_str.find(',') != string::npos;
-}
+auto is_mutli_value(const string& val_str) -> bool { return val_str.find(',') != string::npos; }
 
 auto parse_value(string val, Type typ, const Option* option = nullptr) -> std::optional<Value> {
     if (typ == Type::Bool) {
@@ -418,7 +412,6 @@ auto OptionParser::has_value_to_process(string current_arg, const ArgList& args)
     return current_arg.find('=') != string::npos or (not args.empty() and not args.peek().starts_with(_prefix));
 }
 
-
 auto OptionParser::find_opt(string opt_name) -> Option* {
     if (opt_name.starts_with(_long_prefix)) {
         if (auto opt_it = _long_option_map.find(opt_name); opt_it != _long_option_map.end()) [[likely]] {
@@ -440,7 +433,7 @@ auto OptionParser::handle_opt(ValueStore& values, ArgList& args) -> bool {
         auto opt_name = extract_opt_name(front);
         opt_name = trim_string(opt_name);
 
-        auto* opt_ptr  = find_opt(opt_name);
+        auto* opt_ptr = find_opt(opt_name);
         if (opt_ptr == nullptr) {
             // if the opt is not found, then it is an invalid option.
             return false;
@@ -466,7 +459,7 @@ auto OptionParser::handle_opt(ValueStore& values, ArgList& args) -> bool {
             process_opt(opt, values, val);
         }
         // continue process following values for Append opt
-        while(not args.empty()) {
+        while (not args.empty()) {
             auto next_arg = args.peek();
             // if the next arg is not start with prefix, then it is a value
             if (next_arg.starts_with(_prefix)) {
@@ -585,43 +578,40 @@ auto OptionParser::format_verison() -> string {
     return _version;
 }
 
-auto format_opt_names(const vector<string>& names, const string& dest) -> string {
+auto format_opt_names(const vector<string>& names) -> string {
     if (names.empty()) {
         throw std::logic_error("names should not be empty vector");
     }
-    auto opt_msg = fmt::format("{} {}", names.front(), dest);
+    auto opt_msg = fmt::format("{}", names.front());
     if (names.size() == 1) {
         return opt_msg;
     }
     // for-loop the rest names, and append to the opt_msg
     for (size_t off = 1; off < names.size(); ++off) {
-        opt_msg += fmt::format(", {} {}", names[off], dest);
+        opt_msg += fmt::format(", {}", names[off]);
     }
     return opt_msg;
 }
 
 auto OptionParser::format_help() -> string {
-    constexpr int column_width = 80 - 1;
-    auto content = fmt::format("{} \n options: \n", format_usage());
+    std::vector<std::pair<string, string>> line_and_helps;
+
     for (auto& opt : _options) {
-        string line;
-        if (opt.type() != Type::Bool) {
-            auto upper_dest = opt.dest();
-            to_upper(upper_dest);
-            line = fmt::format("  {}", format_opt_names(opt.names(), upper_dest));
-        } else {
-            line = fmt::format("  {}", format_opt_names(opt.names(), {}));
-        }
+        string line = fmt::format("{}=<{}>", format_opt_names(opt.names()), opt.type());
         auto help = opt.help();
-        int space_width = column_width - static_cast<int>(line.size()) - static_cast<int>(help.size());
-        if (space_width > 0) {
-            // the line + help is shorter than 79
-            auto spaces = string(static_cast<size_t>(space_width), ' ');
-            content += fmt::format("{}{}{}\n", line, spaces, help);
-        } else {
-            // newline and add help msg
-            content += fmt::format("{}\n  {}\n", line, help);
-        }
+        line_and_helps.emplace_back(line, help);
+    }
+
+    const auto max_line =
+      std::max_element(line_and_helps.begin(), line_and_helps.end(),
+                       [](auto& lhs, auto& rhs) -> bool { return rhs.first.size() > lhs.first.size(); });
+
+    const auto align_size = max_line->first.size() + 1;
+    auto content = fmt::format("{} \n options: \n", format_usage());
+    for (const auto& [line, help] : line_and_helps) {
+        const int space_width = align_size - line.size();
+        auto spaces = string(static_cast<size_t>(space_width), ' ');
+        content += fmt::format("  {}{}{}\n", line, spaces, help);
     }
     return content;
 }
@@ -631,18 +621,16 @@ auto OptionParser::print_usage() -> void { fmt::print("{}", format_usage()); }
 
 auto OptionParser::print_version() -> void { fmt::print("{}", format_verison()); }
 
-auto OptionParser::invalid_args() -> vector<const char*> {
-    return _invalid_args;
-}
+auto OptionParser::invalid_args() -> vector<const char*> { return _invalid_args; }
 
-auto OptionParser::get_raw_argc() const -> int { 
+auto OptionParser::get_raw_argc() const -> int {
     // the first argument is the program name.
-    return _invalid_args.size() + 1; 
+    return _invalid_args.size() + 1;
 }
 
-auto OptionParser::get_raw_argv() const -> std::unique_ptr<const char*[]> { // NOLINT
+auto OptionParser::get_raw_argv() const -> std::unique_ptr<const char*[]> {  // NOLINT
     auto new_argv_size = _invalid_args.size() + 1;
-    auto rst = std::unique_ptr<const char*[]>(new const char*[new_argv_size]); // NOLINT
+    auto rst = std::unique_ptr<const char*[]>(new const char*[new_argv_size]);  // NOLINT
     rst[0] = _argv[0];
     for (size_t i = 1; i < new_argv_size; ++i) {
         rst[i] = _invalid_args[i - 1];
