@@ -126,7 +126,7 @@ class ValueStore
         return std::nullopt;
     }
 
-    template<typename T>
+    template <typename T>
     [[nodiscard]] inline auto get_list(string key) const -> std::optional<vector<T>> {
         if (auto variant_vector = get_list(key)) {
             vector<T> ret;
@@ -287,7 +287,7 @@ class ArgList
     inline auto pop() -> string { return *_it++; }
     [[nodiscard]] inline auto peek() const -> string { return *_it; }
 
-    [[nodiscard]] inline auto pos() -> int64_t { return std::distance(_args.begin(), _it);}
+    [[nodiscard]] inline auto pos() -> int64_t { return std::distance(_args.begin(), _it); }
 
 };  // class ArgList
 
@@ -358,7 +358,7 @@ class OptionParser
     auto add_version_option(string version_msg) -> void;
 
     auto handle_opt(ValueStore&, ArgList& args) -> bool;
-//    auto handle_long_opt(ValueStore&, ArgList& args) -> bool;
+    //    auto handle_long_opt(ValueStore&, ArgList& args) -> bool;
 
     static auto process_opt(const Option&, ValueStore&, string) -> bool;
 
@@ -382,9 +382,44 @@ class OptionParser
 
     [[nodiscard]] auto get_raw_argc() const -> int;
 
-    [[nodiscard]] auto get_raw_argv() const -> std::unique_ptr<const char*[]>; // NOLINT
+    [[nodiscard]] auto get_raw_argv() const -> std::unique_ptr<const char*[]>;  // NOLINT
 
     [[nodiscard]] auto has_value_to_process(string current_arg, const ArgList& args) const -> bool;
 };
 
 }  // namespace stdb::optparse
+
+namespace fmt {
+template <>
+struct fmt::formatter<stdb::optparse::Type> : formatter<string_view>
+{
+    template <typename FormatContext>
+    auto format(stdb::optparse::Type opt_type, FormatContext& ctx) noexcept {
+        std::string str;
+        switch (opt_type) {
+            case stdb::optparse::Bool:
+                str = "bool";
+                break;
+            case stdb::optparse::Int:
+                str = "int";
+                break;
+            case stdb::optparse::Long:
+                str = "long";
+                break;
+            case stdb::optparse::Float:
+                str = "float";
+                break;
+            case stdb::optparse::Double:
+                str = "double";
+                break;
+            case stdb::optparse::Choice:
+                str = "choice";
+                break;
+            case stdb::optparse::String:
+                str = "string";
+                break;
+        }
+        return formatter<string_view>::format(str, ctx);
+    }
+};
+}  // namespace fmt
