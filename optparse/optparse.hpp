@@ -391,7 +391,7 @@ class OptionParser
 
 namespace fmt {
 template <>
-struct fmt::formatter<stdb::optparse::Type> : formatter<string_view>
+struct formatter<stdb::optparse::Type> : formatter<string_view>
 {
     template <typename FormatContext>
     auto format(stdb::optparse::Type opt_type, FormatContext& ctx) noexcept {
