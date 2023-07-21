@@ -35,8 +35,8 @@
 #include <doctest/doctest.h>
 
 #include <iostream>
-#include <span>
 #include <set>
+#include <span>
 
 #include "string/string.hpp"
 
@@ -234,7 +234,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
     }
 
     SUBCASE("assign vector with set iterator") {
-        std::set<int> set_to_assign = {1,2,3,4,5,6};
+        std::set<int> set_to_assign = {1, 2, 3, 4, 5, 6};
         stdb_vector<int> vec;
         vec.assign(set_to_assign.begin(), set_to_assign.end());
         CHECK_EQ(vec.size(), 6);
@@ -1835,10 +1835,8 @@ TEST_CASE("vector of bool works well") {
 TEST_CASE("format stdb_vector<STring>") {
     stdb_vector<memory::string> vec_str{"ab", "cd"};
     auto result = fmt::format("{}", vec_str);
-    CHECK_EQ("[ab, cd]", result);
-
+    CHECK_EQ("[\"ab\", \"cd\"]", result);
 }
-
 
 }  // namespace stdb::container
 
