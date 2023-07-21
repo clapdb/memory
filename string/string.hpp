@@ -2735,16 +2735,24 @@ struct hash<::stdb::memory::basic_string<wchar_t>>
 
 // #undef FBSTRING_DISABLE_SSO
 
+namespace fmt {
+
 template <>
-struct fmt::formatter<stdb::memory::string> : private formatter<fmt::string_view>
+struct formatter<stdb::memory::string> : formatter<string_view>
 {
     using formatter<fmt::string_view>::parse;
 
     template <typename Context>
-    auto format(const stdb::memory::string& str, Context& ctx) const -> typename Context::iterator {
-        return formatter<fmt::string_view>::format({str.data(), str.size()}, ctx);
+    auto format(const stdb::memory::string& str, Context& ctx) {
+        return formatter<string_view>::format({str.data(), str.size()}, ctx);
+    }
+    template <typename Context>
+    auto format(const stdb::memory::string& str, Context& ctx) const {
+        return formatter<string_view>::format({str.data(), str.size()}, ctx);
     }
 };
+
+}  // namespace fmt
 
 namespace std {
 

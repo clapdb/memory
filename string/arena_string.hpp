@@ -764,16 +764,20 @@ inline auto toStdString(arena_string&& str) -> std::string { return std::string(
 }  // namespace stdb::memory
 
 namespace fmt {
-template <>
-struct formatter<stdb::memory::arena_string> : private formatter<fmt::string_view>
-{
-    using formatter<fmt::string_view>::parse;
 
+template <>
+struct formatter<stdb::memory::arena_string> : formatter<string_view>
+{
     template <typename Context>
-    auto format(const stdb::memory::arena_string& str, Context& ctx) const -> typename Context::iterator {
-        return formatter<fmt::string_view>::format({str.data(), str.size()}, ctx);
+    auto format(const stdb::memory::arena_string& str, Context& ctx) {
+        return formatter<string_view>::format({str.data(), str.size()}, ctx);
+    }
+    template <typename Context>
+    auto format(const stdb::memory::arena_string& str, Context& ctx) const {
+        return formatter<string_view>::format({str.data(), str.size()}, ctx);
     }
 };
+
 }  // namespace fmt
 
 namespace std {
