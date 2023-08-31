@@ -1175,7 +1175,7 @@ TEST_CASE("ArenaTest.pmr-support") {
     SUBCASE("vector") {
         pmr::vector<pmr::string> strings(arena.get_memory_resource());
         strings.emplace_back(
-          pmr::string("123123123_+23423432423agsagasb+234324b1321312bsafs........a2423", arena.get_memory_resource()));
+          pmr::string("123123123_+23423432423agsagasb+234324b1321312bsafs........a2423", arena.get_memory_resource())); // NOLINT(modernize-use-emplace)
         CHECK_EQ(strings.size(), 1);
         CHECK_EQ(arena.check(strings.front().c_str()), ArenaContainStatus::BlockUsed);
     }

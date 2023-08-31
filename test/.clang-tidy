@@ -57,7 +57,7 @@ Checks: '-*,
   readability-make-member-function-const,
   readability-misleading-indentation,
   readability-misplaced-array-index,
-  readability-named-parameter,
+  /*readability-named-parameter,*/
   readability-non-const-parameter,
   readability-qualified-auto,
   readability-reduntant-*,
