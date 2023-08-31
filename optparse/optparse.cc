@@ -227,6 +227,7 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args, const char** 
     add_version_option({});
     ArgList args_list{std::move(args)};
     ValueStore store;
+    auto argv_span = std::span(argv, static_cast<uint32_t>(_argc));
     while (not args_list.empty()) {
         auto front = args_list.peek();
         auto arg_type = extract_arg_type(front);
@@ -234,11 +235,11 @@ auto OptionParser::parse_args(vector<stdb::optparse::string> args, const char** 
             // pop the first argument is not an option, and drag-and-drop to the invalid args list.
             auto the_invalid_arg = args_list.pop();
             // _invalid_args.emplace_back(std::move(the_invalid_arg));
-            _invalid_args.push_back(argv[args_list.pos()]);
+            _invalid_args.push_back(argv_span[args_list.pos()]);
         } else {
             // arg_type == OptionType::LongOpt or OptionType::ShortOpt
-            if (not handle_opt(store, args_list)) {
-                _invalid_args.push_back(argv[args_list.pos()]);
+            if (not handle_opt(store, args_list, argv_span)) {
+                _invalid_args.push_back(argv_span[args_list.pos()]);
             }
         }
     }
@@ -425,7 +426,7 @@ auto OptionParser::find_opt(string opt_name) -> Option* {
     return nullptr;
 }
 
-auto OptionParser::handle_opt(ValueStore& values, ArgList& args) -> bool {
+auto OptionParser::handle_opt(ValueStore& values, ArgList& args, std::span<const char*> argv_span) -> bool {
     if (not args.empty()) {
         // get front of args
         auto front = args.pop();
@@ -470,7 +471,7 @@ auto OptionParser::handle_opt(ValueStore& values, ArgList& args) -> bool {
                 // pop the first argument is not an option, and drag-and-drop to the invalid args list.
                 auto the_invalid_arg = args.pop();
                 // _invalid_args.emplace_back(std::move(the_invalid_arg));
-                _invalid_args.push_back(_argv[args.pos()]);
+                _invalid_args.push_back(argv_span[args.pos()]);
             } else {
                 auto next_val = args.pop();
                 process_opt(opt, values, next_val);
@@ -631,7 +632,7 @@ auto OptionParser::get_raw_argc() const -> int {
 auto OptionParser::get_raw_argv() const -> std::unique_ptr<const char*[]> {  // NOLINT
     auto new_argv_size = _invalid_args.size() + 1;
     auto rst = std::unique_ptr<const char*[]>(new const char*[new_argv_size]);  // NOLINT
-    rst[0] = _argv[0];
+    rst[0] = _argv[0]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     for (size_t i = 1; i < new_argv_size; ++i) {
         rst[i] = _invalid_args[i - 1];
     }

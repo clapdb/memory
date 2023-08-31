@@ -99,11 +99,12 @@ inline auto checkedMalloc(size_t size) -> void* {
 }
 
 inline auto checkedRealloc(void* ptr, size_t size) -> void* {
-    ptr = realloc(ptr, size);
-    if (ptr == nullptr) {
+    auto* new_ptr = realloc(ptr, size);
+    if (new_ptr == nullptr) {
+        free(ptr);
         throw std::bad_alloc();
     }
-    return ptr;
+    return new_ptr;
 }
 
 /**

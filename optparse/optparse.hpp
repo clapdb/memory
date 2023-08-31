@@ -287,7 +287,7 @@ class ArgList
     inline auto pop() -> string { return *_it++; }
     [[nodiscard]] inline auto peek() const -> string { return *_it; }
 
-    [[nodiscard]] inline auto pos() -> int64_t { return std::distance(_args.begin(), _it); }
+    [[nodiscard]] inline auto pos() -> uint32_t { return static_cast<uint32_t>(std::distance(_args.begin(), _it)); }
 
 };  // class ArgList
 
@@ -357,7 +357,7 @@ class OptionParser
     auto add_help_option(string help_msg) -> void;
     auto add_version_option(string version_msg) -> void;
 
-    auto handle_opt(ValueStore&, ArgList& args) -> bool;
+    auto handle_opt(ValueStore&, ArgList& args, std::span<const char*> argv_span) -> bool;
     //    auto handle_long_opt(ValueStore&, ArgList& args) -> bool;
 
     static auto process_opt(const Option&, ValueStore&, string) -> bool;
