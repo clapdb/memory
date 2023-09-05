@@ -432,7 +432,7 @@ class string_core
         return ptr;
     }
 
-    void shrink(const size_t delta) noexcept {
+    void shrink(const size_t delta) {
         if (category() == Category::isSmall) {
             shrinkSmall(delta);
         } else if (category() == Category::isMedium || RefCounted::refs(ml_.data_) == 1) {
@@ -1149,59 +1149,59 @@ class basic_string
     operator std::basic_string_view<value_type, traits_type>() const noexcept { return {data(), size()}; }
 
     // C++11 21.4.3 iterators:
-    auto begin() -> iterator { return store_.mutableData(); }
+    auto begin() noexcept -> iterator { return store_.mutableData(); }
 
-    [[nodiscard]] auto begin() const -> const_iterator { return store_.data(); }
+    [[nodiscard]] auto begin() const noexcept -> const_iterator { return store_.data(); }
 
-    [[nodiscard]] auto cbegin() const -> const_iterator { return begin(); }
+    [[nodiscard]] auto cbegin() const noexcept -> const_iterator { return begin(); }
 
-    auto end() -> iterator { return store_.mutableData() + store_.size(); }
+    auto end() noexcept -> iterator { return store_.mutableData() + store_.size(); }
 
-    [[nodiscard]] auto end() const -> const_iterator { return store_.data() + store_.size(); }
+    [[nodiscard]] auto end() const noexcept -> const_iterator { return store_.data() + store_.size(); }
 
-    [[nodiscard]] auto cend() const -> const_iterator { return end(); }
+    [[nodiscard]] auto cend() const noexcept -> const_iterator { return end(); }
 
-    auto rbegin() -> reverse_iterator { return reverse_iterator(end()); }
+    auto rbegin() noexcept -> reverse_iterator { return reverse_iterator(end()); }
 
-    [[nodiscard]] auto rbegin() const -> const_reverse_iterator { return const_reverse_iterator(end()); }
+    [[nodiscard]] auto rbegin() const noexcept -> const_reverse_iterator { return const_reverse_iterator(end()); }
 
-    [[nodiscard]] auto crbegin() const -> const_reverse_iterator { return rbegin(); }
+    [[nodiscard]] auto crbegin() const noexcept -> const_reverse_iterator { return rbegin(); }
 
-    auto rend() -> reverse_iterator { return reverse_iterator(begin()); }
+    auto rend() noexcept -> reverse_iterator { return reverse_iterator(begin()); }
 
-    [[nodiscard]] auto rend() const -> const_reverse_iterator { return const_reverse_iterator(begin()); }
+    [[nodiscard]] auto rend() const noexcept -> const_reverse_iterator { return const_reverse_iterator(begin()); }
 
-    [[nodiscard]] auto crend() const -> const_reverse_iterator { return rend(); }
+    [[nodiscard]] auto crend() const noexcept -> const_reverse_iterator { return rend(); }
 
     // Added by C++11
     // C++11 21.4.5, element access:
-    [[nodiscard]] auto front() const -> const value_type& { return *begin(); }
-    [[nodiscard]] auto back() const -> const value_type& {
+    [[nodiscard]] auto front() const noexcept -> const value_type& { return *begin(); }
+    [[nodiscard]] auto back() const noexcept -> const value_type& {
         Assert(!empty());
         // Should be begin()[size() - 1], but that branches twice
         return *(end() - 1);
     }
-    auto front() -> value_type& { return *begin(); }
-    auto back() -> value_type& {
+    auto front() noexcept -> value_type& { return *begin(); }
+    auto back() noexcept -> value_type& {
         Assert(!empty());
         // Should be begin()[size() - 1], but that branches twice
         return *(end() - 1);
     }
-    void pop_back() {
+    void pop_back() noexcept {
         Assert(!empty());
         store_.shrink(1);
     }
 
     // C++11 21.4.4 capacity:
-    [[nodiscard]] auto size() const -> size_type { return store_.size(); }
+    [[nodiscard]] auto size() const noexcept -> size_type { return store_.size(); }
 
-    [[nodiscard]] auto length() const -> size_type { return size(); }
+    [[nodiscard]] auto length() const noexcept -> size_type { return size(); }
 
-    [[nodiscard]] auto max_size() const -> size_type { return std::numeric_limits<size_type>::max(); }
+    [[nodiscard]] auto max_size() const noexcept -> size_type { return std::numeric_limits<size_type>::max(); }
 
     void resize(size_type n, value_type c = value_type());
 
-    [[nodiscard]] auto capacity() const -> size_type { return store_.capacity(); }
+    [[nodiscard]] auto capacity() const noexcept -> size_type { return store_.capacity(); }
 
     void reserve(size_type res_arg = 0) {
         enforce<std::length_error>(res_arg <= max_size(), "");
@@ -1221,12 +1221,12 @@ class basic_string
 
     void clear() { resize(0); }
 
-    [[nodiscard]] auto empty() const -> bool { return size() == 0; }
+    [[nodiscard]] auto empty() const noexcept -> bool { return size() == 0; }
 
     // C++11 21.4.5 element access:
-    auto operator[](size_type pos) const -> const_reference { return *(begin() + pos); }
+    auto operator[](size_type pos) const noexcept -> const_reference { return *(begin() + pos); }
 
-    auto operator[](size_type pos) -> reference { return *(begin() + pos); }
+    auto operator[](size_type pos) noexcept -> reference { return *(begin() + pos); }
 
     [[nodiscard]] auto at(size_type n) const -> const_reference {
         enforce<std::out_of_range>(n < size(), "");
@@ -1286,7 +1286,7 @@ class basic_string
         return assign(str.data(), str.size());
     }
 
-    auto assign(basic_string&& str) -> basic_string& { return *this = std::move(str); }
+    auto assign(basic_string&& str) noexcept -> basic_string& { return *this = std::move(str); }
 
     auto assign(const basic_string& str, size_type pos, size_type n) -> basic_string&;
 
@@ -1486,15 +1486,15 @@ class basic_string
         return n;
     }
 
-    void swap(basic_string& rhs) { store_.swap(rhs.store_); }
+    void swap(basic_string& rhs) noexcept { store_.swap(rhs.store_); }
 
-    [[nodiscard]] auto c_str() const -> const value_type* { return store_.c_str(); }
+    [[nodiscard]] auto c_str() const noexcept -> const value_type* { return store_.c_str(); }
 
-    [[nodiscard]] auto data() const -> const value_type* { return c_str(); }
+    [[nodiscard]] auto data() const noexcept -> const value_type* { return c_str(); }
 
-    auto data() -> value_type* { return store_.data(); }
+    auto data() noexcept -> value_type* { return store_.data(); }
 
-    [[nodiscard]] auto get_allocator() const -> allocator_type {
+    [[nodiscard]] auto get_allocator() const noexcept -> allocator_type {
         if constexpr (std::same_as<Storage, string_core<E>>) {
             return allocator_type();
         } else {
@@ -1502,123 +1502,123 @@ class basic_string
         }
     }
 
-    [[nodiscard]] auto starts_with(value_type c) const -> bool {
+    [[nodiscard]] auto starts_with(value_type c) const noexcept -> bool {
         return operator std::basic_string_view<value_type, traits_type>().starts_with(c);
     }
 
-    [[nodiscard]] auto starts_with(const value_type* str) const -> bool {
+    [[nodiscard]] auto starts_with(const value_type* str) const noexcept -> bool {
         return operator std::basic_string_view<value_type, traits_type>().starts_with(str);
     }
 
-    [[nodiscard]] auto starts_with(std::basic_string_view<value_type> str) const -> bool {
+    [[nodiscard]] auto starts_with(std::basic_string_view<value_type> str) const noexcept -> bool {
         return operator std::basic_string_view<value_type, traits_type>().starts_with(str);
     }
 
-    [[nodiscard]] auto starts_with(const basic_string& str) const -> bool {
+    [[nodiscard]] auto starts_with(const basic_string& str) const noexcept -> bool {
         return operator std::basic_string_view<value_type, traits_type>().starts_with(str);
     }
 
-    [[nodiscard]] auto ends_with(value_type c) const -> bool {
+    [[nodiscard]] auto ends_with(value_type c) const noexcept -> bool {
         return operator std::basic_string_view<value_type, traits_type>().ends_with(c);
     }
 
-    [[nodiscard]] auto ends_with(const value_type* str) const -> bool {
+    [[nodiscard]] auto ends_with(const value_type* str) const noexcept -> bool {
         return operator std::basic_string_view<value_type, traits_type>().ends_with(str);
     }
 
-    [[nodiscard]] auto ends_with(std::basic_string_view<value_type> str) const -> bool {
+    [[nodiscard]] auto ends_with(std::basic_string_view<value_type> str) const noexcept -> bool {
         return operator std::basic_string_view<value_type, traits_type>().ends_with(str);
     }
 
-    [[nodiscard]] auto ends_with(const basic_string& str) const -> bool {
+    [[nodiscard]] auto ends_with(const basic_string& str) const noexcept -> bool {
         return operator std::basic_string_view<value_type, traits_type>().ends_with(str);
     }
 
-    [[nodiscard]] auto contains(value_type c) const -> bool { return find(c) != basic_string::npos; }
+    [[nodiscard]] auto contains(value_type c) const noexcept -> bool { return find(c) != basic_string::npos; }
 
-    [[nodiscard]] auto contains(const value_type* str) const -> bool { return find(str) != basic_string::npos; }
+    [[nodiscard]] auto contains(const value_type* str) const noexcept -> bool { return find(str) != basic_string::npos; }
 
-    [[nodiscard]] auto contains(std::basic_string_view<value_type> str) const -> bool {
+    [[nodiscard]] auto contains(std::basic_string_view<value_type> str) const noexcept -> bool {
         return find(str) != basic_string::npos;
     }
 
-    [[nodiscard]] auto contains(const basic_string& str) const -> bool { return find(str) != basic_string::npos; }
+    [[nodiscard]] auto contains(const basic_string& str) const noexcept -> bool { return find(str) != basic_string::npos; }
 
-    [[nodiscard]] auto find(const basic_string& str, size_type pos = 0) const -> size_type {
+    [[nodiscard]] auto find(const basic_string& str, size_type pos = 0) const noexcept-> size_type {
         return find(str.data(), pos, str.length());
     }
 
-    [[nodiscard]] auto find(const value_type* needle, size_type pos, size_type nsize) const -> size_type;
+    [[nodiscard]] auto find(const value_type* needle, size_type pos, size_type nsize) const noexcept-> size_type;
 
-    [[nodiscard]] auto find(const value_type* s, size_type pos = 0) const -> size_type {
+    [[nodiscard]] auto find(const value_type* s, size_type pos = 0) const noexcept -> size_type {
         return find(s, pos, traitsLength(s));
     }
 
-    [[nodiscard]] auto find(value_type c, size_type pos = 0) const -> size_type { return find(&c, pos, 1); }
+    [[nodiscard]] auto find(value_type c, size_type pos = 0) const noexcept-> size_type { return find(&c, pos, 1); }
 
-    [[nodiscard]] auto rfind(const basic_string& str, size_type pos = npos) const -> size_type {
+    [[nodiscard]] auto rfind(const basic_string& str, size_type pos = npos) const noexcept -> size_type {
         return rfind(str.data(), pos, str.length());
     }
 
-    auto rfind(const value_type* s, size_type pos, size_type n) const -> size_type;
+    auto rfind(const value_type* s, size_type pos, size_type n) const noexcept -> size_type;
 
-    auto rfind(const value_type* s, size_type pos = npos) const -> size_type { return rfind(s, pos, traitsLength(s)); }
+    auto rfind(const value_type* s, size_type pos = npos) const noexcept -> size_type { return rfind(s, pos, traitsLength(s)); }
 
-    [[nodiscard]] auto rfind(value_type c, size_type pos = npos) const -> size_type { return rfind(&c, pos, 1); }
+    [[nodiscard]] auto rfind(value_type c, size_type pos = npos) const noexcept -> size_type { return rfind(&c, pos, 1); }
 
-    [[nodiscard]] auto find_first_of(const basic_string& str, size_type pos = 0) const -> size_type {
+    [[nodiscard]] auto find_first_of(const basic_string& str, size_type pos = 0) const noexcept -> size_type {
         return find_first_of(str.data(), pos, str.length());
     }
 
-    auto find_first_of(const value_type* s, size_type pos, size_type n) const -> size_type;
+    auto find_first_of(const value_type* s, size_type pos, size_type n) const noexcept-> size_type;
 
-    auto find_first_of(const value_type* s, size_type pos = 0) const -> size_type {
+    auto find_first_of(const value_type* s, size_type pos = 0) const noexcept -> size_type {
         return find_first_of(s, pos, traitsLength(s));
     }
 
-    [[nodiscard]] auto find_first_of(value_type c, size_type pos = 0) const -> size_type {
+    [[nodiscard]] auto find_first_of(value_type c, size_type pos = 0) const noexcept -> size_type {
         return find_first_of(&c, pos, 1);
     }
 
-    [[nodiscard]] auto find_last_of(const basic_string& str, size_type pos = npos) const -> size_type {
+    [[nodiscard]] auto find_last_of(const basic_string& str, size_type pos = npos) const noexcept -> size_type {
         return find_last_of(str.data(), pos, str.length());
     }
 
-    auto find_last_of(const value_type* s, size_type pos, size_type n) const -> size_type;
+    auto find_last_of(const value_type* s, size_type pos, size_type n) const noexcept -> size_type;
 
-    auto find_last_of(const value_type* s, size_type pos = npos) const -> size_type {
+    auto find_last_of(const value_type* s, size_type pos = npos) const noexcept -> size_type {
         return find_last_of(s, pos, traitsLength(s));
     }
 
-    [[nodiscard]] auto find_last_of(value_type c, size_type pos = npos) const -> size_type {
+    [[nodiscard]] auto find_last_of(value_type c, size_type pos = npos) const noexcept -> size_type {
         return find_last_of(&c, pos, 1);
     }
 
-    [[nodiscard]] auto find_first_not_of(const basic_string& str, size_type pos = 0) const -> size_type {
+    [[nodiscard]] auto find_first_not_of(const basic_string& str, size_type pos = 0) const noexcept -> size_type {
         return find_first_not_of(str.data(), pos, str.size());
     }
 
-    auto find_first_not_of(const value_type* s, size_type pos, size_type n) const -> size_type;
+    auto find_first_not_of(const value_type* s, size_type pos, size_type n) const noexcept -> size_type;
 
-    auto find_first_not_of(const value_type* s, size_type pos = 0) const -> size_type {
+    auto find_first_not_of(const value_type* s, size_type pos = 0) const noexcept -> size_type {
         return find_first_not_of(s, pos, traitsLength(s));
     }
 
-    [[nodiscard]] auto find_first_not_of(value_type c, size_type pos = 0) const -> size_type {
+    [[nodiscard]] auto find_first_not_of(value_type c, size_type pos = 0) const noexcept -> size_type {
         return find_first_not_of(&c, pos, 1);
     }
 
-    [[nodiscard]] auto find_last_not_of(const basic_string& str, size_type pos = npos) const -> size_type {
+    [[nodiscard]] auto find_last_not_of(const basic_string& str, size_type pos = npos) const noexcept -> size_type {
         return find_last_not_of(str.data(), pos, str.length());
     }
 
-    auto find_last_not_of(const value_type* s, size_type pos, size_type n) const -> size_type;
+    auto find_last_not_of(const value_type* s, size_type pos, size_type n) const noexcept -> size_type;
 
-    auto find_last_not_of(const value_type* s, size_type pos = npos) const -> size_type {
+    auto find_last_not_of(const value_type* s, size_type pos = npos) const noexcept-> size_type {
         return find_last_not_of(s, pos, traitsLength(s));
     }
 
-    [[nodiscard]] auto find_last_not_of(value_type c, size_type pos = npos) const -> size_type {
+    [[nodiscard]] auto find_last_not_of(value_type c, size_type pos = npos) const noexcept -> size_type {
         return find_last_not_of(&c, pos, 1);
     }
 
@@ -1636,20 +1636,20 @@ class basic_string
         return std::move(*this);
     }
 
-    [[nodiscard]] auto compare(const basic_string& str) const -> int {
+    [[nodiscard]] auto compare(const basic_string& str) const noexcept -> int {
         // FIX due to Goncalo N M de Carvalho July 18, 2005
         return compare(0, size(), str);
     }
 
-    [[nodiscard]] auto compare(size_type pos1, size_type n1, const basic_string& str) const -> int {
+    [[nodiscard]] auto compare(size_type pos1, size_type n1, const basic_string& str) const noexcept -> int {
         return compare(pos1, n1, str.data(), str.size());
     }
 
-    auto compare(size_type pos1, size_type n1, const value_type* s) const -> int {
+    auto compare(size_type pos1, size_type n1, const value_type* s) const noexcept-> int {
         return compare(pos1, n1, s, traitsLength(s));
     }
 
-    auto compare(size_type pos1, size_type n1, const value_type* s, size_type n2) const -> int {
+    auto compare(size_type pos1, size_type n1, const value_type* s, size_type n2) const noexcept-> int {
         enforce<std::out_of_range>(pos1 <= size(), "");
         procrustes(n1, size() - pos1);
         // The line below fixed by Jean-Francois Bastien, 04-23-2007. Thanks!
@@ -1658,19 +1658,23 @@ class basic_string
     }
 
     [[nodiscard]] auto compare(size_type pos1, size_type n1, const basic_string& str, size_type pos2,
-                               size_type n2) const -> int {
+                               size_type n2) const noexcept -> int {
         enforce<std::out_of_range>(pos2 <= str.size(), "");
         return compare(pos1, n1, str.data() + pos2, std::min(n2, str.size() - pos2));
     }
 
     // Code from Jean-Francois Bastien (03/26/2007)
-    auto compare(const value_type* s) const -> int {
+    auto compare(const value_type* s) const noexcept -> int {
         // Could forward to compare(0, size(), s, traitsLength(s))
         // but that does two extra checks
         const size_type n1(size());
-        const size_type n2(traitsLength(s));
-        const int r = traits_type::compare(data(), s, std::min(n1, n2));
-        return r != 0 ? r : n1 > n2 ? 1 : n1 < n2 ? -1 : 0;
+        try {
+            const size_type n2(traitsLength(s));
+            const int r = traits_type::compare(data(), s, std::min(n1, n2));
+            return r != 0 ? r : n1 > n2 ? 1 : n1 < n2 ? -1 : 0;
+        } catch (const std::logic_error& logic_ex) {
+            return n1 > 0? 1 : 0;
+        }
     }
 
    private:
@@ -1873,7 +1877,7 @@ inline auto basic_string<E, T, A, S>::getlineImpl(istream_type& is, value_type d
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::find(const value_type* needle, const size_type pos, const size_type nsize) const
+inline auto basic_string<E, T, A, S>::find(const value_type* needle, const size_type pos, const size_type nsize) const noexcept
   -> typename basic_string<E, T, A, S>::size_type {
     auto const size = this->size();
     // nsize + pos can overflow (eg pos == npos), guard against that by checking
@@ -2089,7 +2093,7 @@ inline void basic_string<E, T, A, S>::replaceImpl(iterator i1, iterator i2, Inpu
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::rfind(const value_type* s, size_type pos, size_type n) const ->
+inline auto basic_string<E, T, A, S>::rfind(const value_type* s, size_type pos, size_type n) const noexcept ->
   typename basic_string<E, T, A, S>::size_type {
     if (n > length()) {
         return npos;
@@ -2113,7 +2117,7 @@ inline auto basic_string<E, T, A, S>::rfind(const value_type* s, size_type pos, 
 
 template <typename E, class T, class A, class S>
 inline auto basic_string<E, T, A, S>::find_first_of(const value_type* str, size_type pos,
-                                                    size_type n) const
+                                                    size_type n) const noexcept
   ->
   typename basic_string<E, T, A, S>::size_type {
     if (pos > length() || n == 0) {
@@ -2130,7 +2134,7 @@ inline auto basic_string<E, T, A, S>::find_first_of(const value_type* str, size_
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::find_last_of(const value_type* str, size_type pos, size_type n) const
+inline auto basic_string<E, T, A, S>::find_last_of(const value_type* str, size_type pos, size_type n) const noexcept
   ->
   typename basic_string<E, T, A, S>::size_type {
     if (!empty() && n > 0) {
@@ -2150,7 +2154,7 @@ inline auto basic_string<E, T, A, S>::find_last_of(const value_type* str, size_t
 
 template <typename E, class T, class A, class S>
 inline auto basic_string<E, T, A, S>::find_first_not_of(const value_type* str, size_type pos,
-                                                        size_type n) const
+                                                        size_type n) const noexcept
   ->
   typename basic_string<E, T, A, S>::size_type {
     if (pos < length()) {
@@ -2167,7 +2171,7 @@ inline auto basic_string<E, T, A, S>::find_first_not_of(const value_type* str, s
 
 template <typename E, class T, class A, class S>
 inline auto basic_string<E, T, A, S>::find_last_not_of(const value_type* str, size_type pos,
-                                                       size_type n) const
+                                                       size_type n) const noexcept
   ->
   typename basic_string<E, T, A, S>::size_type {
     if (!this->empty()) {
