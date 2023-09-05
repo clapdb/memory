@@ -1426,7 +1426,7 @@ class basic_string
 
         enforce<std::out_of_range>(pos <= size(), "");
         procrustes(n1, length() - pos);
-        const_iterator b = begin() + pos;
+        const iterator b = begin() + pos;
         return replace(b, b + n1, s_or_n2, n_or_c);
     }
 

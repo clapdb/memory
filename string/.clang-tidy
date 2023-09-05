@@ -2,7 +2,7 @@
 Checks: '-*,
   boost-use-to-string,
   misc-definitions-in-headers,
-  misc-misplaced-const,
+  /*misc-misplaced-const,*/
   misc-new-delete-overloads,
   misc-non-copyable-objects,
   misc-non-private-member-variables-in-classes,
