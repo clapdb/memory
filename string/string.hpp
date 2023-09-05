@@ -325,7 +325,7 @@ class string_core
 
     explicit string_core(const std::allocator<Char>& /*noused*/) noexcept { reset(); }
 
-    string_core(const string_core& rhs) {
+    string_core(const string_core& rhs) noexcept {
         Assert(&rhs != this);
         switch (rhs.category()) {
             case Category::isSmall:
@@ -409,11 +409,11 @@ class string_core
     }
 
     // In C++11 data() and c_str() are 100% equivalent.
-    [[nodiscard]] auto data() const -> const Char* { return c_str(); }
+    [[nodiscard]] auto data() const noexcept -> const Char* { return c_str(); }
 
-    auto data() -> Char* { return c_str(); }
+    [[nodiscard]] auto data() noexcept -> Char* { return c_str(); }
 
-    auto mutableData() -> Char* {
+    auto mutableData() noexcept -> Char* {
         switch (category()) {
             case Category::isSmall:
                 return small_;
@@ -425,14 +425,14 @@ class string_core
         __builtin_unreachable();
     }
 
-    [[nodiscard]] auto c_str() const -> const Char* {
+    [[nodiscard]] auto c_str() const noexcept -> const Char* {
         const Char* ptr = ml_.data_;
         // With this syntax, GCC and Clang generate a CMOV instead of a branch.
         ptr = (category() == Category::isSmall) ? small_ : ptr;
         return ptr;
     }
 
-    void shrink(const size_t delta) {
+    void shrink(const size_t delta) noexcept {
         if (category() == Category::isSmall) {
             shrinkSmall(delta);
         } else if (category() == Category::isMedium || RefCounted::refs(ml_.data_) == 1) {
@@ -464,7 +464,7 @@ class string_core
 
     void push_back(Char c) { *expandNoinit(1, /* expGrowth = */ true) = c; }
 
-    [[nodiscard]] auto size() const -> size_t {
+    [[nodiscard]] auto size() const noexcept -> size_t {
         size_t ret = ml_.size_;
         if constexpr (isLittleEndian()) {
             // We can save a couple instructions, because the category is
@@ -480,7 +480,7 @@ class string_core
         return ret;
     }
 
-    [[nodiscard]] auto capacity() const -> size_t {
+    [[nodiscard]] auto capacity() const noexcept -> size_t {
         switch (category()) {
             case Category::isSmall:
                 return maxSmallSize;
@@ -501,19 +501,19 @@ class string_core
         return ml_.capacity();
     }
 
-    [[nodiscard]] auto isShared() const -> bool {
+    [[nodiscard]] auto isShared() const noexcept -> bool {
         return category() == Category::isLarge && RefCounted::refs(ml_.data_) > 1;
     }
 
    private:
-    auto c_str() -> Char* {
+    auto c_str() noexcept-> Char* {
         Char* ptr = ml_.data_;
         // With this syntax, GCC and Clang generate a CMOV instead of a branch.
         ptr = (category() == Category::isSmall) ? small_ : ptr;
         return ptr;
     }
 
-    void reset() { setSmallSize(0); }
+    void reset() noexcept { setSmallSize(0); }
 
     void destroyMediumLarge() noexcept {
         auto const c = category();
@@ -531,20 +531,20 @@ class string_core
         size_t refCount_;  // no need atomic on seastar without access cross cpu
         Char data_[1];
 
-        constexpr static auto getDataOffset() -> size_t { return offsetof(RefCounted, data_); }
+        constexpr static auto getDataOffset() noexcept -> size_t { return offsetof(RefCounted, data_); }
 
-        static auto fromData(Char* ptr) -> RefCounted* {
+        static auto fromData(Char* ptr) noexcept -> RefCounted* {
             return static_cast<RefCounted*>(
               static_cast<void*>(static_cast<unsigned char*>(static_cast<void*>(ptr)) - getDataOffset()));
         }
 
         // static size_t refs(Char* p) { return fromData(p)->refCount_.load(std::memory_order_acquire); }
-        static auto refs(Char* ptr) -> size_t { return fromData(ptr)->refCount_; }
+        static auto refs(Char* ptr) noexcept -> size_t { return fromData(ptr)->refCount_; }
 
         // static void incrementRefs(Char* p) { fromData(p)->refCount_.fetch_add(1, std::memory_order_acq_rel); }
-        static void incrementRefs(Char* ptr) { fromData(ptr)->refCount_++; }
+        static void incrementRefs(Char* ptr) noexcept { fromData(ptr)->refCount_++; }
 
-        static void decrementRefs(Char* ptr) {
+        static void decrementRefs(Char* ptr) noexcept {
             auto const dis = fromData(ptr);
             // size_t oldcnt = dis->refCount_.fetch_sub(1, std::memory_order_acq_rel);
             size_t oldcnt = dis->refCount_--;
@@ -612,7 +612,7 @@ class string_core
         isLarge = isLittleEndian() ? 0x40 : 0x1,
     };
 
-    [[nodiscard]] auto category() const -> Category {
+    [[nodiscard]] auto category() const noexcept -> Category {
         // works for both big-endian and little-endian
         return static_cast<Category>(bytes_[lastChar] & categoryExtractMask);
     }
@@ -623,11 +623,11 @@ class string_core
         size_t size_;
         size_t capacity_;
 
-        [[nodiscard]] auto capacity() const -> size_t {
+        [[nodiscard]] auto capacity() const noexcept -> size_t {
             return isLittleEndian() ? capacity_ & capacityExtractMask : capacity_ >> 2U;
         }
 
-        void setCapacity(size_t cap, Category cat) {
+        void setCapacity(size_t cap, Category cat) noexcept {
             capacity_ = isLittleEndian() ? cap | (static_cast<size_t>(cat) << kCategoryShift)
                                          : (cap << 2U) | static_cast<size_t>(cat);
         }
@@ -650,7 +650,7 @@ class string_core
 
     static_assert((sizeof(MediumLarge) % sizeof(Char)) == 0U, "Corrupt memory layout for string.");
 
-    [[nodiscard]] auto smallSize() const -> size_t {
+    [[nodiscard]] auto smallSize() const noexcept -> size_t {
         Assert(category() == Category::isSmall);
         constexpr auto shift = isLittleEndian() ? 0U : 2U;
         auto smallShifted = static_cast<size_t>(small_[maxSmallSize]) >> shift;
@@ -658,7 +658,7 @@ class string_core
         return static_cast<size_t>(maxSmallSize) - smallShifted;
     }
 
-    void setSmallSize(size_t newSize) {
+    void setSmallSize(size_t newSize) noexcept {
         // Warning: this should work with uninitialized strings too,
         // so don't assume anything about the previous value of
         // small_[maxSmallSize].
@@ -669,11 +669,11 @@ class string_core
         Assert(category() == Category::isSmall && size() == newSize);
     }
 
-    void copySmall(const string_core& /*rhs*/);
-    void copyMedium(const string_core& /*rhs*/);
-    void copyLarge(const string_core& /*rhs*/);
+    void copySmall(const string_core& /*rhs*/) noexcept;
+    void copyMedium(const string_core& /*rhs*/) noexcept;
+    void copyLarge(const string_core& /*rhs*/) noexcept;
 
-    void initSmall(const Char* data, size_t size);
+    void initSmall(const Char* data, size_t size) noexcept;
     void initMedium(const Char* data, size_t size);
     void initLarge(const Char* data, size_t size);
 
@@ -681,8 +681,8 @@ class string_core
     void reserveMedium(size_t minCapacity);
     void reserveLarge(size_t minCapacity);
 
-    void shrinkSmall(size_t delta);
-    void shrinkMedium(size_t delta);
+    void shrinkSmall(size_t delta) noexcept;
+    void shrinkMedium(size_t delta) noexcept;
     void shrinkLarge(size_t delta);
 
     void unshare(size_t minCapacity = 0);
@@ -690,7 +690,7 @@ class string_core
 };
 
 template <class Char>
-inline void string_core<Char>::copySmall(const string_core& rhs) {
+inline void string_core<Char>::copySmall(const string_core& rhs) noexcept {
     static_assert(offsetof(MediumLarge, data_) == 0, "string layout failure");
     static_assert(offsetof(MediumLarge, size_) == sizeof(ml_.data_), "string layout failure");
     static_assert(offsetof(MediumLarge, capacity_) == 2 * sizeof(ml_.data_), "string layout failure");
@@ -704,7 +704,7 @@ inline void string_core<Char>::copySmall(const string_core& rhs) {
 }
 
 template <class Char>
-void string_core<Char>::copyMedium(const string_core& rhs) {
+void string_core<Char>::copyMedium(const string_core& rhs) noexcept {
     // Medium strings are copied eagerly. Don't forget to allocate
     // one extra Char for the null terminator.
     //    auto const allocSize = goodMallocSize((1 + rhs.ml_.size_) * sizeof(Char));
@@ -718,7 +718,7 @@ void string_core<Char>::copyMedium(const string_core& rhs) {
 }
 
 template <class Char>
-void string_core<Char>::copyLarge(const string_core& rhs) {
+void string_core<Char>::copyLarge(const string_core& rhs) noexcept {
     // Large strings are just refcounted
     ml_ = rhs.ml_;
     RefCounted::incrementRefs(ml_.data_);
@@ -727,7 +727,7 @@ void string_core<Char>::copyLarge(const string_core& rhs) {
 
 // Small strings are bitblitted
 template <class Char>
-inline void string_core<Char>::initSmall(const Char* const data, const size_t size) {
+inline void string_core<Char>::initSmall(const Char* const data, const size_t size) noexcept{
     // Layout is: Char* data_, size_t size_, size_t capacity_
     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t), "string has unexpected size");
     static_assert(sizeof(Char*) == sizeof(size_t), "string size assumption violation");
@@ -932,14 +932,14 @@ inline auto string_core<Char>::expandNoinit(const size_t delta, bool expGrowth, 
 }
 
 template <class Char>
-inline void string_core<Char>::shrinkSmall(const size_t delta) {
+inline void string_core<Char>::shrinkSmall(const size_t delta) noexcept {
     // Check for underflow
     Assert(delta <= smallSize());
     setSmallSize(smallSize() - delta);
 }
 
 template <class Char>
-inline void string_core<Char>::shrinkMedium(const size_t delta) {
+inline void string_core<Char>::shrinkMedium(const size_t delta) noexcept{
     // Medium strings and unique large strings need no special
     // handling.
     Assert(ml_.size_ >= delta);
@@ -977,7 +977,7 @@ class basic_string
         }
     }
 
-    [[nodiscard]] auto isSane() const -> bool {
+    [[nodiscard]] auto isSane() const noexcept -> bool {
         return begin() <= end() && empty() == (size() == 0) && empty() == (begin() == end()) && size() <= max_size() &&
                capacity() <= max_size() && size() <= capacity() && begin()[size()] == '\0';
     }
@@ -1019,7 +1019,7 @@ class basic_string
     using IsRelocatable = std::true_type;
 
    private:
-    static void procrustes(size_type& n, size_type nmax) {
+    static void procrustes(size_type& n, size_type nmax) noexcept {
         if (n > nmax) {
             n = nmax;
         }
