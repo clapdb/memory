@@ -70,7 +70,7 @@ auto checked_mul(T* result, T a, T b) noexcept -> bool {
 }
 
 template <typename T, typename = std::enable_if_t<std::is_unsigned<T>::value>>
-auto checked_muladd(T* result, T base, T mul, T add) -> bool {
+auto checked_muladd(T* result, T base, T mul, T add) noexcept -> bool {
     T tmp{};
     if (!checked_mul(&tmp, base, mul)) [[unlikely]] {
         *result = {};
@@ -134,7 +134,7 @@ inline auto smartRealloc(void* ptr, const size_t currentSize, const size_t curre
     return checkedRealloc(ptr, newCapacity);
 }
 
-constexpr auto isLittleEndian() -> bool { return std::endian::native == std::endian::little; }
+constexpr auto isLittleEndian() noexcept -> bool { return std::endian::native == std::endian::little; }
 
 // When compiling with ASan, always heap-allocate the string even if
 // it would fit in-situ, so that ASan can detect access to the string
@@ -151,7 +151,7 @@ constexpr auto isLittleEndian() -> bool { return std::endian::native == std::end
 namespace string_detail {
 
 template <class InIt, class OutIt>
-inline auto copy_n(InIt begin, typename std::iterator_traits<InIt>::difference_type n, OutIt dest)
+inline auto copy_n(InIt begin, typename std::iterator_traits<InIt>::difference_type n, OutIt dest) noexcept
   -> std::pair<InIt, OutIt> {
     for (; n != 0; --n, ++begin, ++dest) {
         *dest = *begin;
@@ -193,7 +193,7 @@ inline void podFill(Pod* begin, Pod* end, T c) noexcept {
  * adaptation outside).
  */
 template <class Pod>
-inline void podCopy(const Pod* begin, const Pod* end, Pod* dest) {
+inline void podCopy(const Pod* begin, const Pod* end, Pod* dest) noexcept {
     Assert(begin != nullptr);
     Assert(end != nullptr);
     Assert(dest != nullptr);
@@ -207,7 +207,7 @@ inline void podCopy(const Pod* begin, const Pod* end, Pod* dest) {
  * some asserts
  */
 template <class Pod>
-inline void podMove(const Pod* begin, const Pod* end, Pod* dest) {
+inline void podMove(const Pod* begin, const Pod* end, Pod* dest) noexcept {
     Assert(end >= begin);
     memmove(dest, begin, size_t(end - begin) * sizeof(*begin));
 }
