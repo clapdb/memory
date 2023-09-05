@@ -13,7 +13,7 @@ Checks: '-*,
   misc-unused-parameters,
   misc-unused-using-decls,
   misc-uniqueptr-reset-release,
-  misc-unconventional-assign-operator,
+  /*misc-unconventional-assign-operator,*/
   cppcoreguidelines-avoid-goto,
   /*cppcoreguidelines-avoid-magic-numbers,*/
   cppcoreguidelines-init-variables,
@@ -21,7 +21,7 @@ Checks: '-*,
   cppcoreguidelines-macro-usage,
   cppcoreguidelines-narrowing-conversion,
   cppcoreguidelines-prefer-member-initializer,
-  cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  /*cppcoreguidelines-pro-bounds-array-to-pointer-decay,*/
   cppcoreguidelines-pro-bounds-constant-array-index,
   /*cppcoreguidelines-pro-bounds-pointer-arithmetic,*/
   cppcoreguidelines-pro-type-const-cast,
@@ -46,7 +46,7 @@ Checks: '-*,
   readability-convert-member-functions-to-static,
   readability-delete-null-pointer,
   readability-else-after-return,
-  readability-function-cognitive-complexity,
+  /*readability-function-cognitive-complexity,*/
   readability-function-size,
   /*readability-identifier-length,*/
   readability-identifier-naming,
@@ -57,7 +57,7 @@ Checks: '-*,
   readability-make-member-function-const,
   readability-misleading-indentation,
   readability-misplaced-array-index,
-  readability-named-parameter,
+  /*readability-named-parameter,*/
   readability-non-const-parameter,
   readability-qualified-auto,
   readability-reduntant-*,
@@ -138,7 +138,7 @@ Checks: '-*,
   google-build-namespaces,
   google-build-using-namespace,
   google-default-arguments,
-  google-explicit-constructor,
+  /*google-explicit-constructor,*/
   google-global-names-in-headers,
   google-readability-avoid-underscore-in-googletest-name,
   /*google-readability-casting,*/

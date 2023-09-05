@@ -352,6 +352,7 @@ class string_core
         // Clean goner's carcass
         goner.reset();
     }
+    auto operator=(string_core&& rhs) -> string_core& = delete;
 
     string_core(const Char* const data, const size_t size,
                 const std::allocator<Char>& /*unused*/ = std::allocator<Char>(),
@@ -1425,7 +1426,7 @@ class basic_string
 
         enforce<std::out_of_range>(pos <= size(), "");
         procrustes(n1, length() - pos);
-        const iterator b = begin() + pos;
+        const_iterator b = begin() + pos;
         return replace(b, b + n1, s_or_n2, n_or_c);
     }
 
