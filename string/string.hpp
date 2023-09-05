@@ -981,10 +981,13 @@ class basic_string
                capacity() <= max_size() && size() <= capacity() && begin()[size()] == '\0';
     }
 
-    // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
     struct Invariant
     {
+        Invariant() = delete;
+        Invariant(const Invariant&) = delete;
         auto operator=(const Invariant&) -> Invariant& = delete;
+        Invariant(Invariant&&) noexcept = delete;
+        auto operator = (Invariant&&) noexcept -> Invariant& = delete;
         explicit Invariant(const basic_string& str) noexcept : s_(str) { Assert(s_.isSane()); }
         ~Invariant() noexcept { Assert(s_.isSane()); }
 
