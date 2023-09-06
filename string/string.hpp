@@ -1637,19 +1637,22 @@ class basic_string
     }
 
     [[nodiscard]] auto compare(const basic_string& str) const noexcept -> int {
-        // FIX due to Goncalo N M de Carvalho July 18, 2005
-        return compare(0, size(), str);
+        // leo@stdb.io wrote follow code in 2023.9.6
+        auto n1 = size();
+        auto n2 = str.size();
+        const int r = traits_type::compare(data(), str.data(), std::min(n1, n2));
+        return r != 0 ? r : n1 > n2 ? 1 : n1 < n2 ? -1 : 0;
     }
 
-    [[nodiscard]] auto compare(size_type pos1, size_type n1, const basic_string& str) const noexcept -> int {
+    [[nodiscard]] auto compare(size_type pos1, size_type n1, const basic_string& str) const -> int {
         return compare(pos1, n1, str.data(), str.size());
     }
 
-    auto compare(size_type pos1, size_type n1, const value_type* s) const noexcept-> int {
+    auto compare(size_type pos1, size_type n1, const value_type* s) const -> int {
         return compare(pos1, n1, s, traitsLength(s));
     }
 
-    auto compare(size_type pos1, size_type n1, const value_type* s, size_type n2) const noexcept-> int {
+    auto compare(size_type pos1, size_type n1, const value_type* s, size_type n2) const -> int {
         enforce<std::out_of_range>(pos1 <= size(), "");
         procrustes(n1, size() - pos1);
         // The line below fixed by Jean-Francois Bastien, 04-23-2007. Thanks!
@@ -1658,23 +1661,19 @@ class basic_string
     }
 
     [[nodiscard]] auto compare(size_type pos1, size_type n1, const basic_string& str, size_type pos2,
-                               size_type n2) const noexcept -> int {
+                               size_type n2) const -> int {
         enforce<std::out_of_range>(pos2 <= str.size(), "");
         return compare(pos1, n1, str.data() + pos2, std::min(n2, str.size() - pos2));
     }
 
     // Code from Jean-Francois Bastien (03/26/2007)
-    auto compare(const value_type* s) const noexcept -> int {
+    auto compare(const value_type* s) const -> int {
         // Could forward to compare(0, size(), s, traitsLength(s))
         // but that does two extra checks
         const size_type n1(size());
-        try {
-            const size_type n2(traitsLength(s));
-            const int r = traits_type::compare(data(), s, std::min(n1, n2));
-            return r != 0 ? r : n1 > n2 ? 1 : n1 < n2 ? -1 : 0;
-        } catch (const std::logic_error& logic_ex) {
-            return n1 > 0? 1 : 0;
-        }
+        const size_type n2(traitsLength(s));
+        const int r = traits_type::compare(data(), s, std::min(n1, n2));
+        return r != 0 ? r : n1 > n2 ? 1 : n1 < n2 ? -1 : 0;
     }
 
    private:
