@@ -40,8 +40,9 @@
 #include <stdexcept>         // for out_of_range, length_error, logic_e...
 #include <string>            // for basic_string, allocator, string
 #include <string_view>       // for hash, basic_string_view
-#include <type_traits>       // for integral_constant, true_type, is_same
-#include <utility>           // for move, make_pair, pair
+#include <thread>
+#include <type_traits>  // for integral_constant, true_type, is_same
+#include <utility>      // for move, make_pair, pair
 
 #include "arena/arenahelper.hpp"
 #include "assert_config.hpp"
@@ -474,8 +475,7 @@ class string_core
             // We can save a couple instructions, because the category is
             // small iff the last char, as unsigned, is <= maxSmallSize.
             using UChar = typename std::make_unsigned<Char>::type;
-            auto maybeSmallSize =
-              size_t(maxSmallSize) - static_cast<size_t>(static_cast<UChar>(small_[maxSmallSize]));
+            auto maybeSmallSize = size_t(maxSmallSize) - static_cast<size_t>(static_cast<UChar>(small_[maxSmallSize]));
             // With this syntax, GCC and Clang generate a CMOV instead of a branch.
             ret = (static_cast<ssize_t>(maybeSmallSize) >= 0) ? maybeSmallSize : ret;
         } else {
@@ -510,7 +510,7 @@ class string_core
     }
 
    private:
-    auto c_str() noexcept-> Char* {
+    auto c_str() noexcept -> Char* {
         Char* ptr = ml_.data_;
         // With this syntax, GCC and Clang generate a CMOV instead of a branch.
         ptr = (category() == Category::isSmall) ? small_ : ptr;
@@ -858,7 +858,7 @@ void string_core<Char>::reserveMedium(const size_t minCapacity) {
     Assert(category() == Category::isMedium);
     // String is not shared
     if (minCapacity <= ml_.capacity()) {
-        return;                           // nothing to do, there's enough room
+        return;  // nothing to do, there's enough room
     }
     if (minCapacity <= maxMediumSize) {
         // Keep the string at medium size. Don't forget to allocate
@@ -953,7 +953,7 @@ inline void string_core<Char>::shrinkSmall(const size_t delta) noexcept {
 }
 
 template <class Char>
-inline void string_core<Char>::shrinkMedium(const size_t delta) noexcept{
+inline void string_core<Char>::shrinkMedium(const size_t delta) noexcept {
     // Medium strings and unique large strings need no special
     // handling.
     Assert(ml_.size_ >= delta);
@@ -1002,7 +1002,7 @@ class basic_string
         Invariant(const Invariant&) = delete;
         auto operator=(const Invariant&) -> Invariant& = delete;
         Invariant(Invariant&&) noexcept = delete;
-        auto operator = (Invariant&&) noexcept -> Invariant& = delete;
+        auto operator=(Invariant&&) noexcept -> Invariant& = delete;
         explicit Invariant(const basic_string& str) noexcept : s_(str) { Assert(s_.isSane()); }
         ~Invariant() noexcept { Assert(s_.isSane()); }
 
@@ -1119,9 +1119,7 @@ class basic_string
         return std::basic_string<E, T, A>(data(), size());
     }
 
-    auto operator=(const value_type* s) -> basic_string& {
-        return assign(s);
-    }
+    auto operator=(const value_type* s) -> basic_string& { return assign(s); }
 
     auto operator=(value_type c) -> basic_string&;
 
@@ -1333,9 +1331,7 @@ class basic_string
         return *this;
     }
 
-    auto insert(size_type pos, const value_type* s) -> basic_string& {
-        return insert(pos, s, traitsLength(s));
-    }
+    auto insert(size_type pos, const value_type* s) -> basic_string& { return insert(pos, s, traitsLength(s)); }
 
     auto insert(size_type pos, size_type n, value_type c) -> basic_string& {
         enforce<std::out_of_range>(pos <= length(), "");
@@ -1453,12 +1449,10 @@ class basic_string
     }
 
    private:
-    auto replaceImplDiscr(iterator i1, iterator i2, const value_type* s, size_type n,
-                          std::integral_constant<int, 2>)
+    auto replaceImplDiscr(iterator i1, iterator i2, const value_type* s, size_type n, std::integral_constant<int, 2>)
       -> basic_string&;
 
-    auto replaceImplDiscr(iterator i1, iterator i2, size_type n2, value_type c,
-                          std::integral_constant<int, 1>)
+    auto replaceImplDiscr(iterator i1, iterator i2, size_type n2, value_type c, std::integral_constant<int, 1>)
       -> basic_string&;
 
     template <class InputIter>
@@ -1550,25 +1544,29 @@ class basic_string
 
     [[nodiscard]] auto contains(value_type c) const noexcept -> bool { return find(c) != basic_string::npos; }
 
-    [[nodiscard]] auto contains(const value_type* str) const noexcept -> bool { return find(str) != basic_string::npos; }
+    [[nodiscard]] auto contains(const value_type* str) const noexcept -> bool {
+        return find(str) != basic_string::npos;
+    }
 
     [[nodiscard]] auto contains(std::basic_string_view<value_type> str) const noexcept -> bool {
         return find(str) != basic_string::npos;
     }
 
-    [[nodiscard]] auto contains(const basic_string& str) const noexcept -> bool { return find(str) != basic_string::npos; }
+    [[nodiscard]] auto contains(const basic_string& str) const noexcept -> bool {
+        return find(str) != basic_string::npos;
+    }
 
-    [[nodiscard]] auto find(const basic_string& str, size_type pos = 0) const noexcept-> size_type {
+    [[nodiscard]] auto find(const basic_string& str, size_type pos = 0) const noexcept -> size_type {
         return find(str.data(), pos, str.length());
     }
 
-    [[nodiscard]] auto find(const value_type* needle, size_type pos, size_type nsize) const noexcept-> size_type;
+    [[nodiscard]] auto find(const value_type* needle, size_type pos, size_type nsize) const noexcept -> size_type;
 
     [[nodiscard]] auto find(const value_type* s, size_type pos = 0) const noexcept -> size_type {
         return find(s, pos, traitsLength(s));
     }
 
-    [[nodiscard]] auto find(value_type c, size_type pos = 0) const noexcept-> size_type { return find(&c, pos, 1); }
+    [[nodiscard]] auto find(value_type c, size_type pos = 0) const noexcept -> size_type { return find(&c, pos, 1); }
 
     [[nodiscard]] auto rfind(const basic_string& str, size_type pos = npos) const noexcept -> size_type {
         return rfind(str.data(), pos, str.length());
@@ -1576,15 +1574,19 @@ class basic_string
 
     auto rfind(const value_type* s, size_type pos, size_type n) const noexcept -> size_type;
 
-    auto rfind(const value_type* s, size_type pos = npos) const noexcept -> size_type { return rfind(s, pos, traitsLength(s)); }
+    auto rfind(const value_type* s, size_type pos = npos) const noexcept -> size_type {
+        return rfind(s, pos, traitsLength(s));
+    }
 
-    [[nodiscard]] auto rfind(value_type c, size_type pos = npos) const noexcept -> size_type { return rfind(&c, pos, 1); }
+    [[nodiscard]] auto rfind(value_type c, size_type pos = npos) const noexcept -> size_type {
+        return rfind(&c, pos, 1);
+    }
 
     [[nodiscard]] auto find_first_of(const basic_string& str, size_type pos = 0) const noexcept -> size_type {
         return find_first_of(str.data(), pos, str.length());
     }
 
-    auto find_first_of(const value_type* s, size_type pos, size_type n) const noexcept-> size_type;
+    auto find_first_of(const value_type* s, size_type pos, size_type n) const noexcept -> size_type;
 
     auto find_first_of(const value_type* s, size_type pos = 0) const noexcept -> size_type {
         return find_first_of(s, pos, traitsLength(s));
@@ -1628,7 +1630,7 @@ class basic_string
 
     auto find_last_not_of(const value_type* s, size_type pos, size_type n) const noexcept -> size_type;
 
-    auto find_last_not_of(const value_type* s, size_type pos = npos) const noexcept-> size_type {
+    auto find_last_not_of(const value_type* s, size_type pos = npos) const noexcept -> size_type {
         return find_last_not_of(s, pos, traitsLength(s));
     }
 
@@ -1696,8 +1698,7 @@ class basic_string
 };
 
 template <typename E, class T, class A, class S>
-auto basic_string<E, T, A, S>::traitsLength(const value_type* s) ->
-  typename basic_string<E, T, A, S>::size_type {
+auto basic_string<E, T, A, S>::traitsLength(const value_type* s) -> typename basic_string<E, T, A, S>::size_type {
     return s ? traits_type::length(s) : (throw std::logic_error("basic_string: null pointer initializer not valid"), 0);
 }
 template <typename E, class T, class A, class S>
@@ -1832,8 +1833,7 @@ inline auto basic_string<E, T, A, S>::assign(const basic_string& str, const size
 }
 
 template <typename E, class T, class A, class S>
-auto basic_string<E, T, A, S>::assign(const value_type* s, size_type n)
-  -> basic_string<E, T, A, S>& {
+auto basic_string<E, T, A, S>::assign(const value_type* s, size_type n) -> basic_string<E, T, A, S>& {
     Invariant checker(*this);
 
     if (n == 0) {
@@ -1890,8 +1890,9 @@ inline auto basic_string<E, T, A, S>::getlineImpl(istream_type& is, value_type d
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::find(const value_type* needle, const size_type pos, const size_type nsize) const noexcept
-  -> typename basic_string<E, T, A, S>::size_type {
+inline auto basic_string<E, T, A, S>::find(const value_type* needle, const size_type pos,
+                                           const size_type nsize) const noexcept ->
+  typename basic_string<E, T, A, S>::size_type {
     auto const size = this->size();
     // nsize + pos can overflow (eg pos == npos), guard against that by checking
     // that nsize + pos does not wrap around.
@@ -2013,8 +2014,7 @@ inline auto basic_string<E, T, A, S>::insertImpl(const_iterator i, InputIterator
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::replaceImplDiscr(iterator i1, iterator i2, const value_type* s,
-                                                       size_type n,
+inline auto basic_string<E, T, A, S>::replaceImplDiscr(iterator i1, iterator i2, const value_type* s, size_type n,
                                                        std::integral_constant<int, 2> /*unused*/)
   -> basic_string<E, T, A, S>& {
     Assert(i1 <= i2);
@@ -2129,9 +2129,7 @@ inline auto basic_string<E, T, A, S>::rfind(const value_type* s, size_type pos, 
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::find_first_of(const value_type* str, size_type pos,
-                                                    size_type n) const noexcept
-  ->
+inline auto basic_string<E, T, A, S>::find_first_of(const value_type* str, size_type pos, size_type n) const noexcept ->
   typename basic_string<E, T, A, S>::size_type {
     if (pos > length() || n == 0) {
         return npos;
@@ -2147,8 +2145,7 @@ inline auto basic_string<E, T, A, S>::find_first_of(const value_type* str, size_
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::find_last_of(const value_type* str, size_type pos, size_type n) const noexcept
-  ->
+inline auto basic_string<E, T, A, S>::find_last_of(const value_type* str, size_type pos, size_type n) const noexcept ->
   typename basic_string<E, T, A, S>::size_type {
     if (!empty() && n > 0) {
         pos = std::min(pos, length() - 1);
@@ -2167,8 +2164,7 @@ inline auto basic_string<E, T, A, S>::find_last_of(const value_type* str, size_t
 
 template <typename E, class T, class A, class S>
 inline auto basic_string<E, T, A, S>::find_first_not_of(const value_type* str, size_type pos,
-                                                        size_type n) const noexcept
-  ->
+                                                        size_type n) const noexcept ->
   typename basic_string<E, T, A, S>::size_type {
     if (pos < length()) {
         const_iterator i(begin() + pos);
@@ -2183,10 +2179,8 @@ inline auto basic_string<E, T, A, S>::find_first_not_of(const value_type* str, s
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::find_last_not_of(const value_type* str, size_type pos,
-                                                       size_type n) const noexcept
-  ->
-  typename basic_string<E, T, A, S>::size_type {
+inline auto basic_string<E, T, A, S>::find_last_not_of(const value_type* str, size_type pos, size_type n) const noexcept
+  -> typename basic_string<E, T, A, S>::size_type {
     if (!this->empty()) {
         pos = std::min(pos, size() - 1);
         const_iterator i(begin() + pos);
@@ -2449,11 +2443,10 @@ void swap(basic_string<E, T, A, S>& lhs, basic_string<E, T, A, S>& rhs) noexcept
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator>>(std::basic_istream<typename basic_string<E, T, A, S>::value_type,
-                                          typename basic_string<E, T, A, S>::traits_type>& is,
-                       basic_string<E, T, A, S>& str)
-  -> std::basic_istream<typename basic_string<E, T, A, S>::value_type,
-                        typename basic_string<E, T, A, S>::traits_type>& {
+inline auto operator>>(
+  std::basic_istream<typename basic_string<E, T, A, S>::value_type, typename basic_string<E, T, A, S>::traits_type>& is,
+  basic_string<E, T, A, S>& str) -> std::basic_istream<typename basic_string<E, T, A, S>::value_type,
+                                                       typename basic_string<E, T, A, S>::traits_type>& {
     using _istream_type =
       std::basic_istream<typename basic_string<E, T, A, S>::value_type, typename basic_string<E, T, A, S>::traits_type>;
     typename _istream_type::sentry sentry(is);
@@ -2488,11 +2481,10 @@ inline auto operator>>(std::basic_istream<typename basic_string<E, T, A, S>::val
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<<(std::basic_ostream<typename basic_string<E, T, A, S>::value_type,
-                                          typename basic_string<E, T, A, S>::traits_type>& os,
-                       const basic_string<E, T, A, S>& str)
-  -> std::basic_ostream<typename basic_string<E, T, A, S>::value_type,
-                        typename basic_string<E, T, A, S>::traits_type>& {
+inline auto operator<<(
+  std::basic_ostream<typename basic_string<E, T, A, S>::value_type, typename basic_string<E, T, A, S>::traits_type>& os,
+  const basic_string<E, T, A, S>& str) -> std::basic_ostream<typename basic_string<E, T, A, S>::value_type,
+                                                             typename basic_string<E, T, A, S>::traits_type>& {
 #ifdef _LIBCPP_VERSION
     typedef std::basic_ostream<typename basic_string<E, T, A, S>::value_type,
                                typename basic_string<E, T, A, S>::traits_type>
@@ -2618,12 +2610,8 @@ using string = basic_string<char>;
 // Compatibility function, to make sure toStdString(s) can be called
 // to convert a std::string or string variable s into type std::string
 // with very little overhead if s was already std::string
-inline auto toStdString(const stdb::memory::string& str) -> std::string {
-    return std::string(str);
-}
-inline auto toStdString(stdb::memory::string&& str) -> std::string {
-    return std::string(str);
-}
+inline auto toStdString(const stdb::memory::string& str) -> std::string { return std::string(str); }
+inline auto toStdString(stdb::memory::string&& str) -> std::string { return std::string(str); }
 
 inline auto toStdString(const std::string& str) -> const std::string& { return str; }
 

@@ -632,7 +632,7 @@ auto OptionParser::get_raw_argc() const -> int {
 auto OptionParser::get_raw_argv() const -> std::unique_ptr<const char*[]> {  // NOLINT
     auto new_argv_size = _invalid_args.size() + 1;
     auto rst = std::unique_ptr<const char*[]>(new const char*[new_argv_size]);  // NOLINT
-    rst[0] = _argv[0]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    rst[0] = _argv[0];  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     for (size_t i = 1; i < new_argv_size; ++i) {
         rst[i] = _invalid_args[i - 1];
     }
