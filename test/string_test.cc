@@ -3168,4 +3168,27 @@ TEST_CASE("arena_string::testAllClauses") {
     TEST_CLAUSE_ARENA(21_4_8_9_a);
 }
 
+// uncomment this case will cause assert failure and crash.
+/*
+TEST_CASE("string::cross_cpu_check") {
+    string origin("123456789");
+    std::thread t1([origin](){
+        std::cout << origin << std::endl;
+    });
+    t1.join();
+}
+*/
+
+// uncomment this case will cause assert failure and crash.
+/*
+TEST_CASE("arena_string::cross_cpu_check") {
+    Arena arena(Arena::Options::GetDefaultOptions());
+    arena_string origin("123456789", arena.get_memory_resource());
+    std::thread t1([origin](){
+        std::cout << origin << std::endl;
+    });
+    t1.join();
+}
+*/
+
 }  // namespace stdb::memory

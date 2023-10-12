@@ -114,6 +114,9 @@ class arena_string_core
     }
 
     ~arena_string_core() noexcept {
+#ifndef NDEBUG
+        Assert(std::this_thread::get_id() == cpu_);
+#endif
         if (category() == Category::isSmall) {
             return;
         }
@@ -406,6 +409,13 @@ class arena_string_core
         MediumLarge ml_;
     };
 
+// thread_id for contention checking in debug mode
+#ifndef NDEBUG
+    std::thread::id cpu_ = std::this_thread::get_id();
+#endif
+
+
+
     constexpr static size_t lastChar = sizeof(MediumLarge) - 1;
     constexpr static size_t maxSmallSize = lastChar / sizeof(Char);
     constexpr static size_t maxMediumSize = 254 / sizeof(Char);
@@ -469,7 +479,7 @@ class arena_string_core
 
     void unshare(size_t minCapacity = 0);
     auto mutableDataLarge() -> Char*;
-};
+}; // class arena_string_core
 
 template <class Char>
 inline void arena_string_core<Char>::copySmall(const arena_string_core& rhs) {
@@ -512,8 +522,14 @@ void arena_string_core<Char>::copyLarge(const arena_string_core& rhs) {
 template <class Char>
 inline void arena_string_core<Char>::initSmall(const Char* const data, const size_t size) {
     // Layout is: Char* data_, size_t size_, size_t capacity_
+    #ifndef NDEBUG
+     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>) + sizeof(std::thread::id),
+                  "string has unexpected size");
+    #else
     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>),
                   "string has unexpected size");
+    #endif
+    
     static_assert(sizeof(Char*) == sizeof(size_t), "string size assumption violation");
     // sizeof(size_t) must be a power of 2
     static_assert((sizeof(size_t) & (sizeof(size_t) - 1)) == 0, "string size assumption violation");
@@ -747,8 +763,11 @@ inline void arena_string_core<Char>::shrinkLarge(const size_t delta) {
     }
     // No need to write the terminator.
 }
-
+#ifndef NDEBUG
+static_assert(sizeof(arena_string_core<char>) == 5 * sizeof(uint64_t));
+#else
 static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t));
+#endif
 
 template <class Char>
 using arena_basic_string =

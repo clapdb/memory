@@ -52,11 +52,7 @@ TEST_CASE("optparser::smoke") {
       .default_value("false")
       .help("print status messages to stdout");
     parser.add_option("-c", "--config").dest("config").action(Action::Store).help("config file");
-    parser.add_option("-sz", "--size")
-      .type(Type::Int)
-      .action(Action::Store)
-      .dest("size")
-      .help("size of the data");
+    parser.add_option("-sz", "--size").type(Type::Int).action(Action::Store).dest("size").help("size of the data");
 
     const char* args[] = {"memory_test", "-f", "test.txt", "-q", "-c", "config.txt", "-sz=100"};
     // auto options = parser.parse_args({&args[1], &args[7]}, args);
@@ -75,7 +71,6 @@ TEST_CASE("optparser::smoke") {
     CHECK_EQ(options2.get<string>("config"), "config.txt");
     CHECK_EQ(options2.get<int>("size"), 100);
 
-
     const char* args3[] = {"memory_test", "-f", "test.txt", "-q", "-cconfig.txt", "-sz", "100", "-v"};
     // auto option3 = parser.parse_args({&args3[1], &args3[8]}, args3);
     auto option3 = parser.parse_args(8, args3);
@@ -83,42 +78,40 @@ TEST_CASE("optparser::smoke") {
     CHECK_EQ(invalid_args.size(), 1);
     CHECK_EQ(strcmp(invalid_args[0], "-cconfig.txt"), 0);
 
-
     CHECK_EQ(parser.get_raw_argc(), 2);
     CHECK_EQ(strcmp(parser.get_raw_argv()[0], "memory_test"), 0);
     CHECK_EQ(strcmp(parser.get_raw_argv()[1], "-cconfig.txt"), 0);
 }
 
 TEST_CASE("optparser::+ prefix") {
-  auto parser = OptionParser('+');
-  parser.add_option({"+ltc", "++list_testcases"})
-        .action(Action::StoreTrue)
-        .type(Type::Bool)
-        .dest("list_testcases")
-        .default_value("false")
-        .help("list all testcases");
-  
-  parser.add_option({"+tc", "++test_case"})
-        .action(Action::Store)
-        .type(Type::String)
-        .dest("test_case")
-        .help("run the specified testcase");
+    auto parser = OptionParser('+');
+    parser.add_option({"+ltc", "++list_testcases"})
+      .action(Action::StoreTrue)
+      .type(Type::Bool)
+      .dest("list_testcases")
+      .default_value("false")
+      .help("list all testcases");
 
-  const char* args[] = {"memory_test", "+ltc", "+tc=memory", "-c", "1"};
-  auto options = parser.parse_args(5, args);
+    parser.add_option({"+tc", "++test_case"})
+      .action(Action::Store)
+      .type(Type::String)
+      .dest("test_case")
+      .help("run the specified testcase");
 
-  CHECK_EQ(options.get<bool>("list_testcases"), true);
-  CHECK_EQ(options.get<string>("test_case"), "memory");
+    const char* args[] = {"memory_test", "+ltc", "+tc=memory", "-c", "1"};
+    auto options = parser.parse_args(5, args);
 
+    CHECK_EQ(options.get<bool>("list_testcases"), true);
+    CHECK_EQ(options.get<string>("test_case"), "memory");
 
-  CHECK_EQ(parser.invalid_args().size(), 2);
-  CHECK_EQ(strcmp(parser.invalid_args()[0], "-c"), 0);
-  CHECK_EQ(strcmp(parser.invalid_args()[1], "1"), 0);
+    CHECK_EQ(parser.invalid_args().size(), 2);
+    CHECK_EQ(strcmp(parser.invalid_args()[0], "-c"), 0);
+    CHECK_EQ(strcmp(parser.invalid_args()[1], "1"), 0);
 
-  CHECK_EQ(parser.get_raw_argc(), 3);
-  CHECK_EQ(strcmp(parser.get_raw_argv()[0], "memory_test"), 0);
-  CHECK_EQ(strcmp(parser.get_raw_argv()[1], "-c"), 0);
-  CHECK_EQ(strcmp(parser.get_raw_argv()[2], "1"), 0);
+    CHECK_EQ(parser.get_raw_argc(), 3);
+    CHECK_EQ(strcmp(parser.get_raw_argv()[0], "memory_test"), 0);
+    CHECK_EQ(strcmp(parser.get_raw_argv()[1], "-c"), 0);
+    CHECK_EQ(strcmp(parser.get_raw_argv()[2], "1"), 0);
 }
 
 TEST_CASE("optparser::comma_split") {
@@ -181,7 +174,8 @@ TEST_CASE("optparser::complex") {
         "print duration time for the loooooooooooooooooooooong running!! lasting lasting lasting for testing testing");
     parser.add_option("-t", "--test").type(Type::Bool).action(Action::Store).help("test");
 
-    const char* complex_args[] = {"memory_test", "-f", "test.txt", "-q", "-c", "config.txt", "--duration=2.0", "-r=1", "100"};
+    const char* complex_args[] = {"memory_test",    "-f",   "test.txt", "-q", "-c", "config.txt",
+                                  "--duration=2.0", "-r=1", "100"};
     auto options = parser.parse_args(9, complex_args);
 
     CHECK_EQ(options.get<string>("filename"), "test.txt");
@@ -225,6 +219,5 @@ TEST_CASE("optparser::complex") {
     CHECK_EQ(int_ratios->at(0), 1);
     CHECK_EQ(int_ratios->at(1), 100);
 }
-
 
 }  // namespace stdb::optparse
