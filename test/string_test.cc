@@ -3167,6 +3167,60 @@ TEST_CASE("arena_string::testAllClauses") {
     TEST_CLAUSE_ARENA(21_4_8_1_l);
     TEST_CLAUSE_ARENA(21_4_8_9_a);
 }
+// following testcases can check cross cpu check correctly.
+
+TEST_CASE("string::cross_cpu_check_will_ignore_small_string") {
+    /*
+    SUBCASE("small") {
+        string origin_small("123456789");
+        // NOTICE: passed by ref cross thread is not a good practice
+        std::thread t1([&origin_small]() {
+            string copied_origin{origin_small};
+            copied_origin.append("0");
+            std::cout << copied_origin << std::endl;
+        });
+        t1.join();
+    }
+    SUBCASE("median") {
+        string origin_median("1234567890123456789012345678901234567890");
+        // NOTICE: passed by ref cross thread is not a good practice
+        std::thread t2([&origin_median]() {
+            string copied_origin{origin_median};
+            copied_origin.append("0");
+            std::cout << copied_origin << std::endl;
+        });
+        t2.join();
+    }
+    // keep comment out this case, it will cause assert failure and crash.
+    SUBCASE("large") {
+        string origin_large("1234567890123456789012345678901234567890");
+        for (int i = 0; i < 125; ++i) {
+            origin_large.append("1234567890123456789012345678901234567890");
+        }
+        // NOTICE: passed by ref cross thread is not a good practice
+        std::thread t3([&origin_large]() {
+            string copied_origin{origin_large};
+            // cross thread copy a large
+            copied_origin.append("0");
+            std::cout << copied_origin << std::endl;
+        });
+        t3.join();
+    }
+    */
+}
+
+TEST_CASE("string::cross move can not accept large string that shared") {
+    SUBCASE("small") {
+        string origin_small("123456789");
+        // NOTICE: passed by ref cross thread is not a good practice
+        std::thread t1([origin_small]() mutable {
+            string copied_origin{std::move(origin_small)};
+            copied_origin.append("0");
+            std::cout << copied_origin << std::endl;
+        });
+        t1.join();
+    }
+}
 
 // uncomment this case will cause assert failure and crash.
 /*

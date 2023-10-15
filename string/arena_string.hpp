@@ -32,6 +32,8 @@
 #pragma once
 
 #include <iostream>
+#include <optional>
+#include <thread>
 
 #include "arena/arenahelper.hpp"
 #include "string.hpp"
@@ -411,10 +413,8 @@ class arena_string_core
 
 // thread_id for contention checking in debug mode
 #ifndef NDEBUG
-    std::thread::id cpu_ = std::this_thread::get_id();
+    mutable std::optional<std::thread::id> cpu_ = std::nullopt;
 #endif
-
-
 
     constexpr static size_t lastChar = sizeof(MediumLarge) - 1;
     constexpr static size_t maxSmallSize = lastChar / sizeof(Char);
@@ -479,7 +479,7 @@ class arena_string_core
 
     void unshare(size_t minCapacity = 0);
     auto mutableDataLarge() -> Char*;
-}; // class arena_string_core
+};  // class arena_string_core
 
 template <class Char>
 inline void arena_string_core<Char>::copySmall(const arena_string_core& rhs) {
@@ -521,15 +521,16 @@ void arena_string_core<Char>::copyLarge(const arena_string_core& rhs) {
 // Small strings are bitblitted
 template <class Char>
 inline void arena_string_core<Char>::initSmall(const Char* const data, const size_t size) {
-    // Layout is: Char* data_, size_t size_, size_t capacity_
-    #ifndef NDEBUG
-     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>) + sizeof(std::thread::id),
+// Layout is: Char* data_, size_t size_, size_t capacity_
+#ifndef NDEBUG
+    static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>) +
+                                     sizeof(std::optional<std::thread::id>),
                   "string has unexpected size");
-    #else
+#else
     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>),
                   "string has unexpected size");
-    #endif
-    
+#endif
+
     static_assert(sizeof(Char*) == sizeof(size_t), "string size assumption violation");
     // sizeof(size_t) must be a power of 2
     static_assert((sizeof(size_t) & (sizeof(size_t) - 1)) == 0, "string size assumption violation");
@@ -764,7 +765,7 @@ inline void arena_string_core<Char>::shrinkLarge(const size_t delta) {
     // No need to write the terminator.
 }
 #ifndef NDEBUG
-static_assert(sizeof(arena_string_core<char>) == 5 * sizeof(uint64_t));
+static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t) + sizeof(std::optional<std::thread::id>));
 #else
 static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t));
 #endif
