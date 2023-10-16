@@ -3169,7 +3169,7 @@ TEST_CASE("arena_string::testAllClauses") {
 }
 // following testcases can check cross cpu check correctly.
 
-TEST_CASE("string::cross_cpu_check_will_ignore_small_string") {
+TEST_CASE("string::cross_cpu_copy_for_shared_str_is_forbidden") {
     /*
     SUBCASE("small") {
         string origin_small("123456789");
@@ -3209,17 +3209,65 @@ TEST_CASE("string::cross_cpu_check_will_ignore_small_string") {
     */
 }
 
-TEST_CASE("string::cross move can not accept large string that shared") {
+TEST_CASE("string::cross move") {
     SUBCASE("small") {
         string origin_small("123456789");
         // NOTICE: passed by ref cross thread is not a good practice
-        std::thread t1([origin_small]() mutable {
+        std::thread t1([&, new_small = std::move(origin_small)]() mutable {
+            new_small.append("0");
+            std::cout << new_small << std::endl;
+        });
+        t1.join();
+    }
+
+    SUBCASE("median") {
+        string origin_median("1234567890123456789012345678901234567890");
+        // NOTICE: passed by ref cross thread is not a good practice
+        std::thread t2([&, new_median = std::move(origin_median)]() mutable {
+            new_median.append("0");
+            std::cout << new_median << std::endl;
+        });
+        t2.join();
+    }
+
+    SUBCASE("large") {
+        string origin_large("1234567890123456789012345678901234567890");
+        for (int i = 0; i < 125; ++i) {
+            origin_large.append("1234567890123456789012345678901234567890");
+        }
+        // NOTICE: passed by ref cross thread is not a good practice
+        std::thread t3([&, new_large = std::move(origin_large)]() mutable {
+            new_large.append("0");
+            std::cout << new_large << std::endl;
+        });
+        t3.join();
+    }
+    /*
+    SUBCASE("small shared") {
+        string origin_small("123456789");
+        string origin_small_duplicated(origin_small);
+        
+        // NOTICE: passed by ref cross thread is not a good practice
+        std::thread t1([&, new_origin_small = std::move(origin_small)]() {
             string copied_origin{std::move(origin_small)};
             copied_origin.append("0");
             std::cout << copied_origin << std::endl;
         });
         t1.join();
     }
+    */
+}
+
+TEST_CASE("string::clone") {
+    string origin_small("123456789");
+    string origin_small_duplicated(origin_small);
+
+    // NOTICE: passed by ref cross thread is not a good practice
+    std::thread t1([&, new_origin_small = origin_small.clone()]() mutable {
+        new_origin_small.append("0");
+        std::cout << new_origin_small << std::endl;
+    });
+    t1.join();
 }
 
 // uncomment this case will cause assert failure and crash.

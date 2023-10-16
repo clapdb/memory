@@ -75,6 +75,15 @@ class arena_string_core
 
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
         Assert(&rhs != this);
+#ifndef NDEBUG
+        auto thread_id = std::this_thread::get_id();
+        Assert(not rhs.cpu_.has_value() or rhs.cpu_.value() == thread_id);
+        // thread::id class do not has operator =, so no overwrite occurs in any case.
+        if (not rhs.cpu_.has_value()) {
+            cpu_ = thread_id;
+            rhs.cpu_ = thread_id;
+        }
+#endif
         switch (rhs.category()) {
             case Category::isSmall:
                 copySmall(rhs);
@@ -96,6 +105,11 @@ class arena_string_core
     auto operator=(arena_string_core&&) -> arena_string_core& = delete;
 
     arena_string_core(arena_string_core&& goner) noexcept : allocator_(std::move(goner.allocator_)) {
+
+        // move just work same as normal
+#ifndef NDEBUG
+        cpu_ = std::move(goner.cpu_);  // NOLINT
+#endif
         // Take goner's guts
         ml_ = goner.ml_;  // NOLINT
         // Clean goner's carcass
@@ -117,7 +131,8 @@ class arena_string_core
 
     ~arena_string_core() noexcept {
 #ifndef NDEBUG
-        Assert(std::this_thread::get_id() == cpu_);
+        auto thread_id = std::this_thread::get_id();
+        Assert(not cpu_.has_value() or thread_id == cpu_.value());
 #endif
         if (category() == Category::isSmall) {
             return;
@@ -133,6 +148,9 @@ class arena_string_core
         auto const t = ml_;  // NOLINT
         ml_ = rhs.ml_;       // NOLINT
         rhs.ml_ = t;         // NOLINT
+#ifndef NDEBUG
+        std::swap(cpu_, rhs.cpu_);
+#endif
     }
 
     // In C++11 data() and c_str() are 100% equivalent.

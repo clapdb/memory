@@ -37,10 +37,9 @@
 #include <limits>            // for numeric_limits
 #include <memory>            // for allocator_traits
 #include <new>               // for bad_alloc, operator new
-#include <optional>
-#include <stdexcept>    // for out_of_range, length_error, logic_e...
-#include <string>       // for basic_string, allocator, string
-#include <string_view>  // for hash, basic_string_view
+#include <stdexcept>         // for out_of_range, length_error, logic_e...
+#include <string>            // for basic_string, allocator, string
+#include <string_view>       // for hash, basic_string_view
 #include <thread>
 #include <type_traits>  // for integral_constant, true_type, is_same
 #include <utility>      // for move, make_pair, pair
@@ -48,6 +47,7 @@
 #include "arena/arenahelper.hpp"
 #include "assert_config.hpp"
 #include "xxhash.h"  // for XXH32
+#include <optional>
 
 namespace stdb::memory {
 
@@ -361,6 +361,7 @@ class string_core
     auto operator=(const string_core& rhs) -> string_core& = delete;
 
     string_core(string_core&& goner) noexcept {
+
         // move just work same as normal
 #ifndef NDEBUG
         cpu_ = std::move(goner.cpu_);  // NOLINT
@@ -369,6 +370,7 @@ class string_core
         ml_ = goner.ml_;
         // Clean goner's carcass
         goner.reset();
+
     }
     auto operator=(string_core&& rhs) -> string_core& = delete;
 
@@ -429,6 +431,9 @@ class string_core
         auto const t = ml_;
         ml_ = rhs.ml_;
         rhs.ml_ = t;
+#ifndef NDEBUG
+        std::swap(cpu_, rhs.cpu_);
+#endif
     }
 
     // In C++11 data() and c_str() are 100% equivalent.
@@ -1189,7 +1194,7 @@ class basic_string
         // new rst is a new string, so rst.store_.cpu_ should be kNullCPU.
         rst.store_.cpu_ = std::nullopt;
         return rst;
-#else
+#else 
         // directly call copy constructor.
         // and use the RVO to avoid copy or move.
         return {*this};
