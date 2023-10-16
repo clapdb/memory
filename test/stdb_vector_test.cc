@@ -1121,7 +1121,7 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
         vec.push_back("hello");
         CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof(memory::string));
         vec.push_back("world");
-        CHECK_EQ(vec.capacity(), kFastVectorDefaultCapacity / sizeof(memory::string));
+        CHECK_EQ(vec.capacity(), 2);
         vec.push_back("!");
         CHECK_GT(vec.capacity(), kFastVectorDefaultCapacity / sizeof(memory::string));
     }

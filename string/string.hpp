@@ -37,9 +37,10 @@
 #include <limits>            // for numeric_limits
 #include <memory>            // for allocator_traits
 #include <new>               // for bad_alloc, operator new
-#include <stdexcept>         // for out_of_range, length_error, logic_e...
-#include <string>            // for basic_string, allocator, string
-#include <string_view>       // for hash, basic_string_view
+#include <optional>
+#include <stdexcept>    // for out_of_range, length_error, logic_e...
+#include <string>       // for basic_string, allocator, string
+#include <string_view>  // for hash, basic_string_view
 #include <thread>
 #include <type_traits>  // for integral_constant, true_type, is_same
 #include <utility>      // for move, make_pair, pair
@@ -328,6 +329,17 @@ class string_core
 
     string_core(const string_core& rhs) noexcept {
         Assert(&rhs != this);
+        // make sure all copy occur in same thread, or from a unshared string
+        // if rhs is a unshared string, set the cpu_ to current thread_id
+#ifndef NDEBUG
+        auto thread_id = std::this_thread::get_id();
+        Assert(not rhs.cpu_.has_value() or rhs.cpu_.value() == thread_id);
+        // thread::id class do not has operator =, so no overwrite occurs in any case.
+        if (not rhs.cpu_.has_value()) {
+            cpu_ = thread_id;
+            rhs.cpu_ = thread_id;
+        }
+#endif
         switch (rhs.category()) {
             case Category::isSmall:
                 copySmall(rhs);
@@ -336,6 +348,7 @@ class string_core
                 copyMedium(rhs);
                 break;
             case Category::isLarge:
+                // forbid cross thread copy for Large, refCount++/-- over cross is not safe.
                 copyLarge(rhs);
                 break;
             default:
@@ -348,6 +361,10 @@ class string_core
     auto operator=(const string_core& rhs) -> string_core& = delete;
 
     string_core(string_core&& goner) noexcept {
+        // move just work same as normal
+#ifndef NDEBUG
+        cpu_ = std::move(goner.cpu_);  // NOLINT
+#endif
         // Take goner's guts
         ml_ = goner.ml_;
         // Clean goner's carcass
@@ -371,7 +388,8 @@ class string_core
 
     ~string_core() noexcept {
 #ifndef NDEBUG
-        Assert(std::this_thread::get_id() == cpu_);
+        auto thread_id = std::this_thread::get_id();
+        Assert(not cpu_.has_value() or thread_id == cpu_.value());
 #endif
 
         if (category() == Category::isSmall) {
@@ -411,6 +429,9 @@ class string_core
         auto const t = ml_;
         ml_ = rhs.ml_;
         rhs.ml_ = t;
+#ifndef NDEBUG
+        std::swap(cpu_, rhs.cpu_);
+#endif
     }
 
     // In C++11 data() and c_str() are 100% equivalent.
@@ -646,7 +667,7 @@ class string_core
 
 // thread_id for contention checking in debug mode
 #ifndef NDEBUG
-    std::thread::id cpu_ = std::this_thread::get_id();
+    mutable std::optional<std::thread::id> cpu_ = std::nullopt;
 #endif
 
     constexpr static size_t lastChar = sizeof(MediumLarge) - 1;
@@ -739,7 +760,7 @@ template <class Char>
 inline void string_core<Char>::initSmall(const Char* const data, const size_t size) noexcept {
 // Layout is: Char* data_, size_t size_, size_t capacity_
 #ifndef NDEBUG
-    static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(std::thread::id),
+    static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(std::optional<std::thread::id>),
                   "string has unexpected size");
 #else
     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t), "string has unexpected size");
@@ -1148,14 +1169,34 @@ class basic_string
      * refCounted ++/-- is not thread safe.
      */
     [[nodiscard]] auto clone() const -> basic_string {
+#ifndef NDEBUG
+        // just copy the optional<std::thread::id>
+        std::optional<std::thread::id> origin_cpu = store_.cpu_;
+#endif
         if (store_.category() == Storage::Category::isLarge) {
             // call copy constructor
             basic_string rst(*this);
             rst.store_.unshare();
+
+            // restore cpu_ and new store_.cpu_, because clone is not copy.
+#ifndef NDEBUG
+            store_.cpu_.swap(origin_cpu);
+            // new rst is a new string, so rst.store_.cpu_ should be std::nullopt;
+            rst.store_.cpu_ = std::nullopt;
+#endif
             return rst;
         }
+#ifndef NDEBUG
+        basic_string rst{*this};
+        store_.cpu_.swap(origin_cpu);
+        // new rst is a new string, so rst.store_.cpu_ should be kNullCPU.
+        rst.store_.cpu_ = std::nullopt;
+        return rst;
+#else
         // directly call copy constructor.
+        // and use the RVO to avoid copy or move.
         return {*this};
+#endif
     }
 
     operator std::basic_string_view<value_type, traits_type>() const noexcept { return {data(), size()}; }

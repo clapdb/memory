@@ -32,6 +32,8 @@
 #pragma once
 
 #include <iostream>
+#include <optional>
+#include <thread>
 
 #include "arena/arenahelper.hpp"
 #include "string.hpp"
@@ -73,6 +75,15 @@ class arena_string_core
 
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
         Assert(&rhs != this);
+#ifndef NDEBUG
+        auto thread_id = std::this_thread::get_id();
+        Assert(not rhs.cpu_.has_value() or rhs.cpu_.value() == thread_id);
+        // thread::id class do not has operator =, so no overwrite occurs in any case.
+        if (not rhs.cpu_.has_value()) {
+            cpu_ = thread_id;
+            rhs.cpu_ = thread_id;
+        }
+#endif
         switch (rhs.category()) {
             case Category::isSmall:
                 copySmall(rhs);
@@ -94,6 +105,10 @@ class arena_string_core
     auto operator=(arena_string_core&&) -> arena_string_core& = delete;
 
     arena_string_core(arena_string_core&& goner) noexcept : allocator_(std::move(goner.allocator_)) {
+        // move just work same as normal
+#ifndef NDEBUG
+        cpu_ = std::move(goner.cpu_);  // NOLINT
+#endif
         // Take goner's guts
         ml_ = goner.ml_;  // NOLINT
         // Clean goner's carcass
@@ -115,7 +130,8 @@ class arena_string_core
 
     ~arena_string_core() noexcept {
 #ifndef NDEBUG
-        Assert(std::this_thread::get_id() == cpu_);
+        auto thread_id = std::this_thread::get_id();
+        Assert(not cpu_.has_value() or thread_id == cpu_.value());
 #endif
         if (category() == Category::isSmall) {
             return;
@@ -131,6 +147,9 @@ class arena_string_core
         auto const t = ml_;  // NOLINT
         ml_ = rhs.ml_;       // NOLINT
         rhs.ml_ = t;         // NOLINT
+#ifndef NDEBUG
+        std::swap(cpu_, rhs.cpu_);
+#endif
     }
 
     // In C++11 data() and c_str() are 100% equivalent.
@@ -411,10 +430,8 @@ class arena_string_core
 
 // thread_id for contention checking in debug mode
 #ifndef NDEBUG
-    std::thread::id cpu_ = std::this_thread::get_id();
+    mutable std::optional<std::thread::id> cpu_ = std::nullopt;
 #endif
-
-
 
     constexpr static size_t lastChar = sizeof(MediumLarge) - 1;
     constexpr static size_t maxSmallSize = lastChar / sizeof(Char);
@@ -479,7 +496,7 @@ class arena_string_core
 
     void unshare(size_t minCapacity = 0);
     auto mutableDataLarge() -> Char*;
-}; // class arena_string_core
+};  // class arena_string_core
 
 template <class Char>
 inline void arena_string_core<Char>::copySmall(const arena_string_core& rhs) {
@@ -521,15 +538,16 @@ void arena_string_core<Char>::copyLarge(const arena_string_core& rhs) {
 // Small strings are bitblitted
 template <class Char>
 inline void arena_string_core<Char>::initSmall(const Char* const data, const size_t size) {
-    // Layout is: Char* data_, size_t size_, size_t capacity_
-    #ifndef NDEBUG
-     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>) + sizeof(std::thread::id),
+// Layout is: Char* data_, size_t size_, size_t capacity_
+#ifndef NDEBUG
+    static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>) +
+                                     sizeof(std::optional<std::thread::id>),
                   "string has unexpected size");
-    #else
+#else
     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>),
                   "string has unexpected size");
-    #endif
-    
+#endif
+
     static_assert(sizeof(Char*) == sizeof(size_t), "string size assumption violation");
     // sizeof(size_t) must be a power of 2
     static_assert((sizeof(size_t) & (sizeof(size_t) - 1)) == 0, "string size assumption violation");
@@ -764,7 +782,7 @@ inline void arena_string_core<Char>::shrinkLarge(const size_t delta) {
     // No need to write the terminator.
 }
 #ifndef NDEBUG
-static_assert(sizeof(arena_string_core<char>) == 5 * sizeof(uint64_t));
+static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t) + sizeof(std::optional<std::thread::id>));
 #else
 static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t));
 #endif
