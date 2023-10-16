@@ -105,7 +105,6 @@ class arena_string_core
     auto operator=(arena_string_core&&) -> arena_string_core& = delete;
 
     arena_string_core(arena_string_core&& goner) noexcept : allocator_(std::move(goner.allocator_)) {
-
         // move just work same as normal
 #ifndef NDEBUG
         cpu_ = std::move(goner.cpu_);  // NOLINT
