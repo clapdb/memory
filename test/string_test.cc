@@ -3263,7 +3263,20 @@ TEST_CASE("string::clone") {
     string origin_small_duplicated(origin_small);
 
     // NOTICE: passed by ref cross thread is not a good practice
+    std::thread t1([&, new_origin_small = origin_small.clone()]() {
+        // new_origin_small.append("0");
+        std::cout << new_origin_small << std::endl;
+    });
+    t1.join();
+}
+
+TEST_CASE("string::clone-then-move") {
+    string origin_small("123456789");
+    string origin_small_duplicated(origin_small);
+
+    // NOTICE: passed by ref cross thread is not a good practice
     std::thread t1([&, new_origin_small = origin_small.clone()]() mutable {
+        auto moved_small = std::move(new_origin_small);
         new_origin_small.append("0");
         std::cout << new_origin_small << std::endl;
     });
