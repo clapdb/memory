@@ -331,7 +331,7 @@ class string_core
         Assert(&rhs != this);
         // make sure all copy occur in same thread, or from a unshared string
         // if rhs is a unshared string, set the cpu_ to current thread_id
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         auto thread_id = std::this_thread::get_id();
         Assert(not rhs.cpu_.has_value() or rhs.cpu_.value() == thread_id);
         // thread::id class do not has operator =, so no overwrite occurs in any case.
@@ -362,7 +362,7 @@ class string_core
 
     string_core(string_core&& goner) noexcept {
         // move just work same as normal
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         cpu_ = std::move(goner.cpu_);  // NOLINT
 #endif
         // Take goner's guts
@@ -387,7 +387,7 @@ class string_core
     }
 
     ~string_core() noexcept {
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         auto thread_id = std::this_thread::get_id();
         Assert(not cpu_.has_value() or thread_id == cpu_.value());
 #endif
@@ -429,7 +429,7 @@ class string_core
         auto const t = ml_;
         ml_ = rhs.ml_;
         rhs.ml_ = t;
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         std::swap(cpu_, rhs.cpu_);
 #endif
     }
@@ -666,7 +666,7 @@ class string_core
     };
 
 // thread_id for contention checking in debug mode
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
     mutable std::optional<std::thread::id> cpu_ = std::nullopt;
 #endif
 
@@ -759,7 +759,7 @@ void string_core<Char>::copyLarge(const string_core& rhs) noexcept {
 template <class Char>
 inline void string_core<Char>::initSmall(const Char* const data, const size_t size) noexcept {
 // Layout is: Char* data_, size_t size_, size_t capacity_
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(std::optional<std::thread::id>),
                   "string has unexpected size");
 #else
@@ -1169,7 +1169,7 @@ class basic_string
      * refCounted ++/-- is not thread safe.
      */
     [[nodiscard]] auto clone() const -> basic_string {
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined (CROSS_THREAD_CHECKING)
         // just copy the optional<std::thread::id>
         std::optional<std::thread::id> origin_cpu = store_.cpu_;
 #endif
@@ -1179,14 +1179,14 @@ class basic_string
             rst.store_.unshare();
 
             // restore cpu_ and new store_.cpu_, because clone is not copy.
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined (CROSS_THREAD_CHECKING)
             store_.cpu_.swap(origin_cpu);
             // new rst is a new string, so rst.store_.cpu_ should be std::nullopt;
             rst.store_.cpu_ = std::nullopt;
 #endif
             return rst;
         }
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined (CROSS_THREAD_CHECKING)
         basic_string rst{*this};
         store_.cpu_.swap(origin_cpu);
         // new rst is a new string, so rst.store_.cpu_ should be kNullCPU.
