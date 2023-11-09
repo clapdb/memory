@@ -47,6 +47,20 @@
 #include <utility>        // for tuple_element<>::type
 
 #include "arena.hpp"  // for Arena
+                      //
+namespace fmt {
+using std::atomic;
+template<typename T>
+struct formatter<atomic<T>> : formatter<T> {
+
+template<typename FormatContext>
+auto format(const atomic<T>& data, FormatContext& ctx) noexcept {
+    return formatter<T>::format(data.load(), ctx);
+}
+
+};  // struct formatter
+
+}  // namespace fmt
 
 namespace stdb::memory {
 
