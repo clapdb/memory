@@ -75,7 +75,7 @@ class arena_string_core
 
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
         Assert(&rhs != this);
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         auto thread_id = std::this_thread::get_id();
         Assert(not rhs.cpu_.has_value() or rhs.cpu_.value() == thread_id);
         // thread::id class do not has operator =, so no overwrite occurs in any case.
@@ -106,7 +106,7 @@ class arena_string_core
 
     arena_string_core(arena_string_core&& goner) noexcept : allocator_(std::move(goner.allocator_)) {
         // move just work same as normal
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         cpu_ = std::move(goner.cpu_);  // NOLINT
 #endif
         // Take goner's guts
@@ -129,7 +129,7 @@ class arena_string_core
     }
 
     ~arena_string_core() noexcept {
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         auto thread_id = std::this_thread::get_id();
         Assert(not cpu_.has_value() or thread_id == cpu_.value());
 #endif
@@ -147,7 +147,7 @@ class arena_string_core
         auto const t = ml_;  // NOLINT
         ml_ = rhs.ml_;       // NOLINT
         rhs.ml_ = t;         // NOLINT
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         std::swap(cpu_, rhs.cpu_);
 #endif
     }
@@ -429,7 +429,7 @@ class arena_string_core
     };
 
 // thread_id for contention checking in debug mode
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
     mutable std::optional<std::thread::id> cpu_ = std::nullopt;
 #endif
 
@@ -539,7 +539,7 @@ void arena_string_core<Char>::copyLarge(const arena_string_core& rhs) {
 template <class Char>
 inline void arena_string_core<Char>::initSmall(const Char* const data, const size_t size) {
 // Layout is: Char* data_, size_t size_, size_t capacity_
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>) +
                                      sizeof(std::optional<std::thread::id>),
                   "string has unexpected size");
@@ -781,7 +781,7 @@ inline void arena_string_core<Char>::shrinkLarge(const size_t delta) {
     }
     // No need to write the terminator.
 }
-#ifndef NDEBUG
+#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
 static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t) + sizeof(std::optional<std::thread::id>));
 #else
 static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t));
