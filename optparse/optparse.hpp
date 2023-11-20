@@ -394,7 +394,7 @@ template <>
 struct formatter<stdb::optparse::Type> : formatter<string_view>
 {
     template <typename FormatContext>
-    auto format(stdb::optparse::Type opt_type, FormatContext& ctx) noexcept {
+    auto format(stdb::optparse::Type opt_type, FormatContext& ctx) const noexcept {
         std::string str;
         switch (opt_type) {
             case stdb::optparse::Bool:
