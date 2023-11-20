@@ -2744,11 +2744,7 @@ struct formatter<stdb::memory::string> : formatter<string_view>
     using formatter<fmt::string_view>::parse;
 
     template <typename Context>
-    auto format(const stdb::memory::string& str, Context& ctx) {
-        return formatter<string_view>::format({str.data(), str.size()}, ctx);
-    }
-    template <typename Context>
-    auto format(const stdb::memory::string& str, Context& ctx) const {
+    auto format(const stdb::memory::string& str, Context& ctx) const noexcept {
         return formatter<string_view>::format({str.data(), str.size()}, ctx);
     }
 };

@@ -806,11 +806,7 @@ template <>
 struct formatter<stdb::memory::arena_string> : formatter<string_view>
 {
     template <typename Context>
-    auto format(const stdb::memory::arena_string& str, Context& ctx) {
-        return formatter<string_view>::format({str.data(), str.size()}, ctx);
-    }
-    template <typename Context>
-    auto format(const stdb::memory::arena_string& str, Context& ctx) const {
+    auto format(const stdb::memory::arena_string& str, Context& ctx) const noexcept {
         return formatter<string_view>::format({str.data(), str.size()}, ctx);
     }
 };

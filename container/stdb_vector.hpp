@@ -1450,7 +1450,7 @@ constexpr auto erase_if(stdb::container::stdb_vector<T>& vec, Predicate pred) ->
 // struct formatter<stdb::container::stdb_vector<T>> : formatter<string_view>
 // {
 //     template <typename FormatContext>
-//     auto format(const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) {
+//     auto format(const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) const noexcept {
 //         return fmt::format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));
 //     }
 // };
