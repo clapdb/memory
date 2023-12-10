@@ -43,8 +43,8 @@ namespace stdb::memory {
 template <class Char>
 inline auto arena_smartRealloc(pmr::polymorphic_allocator<Char>& allocator, void* ptr, const size_t currentSize,
                                [[maybe_unused]] const size_t currentCapacity, const size_t newCapacity) -> void* {
-    Assert(ptr);
-    Assert(currentSize <= currentCapacity && currentCapacity < newCapacity);
+    Assert(ptr, "arena_smartRealloc: origin source ptr is nullptr");
+    Assert(currentSize <= currentCapacity && currentCapacity < newCapacity, "arena_smartRealloc: invalid capacity");
 
     // arena do not support realloc, just allocate, and memcpy.
     if (auto* const result = allocator.allocate(newCapacity); result != nullptr) [[likely]] {
@@ -74,7 +74,7 @@ class arena_string_core
     arena_string_core(const Char* str, std::size_t len) : arena_string_core(str, len, pmr::get_default_resource()) {}
 
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
-        Assert(&rhs != this);
+        Assert(&rhs != this, "arena_string_core copy ctor failed, self copy");
 #if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         auto thread_id = std::this_thread::get_id();
         Assert(not rhs.cpu_.has_value() or rhs.cpu_.value() == thread_id);
@@ -97,8 +97,9 @@ class arena_string_core
             default:
                 __builtin_unreachable();
         }
-        Assert(size() == rhs.size());
-        Assert(memcmp(data(), rhs.data(), size() * sizeof(Char)) == 0);
+        Assert(size() == rhs.size(), "arena_string_core copy ctor failed, size not equal");
+        Assert(memcmp(data(), rhs.data(), size() * sizeof(Char)) == 0,
+               "arena_string_core copy ctor failed, data not equal");
     }
 
     auto operator=(const arena_string_core& rhs) -> arena_string_core& = delete;
@@ -124,8 +125,9 @@ class arena_string_core
         } else {
             initLarge(data, size);
         }
-        Assert(this->size() == size);
-        Assert(size == 0 || memcmp(this->data(), data, size * sizeof(Char)) == 0);
+        Assert(this->size() == size, "arena_string_core ctor failed, size not equal");
+        Assert(size == 0 || memcmp(this->data(), data, size * sizeof(Char)) == 0,
+               "arena_string_core ctor failed, data not equal");
     }
 
     ~arena_string_core() noexcept {
@@ -203,7 +205,7 @@ class arena_string_core
                 __builtin_unreachable();
         }
 
-        Assert(capacity() >= minCapacity);
+        Assert(capacity() >= minCapacity, "arena_string_core reserve failed, capacity should ge than minCapacity");
     }
 
     auto expandNoinit(size_t delta, bool expGrowth = false) -> Char*;
@@ -264,7 +266,8 @@ class arena_string_core
     void destroyMediumLarge() noexcept {
         if (allocator_ == pmr::polymorphic_allocator<Char>()) [[unlikely]] {
             auto const c = category();  // NOLINT
-            Assert(c != Category::isSmall);
+            Assert(c != Category::isSmall,
+                   "arena_string_core destroyMediumLarge failed, category should not be isSmall");
 #ifdef STDB_WARNING_ON_ARENA
             std::cerr << "Warning: arena_string with default polymorphic_allocator, content : \"" << c_str() << "\""
                       << std::endl;
@@ -317,7 +320,8 @@ class arena_string_core
             auto const dis = fromData(ptr);
             // size_t oldcnt = dis->refCount_.fetch_sub(1, std::memory_order_acq_rel);
             size_t oldcnt = dis->refCount_--;
-            Assert(oldcnt > 0);
+            Assert(oldcnt > 0,
+                   "arena—string_core decrementRefs failed, oldcnt should greater than 0, or data corruption occurs");
             if (oldcnt == 1) {
                 //                const auto size_to_dealloc = calc_large_by_size(size, getDataOffset());
                 allocator.deallocate(reinterpret_cast<Char*>(dis), size);
@@ -359,7 +363,8 @@ class arena_string_core
 
         static auto reallocate(pmr::polymorphic_allocator<Char>& allocator, Char* const data, const size_t currentSize,
                                const size_t currentCapacity, size_t* newCapacity) -> RefCounted* {
-            Assert(*newCapacity > 0 && *newCapacity > currentSize);
+            Assert(*newCapacity > 0 && *newCapacity > currentSize,
+                   "arena_string_core reallocate failed, newCapacity should ge than currentSize");
             /*
             size_t capacityBytes = 0;
             if (!checked_add(&capacityBytes, *newCapacity, static_cast<size_t>(1))) {
@@ -373,14 +378,14 @@ class arena_string_core
             //            const size_t allocNewCapacity = goodMallocSize(capacityBytes);
             auto const dis = fromData(data);
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
-            Assert(dis->refCount_ == 1);
+            Assert(dis->refCount_ == 1, "reallocate should make sure refCount_ == 1");
             //            auto result = static_cast<RefCounted*>(smartRealloc(dis, getDataOffset() + (currentSize + 1) *
             //            sizeof(Char),
             auto result = static_cast<RefCounted*>(
               arena_smartRealloc(allocator, dis, getDataOffset() + (currentSize + 1) * sizeof(Char),
                                  getDataOffset() + (currentCapacity + 1) * sizeof(Char), capacityBytes));
             // assert(dis->refCount_.load(std::memory_order_acquire) == 1);
-            Assert(result->refCount_ == 1);
+            Assert(result->refCount_ == 1, "reallocate result should make sure refCount_ == 1");
             *newCapacity = (capacityBytes - getDataOffset()) / sizeof(Char) - 1;
             return result;
         }
@@ -453,11 +458,12 @@ class arena_string_core
     }
 
     [[nodiscard]] auto smallSize() const -> size_t {
-        Assert(category() == Category::isSmall);
+        Assert(category() == Category::isSmall, "arena_string_core smallSize failed, category should be isSmall");
         constexpr auto shift = isLittleEndian() ? 0U : 2U;
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
         auto smallShifted = static_cast<size_t>(small_[maxSmallSize]) >> shift;
-        Assert(static_cast<size_t>(maxSmallSize) >= smallShifted);
+        Assert(static_cast<size_t>(maxSmallSize) >= smallShifted,
+               "arena_string_core smallSize failed, maxSmallSize should ge than smallShifted");
         return static_cast<size_t>(maxSmallSize) - smallShifted;
     }
 
@@ -465,13 +471,14 @@ class arena_string_core
         // Warning: this should work with uninitialized strings too,
         // so don't assume anything about the previous value of
         // small_[maxSmallSize].
-        Assert(newSize <= maxSmallSize);
+        Assert(newSize <= maxSmallSize, "arena_string_core setSmallSize failed, newSize should le than maxSmallSize");
         constexpr auto shift = isLittleEndian() ? 0U : 2U;
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
         small_[maxSmallSize] = Char(static_cast<char>((maxSmallSize - newSize) << shift));
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
         small_[newSize] = '\0';
-        Assert(category() == Category::isSmall && size() == newSize);
+        Assert(category() == Category::isSmall && size() == newSize,
+               "arena_string_core setSmallSize failed, size not equal");
     }
 
     void copySmall(const arena_string_core& /*rhs*/);
@@ -509,7 +516,8 @@ inline void arena_string_core<Char>::copySmall(const arena_string_core& rhs) {
     // which stores a short string's length, is shared with the
     // ml_.capacity field).
     ml_ = rhs.ml_;  // NOLINT
-    Assert(category() == Category::isSmall && this->size() == rhs.size());
+    Assert(category() == Category::isSmall && this->size() == rhs.size(),
+           "arena_string_core copySmall should make sure category is small, and size equal");
 }
 
 template <class Char>
@@ -524,7 +532,7 @@ void arena_string_core<Char>::copyMedium(const arena_string_core& rhs) {
     string_detail::podCopy(rhs.ml_.data_, rhs.ml_.data_ + rhs.ml_.size_ + 1, ml_.data_);  // NOLINT
     ml_.size_ = rhs.ml_.size_;                                                            // NOLINT
     ml_.setCapacity(allocSize / sizeof(Char) - 1, Category::isMedium);                    // NOLINT
-    Assert(category() == Category::isMedium);
+    Assert(category() == Category::isMedium, "arena_string_core copyMedium failed, category should be isMedium");
 }
 
 template <class Char>
@@ -532,7 +540,8 @@ void arena_string_core<Char>::copyLarge(const arena_string_core& rhs) {
     // Large strings are just refcounted
     ml_ = rhs.ml_;                         // NOLINT
     RefCounted::incrementRefs(ml_.data_);  // NOLINT
-    Assert(category() == Category::isLarge && size() == rhs.size());
+    Assert(category() == Category::isLarge && size() == rhs.size(),
+           "arena_string_core copyLarge failed, size not equal");
 }
 
 // Small strings are bitblitted
@@ -614,12 +623,13 @@ void arena_string_core<Char>::initLarge(const Char* const data, const size_t siz
 
 template <class Char>
 void arena_string_core<Char>::unshare(size_t minCapacity) {
-    Assert(category() == Category::isLarge);
+    Assert(category() == Category::isLarge, "arena_string_core unshare failed, category should be isLarge");
     size_t effectiveCapacity = std::max(minCapacity, ml_.capacity());  // NOLINT
     auto const newRC = RefCounted::create(allocator_, &effectiveCapacity);
     // If this fails, someone placed the wrong capacity in an
     // string.
-    Assert(effectiveCapacity >= ml_.capacity());  // NOLINT
+    Assert(effectiveCapacity >= ml_.capacity(),
+           "arena_string_core unshare failed, new effectiveCapacity should ge than old cap");  // NOLINT
     // Also copies terminator.
     string_detail::podCopy(ml_.data_, ml_.data_ + ml_.size_ + 1, newRC->data_);  // NOLINT
     RefCounted::decrementRefs(ml_.data_, ml_.size_, allocator_);                 // NOLINT
@@ -630,7 +640,7 @@ void arena_string_core<Char>::unshare(size_t minCapacity) {
 
 template <class Char>
 inline auto arena_string_core<Char>::mutableDataLarge() -> Char* {
-    Assert(category() == Category::isLarge);
+    Assert(category() == Category::isLarge, "arena_string_core mutableDataLarge failed, category should be isLarge");
     if (RefCounted::refs(ml_.data_) > 1) {  // Ensure unique. // NOLINT
         unshare();
     }
@@ -639,7 +649,7 @@ inline auto arena_string_core<Char>::mutableDataLarge() -> Char* {
 
 template <class Char>
 void arena_string_core<Char>::reserveLarge(size_t minCapacity) {
-    Assert(category() == Category::isLarge);
+    Assert(category() == Category::isLarge, "arena_string_core reserveLarge failed, category should be isLarge");
     if (RefCounted::refs(ml_.data_) > 1) {  // Ensure unique // NOLINT
         // We must make it unique regardless; in-place reallocation is
         // useless if the string is shared. In order to not surprise
@@ -656,13 +666,13 @@ void arena_string_core<Char>::reserveLarge(size_t minCapacity) {
             ml_.data_ = newRC->data_;                                                                  // NOLINT
             ml_.setCapacity(minCapacity, Category::isLarge);                                           // NOLINT
         }
-        Assert(capacity() >= minCapacity);
+        Assert(capacity() >= minCapacity, "after arena_string_core::reserveLarge, capacity should ge than minCapacity");
     }
 }
 
 template <class Char>
 void arena_string_core<Char>::reserveMedium(const size_t minCapacity) {
-    Assert(category() == Category::isMedium);
+    Assert(category() == Category::isMedium, "arena_string_core reserveMedium failed, category should be isMedium");
     // String is not shared
     if (minCapacity <= ml_.capacity()) {  // NOLINT
         return;                           // nothing to do, there's enough room
@@ -687,13 +697,14 @@ void arena_string_core<Char>::reserveMedium(const size_t minCapacity) {
         // Also copies terminator.
         string_detail::podCopy(ml_.data_, ml_.data_ + ml_.size_ + 1, nascent.ml_.data_);  // NOLINT
         nascent.swap(*this);
-        Assert(capacity() >= minCapacity);
+        Assert(capacity() >= minCapacity,
+               "after arena_string_core::reserveMedium, capacity should ge than minCapacity");
     }
 }
 
 template <class Char>
 void arena_string_core<Char>::reserveSmall(size_t minCapacity) {
-    Assert(category() == Category::isSmall);
+    Assert(category() == Category::isSmall, "arena_string_core reserveSmall failed, category should be isSmall");
     if (minCapacity <= maxSmallSize) {
         // small
         // Nothing to do, everything stays put
@@ -719,14 +730,14 @@ void arena_string_core<Char>::reserveSmall(size_t minCapacity) {
         ml_.data_ = newRC->data_;                                         // NOLINT
         ml_.size_ = size;                                                 // NOLINT
         ml_.setCapacity(minCapacity, Category::isLarge);                  // NOLINT
-        Assert(capacity() >= minCapacity);
+        Assert(capacity() >= minCapacity, "after arena_string_core::reserveSmall, capacity should ge than minCapacity");
     }
 }
 
 template <class Char>
 inline auto arena_string_core<Char>::expandNoinit(const size_t delta, bool expGrowth) -> Char* {
     // Strategy is simple: make room, then change size
-    Assert(capacity() >= size());
+    Assert(capacity() >= size(), "arena_string_core expandNoinit failed, capacity should ge than size");
     size_t oldSz = 0;
     size_t newSz = 0;
     if (category() == Category::isSmall) {
@@ -745,19 +756,20 @@ inline auto arena_string_core<Char>::expandNoinit(const size_t delta, bool expGr
             reserve(expGrowth ? std::max(newSz, 1 + capacity() * 3 / 2) : newSz);
         }
     }
-    Assert(capacity() >= newSz);
+    Assert(capacity() >= newSz, "arena_string_core expandNoinit failed, capacity should ge than newSz");
     // Category can't be small - we took care of that above
-    Assert(category() == Category::isMedium || category() == Category::isLarge);
+    Assert(category() == Category::isMedium || category() == Category::isLarge,
+           "arena_string_core expandNoinit failed, category should be isMedium or isLarge");
     ml_.size_ = newSz;        // NOLINT
     ml_.data_[newSz] = '\0';  // NOLINT
-    Assert(size() == newSz);
+    Assert(size() == newSz, "after arena_string_core::expandNoinit, size should equal newSz");
     return ml_.data_ + oldSz;  // NOLINT
 }
 
 template <class Char>
 inline void arena_string_core<Char>::shrinkSmall(const size_t delta) {
     // Check for underflow
-    Assert(delta <= smallSize());
+    Assert(delta <= smallSize(), "arena_string_core shrinkSmall failed, delta should le than smallSize");
     setSmallSize(smallSize() - delta);
 }
 
@@ -765,14 +777,14 @@ template <class Char>
 inline void arena_string_core<Char>::shrinkMedium(const size_t delta) {
     // Medium strings and unique large strings need no special
     // handling.
-    Assert(ml_.size_ >= delta);   // NOLINT
-    ml_.size_ -= delta;           // NOLINT
-    ml_.data_[ml_.size_] = '\0';  // NOLINT
+    Assert(ml_.size_ >= delta, "arena_string_core::shrinkMedium failed, should make sure delta <= size");  // NOLINT
+    ml_.size_ -= delta;                                                                                    // NOLINT
+    ml_.data_[ml_.size_] = '\0';                                                                           // NOLINT
 }
 
 template <class Char>
 inline void arena_string_core<Char>::shrinkLarge(const size_t delta) {
-    Assert(ml_.size_ >= delta);  // NOLINT
+    Assert(ml_.size_ >= delta, "arena_string_core::shrinkLarge should make sure delta <= size");  // NOLINT
     // Shared large string, must make unique. This is because of the
     // durn terminator must be written, which may trample the shared
     // data.

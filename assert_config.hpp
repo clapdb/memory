@@ -36,11 +36,11 @@
 
 // means in STDB project.
 #include "hilbert/assert.hpp"
-#define Assert(expr) STDB_ASSERT(expr)  // NOLINT
+#define Assert(expr, msg) STDB_ASSERT_MSG(expr, msg)  // NOLINT
 
 #else
 
 #include <cassert>
-#define Assert(expr) assert(expr)  // NOLINT
+#define Assert(expr, msg) (assert(expr&& msg))  // NOLINT
 
 #endif
