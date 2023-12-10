@@ -41,6 +41,6 @@
 #else
 
 #include <cassert>
-#define Assert(expr, msg) (assert(expr&& msg))  // NOLINT
+#define Assert(expr, msg) (assert((expr) && msg))  // NOLINT
 
 #endif
