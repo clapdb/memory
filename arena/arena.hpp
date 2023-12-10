@@ -77,6 +77,7 @@ struct CleanupNode
 };
 
 inline constexpr uint64_t kByteSize = 8;
+inline constexpr uint64_t kByteSizeMask = kByteSize - 1;
 static constexpr uint64_t kCleanupNodeSize = AlignUpTo<kByteSize>(sizeof(memory::CleanupNode));
 
 /*
@@ -249,14 +250,15 @@ class Arena
         }
 
         auto alloc(uint64_t size) noexcept -> char* {
-            Assert(size <= (_limit - _pos));  // NOLINT
+            Assert(size <= (_limit - _pos), "Block::alloc should make sure size < block's rest space");  // NOLINT
             char* ptr = Pos();
             _pos += size;
             return ptr;
         }
 
         [[gnu::always_inline]] inline auto alloc_cleanup() noexcept -> char* {
-            Assert(_pos + kCleanupNodeSize <= _limit);  // NOLINT
+            Assert(_pos + kCleanupNodeSize <= _limit,
+                   "alloc_cleanup should make sure has enough space less rest space");  // NOLINT
             _limit -= kCleanupNodeSize;
             return CleanupPos();
         }
@@ -275,7 +277,7 @@ class Arena
         [[gnu::always_inline, nodiscard]] inline auto pos() const noexcept -> uint64_t { return _pos; }
 
         [[nodiscard, gnu::always_inline]] inline auto remain() const noexcept -> uint64_t {
-            Assert(_limit >= _pos);  // NOLINT
+            Assert(_limit >= _pos, "remain should be ge than 0");  // NOLINT
             return _limit - _pos;
         }
 
@@ -293,7 +295,7 @@ class Arena
 
         [[nodiscard, gnu::always_inline]] inline auto cleanups() const noexcept -> uint64_t {
             uint64_t space = _size - _limit;
-            Assert(space % kCleanupNodeSize == 0);  // NOLINT
+            Assert(space % kCleanupNodeSize == 0, "cleanups space should aligned to sizeof (CleanupNode)");  // NOLINT
             return space / kCleanupNodeSize;
         }
 
@@ -307,7 +309,9 @@ class Arena
     class memory_resource : public ::pmr::memory_resource
     {
        public:
-        explicit memory_resource(Arena* arena) : _arena(arena) { Assert(arena != nullptr); };  // NOLINT
+        explicit memory_resource(Arena* arena) : _arena(arena) {
+            Assert(arena != nullptr, "memory_resource should make sure arena is not nullptr");
+        };  // NOLINT
         [[nodiscard]] auto get_arena() const -> Arena* { return _arena; }
 
        protected:
@@ -493,7 +497,8 @@ class Arena
     }
 
     [[gnu::always_inline]] inline auto get_memory_resource() noexcept -> memory_resource* {
-        Assert(_resource != nullptr);  // NOLINT
+        Assert(_resource != nullptr,
+               "memory_resource should make sure _resource is not nullptr, or dereference crash");  // NOLINT
         return _resource;
     };
 
@@ -630,7 +635,7 @@ class Arena
             _options.block_dealloc(curr);
             curr = prev;
         }
-        Assert(curr != nullptr);
+        Assert(curr != nullptr, "curr should not be nullptr");
         // add the curr blk remain to result
         remain_size += curr->remain();
         // reset the last_block_ to the first block

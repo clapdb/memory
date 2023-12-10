@@ -91,8 +91,8 @@ template <typename Iterator>
 
 template <typename T>
 [[gnu::always_inline]] inline void construct_range(T* __restrict__ first, T* __restrict__ last) {
-    Assert(first != nullptr and last != nullptr);
-    Assert(first < last);
+    Assert(first != nullptr and last != nullptr, "first and last can not be nullptr");
+    Assert(first < last, "first should always before last");
     if constexpr (IsZeroInitable<T>) {
         // set zero to all bytes.
         std::memset(first, 0, static_cast<size_t>(last - first) * sizeof(T));
@@ -107,8 +107,8 @@ template <typename T>
     requires std::is_object_v<T>
 [[gnu::always_inline]] inline void construct_range_with_cref(T* __restrict__ first, T* __restrict__ last,
                                                              const T& value) {
-    Assert(first != nullptr and last != nullptr);
-    Assert(first < last);
+    Assert(first != nullptr and last != nullptr, "first and last can not be nullptr");
+    Assert(first < last, "first should always before last");
     static_assert(std::is_copy_constructible_v<T>);
     if constexpr (sizeof(T) == sizeof(char)) {
         std::memset(first, static_cast<int>(value), static_cast<size_t>(last - first) * sizeof(T));
@@ -122,9 +122,9 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline]] inline auto copy_range(T* __restrict__ dst, const T* __restrict__ src,
                                               const T* __restrict__ src_end) -> T* {
-    Assert(dst != nullptr and src != nullptr);
-    Assert(dst != src);
-    Assert(src < src_end);
+    Assert(dst != nullptr and src != nullptr, "dst and src can not be nullptr");
+    Assert(dst != src, "copy_range should not be called with same dst and src");
+    Assert(src < src_end, "src should always before src_end");
     // if is trivial_copyable, use memcpy is faster.
     if constexpr (IsRelocatable<T>) {
         std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
@@ -140,7 +140,7 @@ template <typename T>
 template <typename T>
     requires std::is_trivially_copyable_v<T> or std::is_nothrow_move_constructible_v<T>
 [[gnu::always_inline]] inline void copy_value(T* __restrict__ dst, T value) {
-    Assert(dst != nullptr);
+    Assert(dst != nullptr, "dst can not be nullptr");
     if constexpr (IsRelocatable<T>) {
         *dst = value;
     } else {
@@ -152,7 +152,7 @@ template <typename T>
 template <typename T>
     requires std::is_object_v<T>
 [[gnu::always_inline]] inline void copy_cref(T* __restrict__ dst, const T& value) {
-    Assert(dst != nullptr);
+    Assert(dst != nullptr, "dst can not be nullptr");
     if constexpr (IsRelocatable<T>) {
         *dst = value;
     } else {
@@ -166,8 +166,8 @@ concept PointerCompatibleIterator = std::is_pointer_v<It> or std::random_access_
 
 template <typename T, typename Iterator>
 [[gnu::always_inline]] inline void copy_from_iterator(T* __restrict__ dst, Iterator first, Iterator last) {
-    Assert(dst != nullptr);
-    Assert(first != last);
+    Assert(dst != nullptr, "copy_from_iterator dst can not be nullptr");
+    Assert(first != last, "copy_from_iterator first can not accept empty range means (first == last)");
 
     if constexpr (IsRelocatable<T> and PointerCompatibleIterator<Iterator>) {
         if (get_ptr_from_iter(first) < get_ptr_from_iter(last)) [[likely]] {
@@ -207,8 +207,8 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline, nodiscard]] inline auto move_range_without_overlap(T* __restrict__ dst, T* __restrict__ src,
                                                                          T* __restrict__ src_end) noexcept -> T* {
-    Assert(dst != nullptr and src != nullptr);
-    Assert(dst != src);
+    Assert(dst != nullptr and src != nullptr, "dst and src can not be nullptr");
+    Assert(dst != src, "move_range_without_overlap should make sure dst != src");
     if constexpr (IsRelocatable<T>) {
         std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
         return dst + (src_end - src);
@@ -230,11 +230,11 @@ template <typename T>
 template <typename T>
 [[gnu::always_inline]] inline void move_range_forward(T* __restrict__ dst, T* __restrict__ src,
                                                       T* __restrict__ src_end) {
-    Assert(src != nullptr and dst != nullptr);
+    Assert(src != nullptr and dst != nullptr, "src and dst can not be nullptr");
     // src == src_end means no data to move
     // it will occur in erase the whole vector.
-    Assert(src_end >= src);
-    Assert(dst < src or dst >= src_end);
+    Assert(src_end >= src, "src_end should always after src");
+    Assert(dst < src or dst >= src_end, "dst should not overlap with [src, src_end)");
     if constexpr (IsRelocatable<T>) {
         std::memmove(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
     } else if constexpr (std::is_move_constructible_v<T>) {
@@ -266,10 +266,10 @@ auto realloc_with_move(T*& __restrict__ ptr, std::size_t old_size, std::size_t n
     // default init vector or
     // after shrink_to_fit with zero size, the ptr may be nullptr.
     if (ptr == nullptr) {
-        Assert(old_size == 0);
+        Assert(old_size == 0, "ptr is nullptr, but old_size is not zero");
         return ptr = static_cast<T*>(std::malloc(new_size * sizeof(T)));
     }
-    Assert(new_size > 0);
+    Assert(new_size > 0, "new_size should be larger than zero");
     auto new_ptr = static_cast<T*>(std::malloc(new_size * sizeof(T)));
     if (new_ptr == nullptr) [[unlikely]] {
         throw std::bad_alloc();
@@ -302,7 +302,7 @@ class core
 
    public:
     [[gnu::always_inline]] void allocate(size_type cap) {
-        Assert(cap > 0);
+        Assert(cap > 0, "allocate cap should be larger than zero");
         if (_start = static_cast<T*>(std::malloc(cap * sizeof(T))); _start != nullptr) [[likely]] {
             _edge = _start + cap;
         } else {
@@ -314,7 +314,7 @@ class core
 
     // this function will never be called without set values/ or construct values.
     core(size_type size, size_type cap) {
-        Assert(size <= cap);
+        Assert(size <= cap, "size should be smaller than cap");
         if (cap > 0) {
             allocate(cap);
             _finish = _start + size;
@@ -397,33 +397,33 @@ class core
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto size() const noexcept -> size_type {
-        Assert(_finish >= _start);
+        Assert(_finish >= _start, "finish should always after start");
         return (size_type)(_finish - _start);
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto capacity() const noexcept -> size_type {
-        Assert(_edge >= _start);
+        Assert(_edge >= _start, "edge should always after start");
         return (size_type)(_edge - _start);
     }
 
     [[nodiscard, gnu::always_inline]] auto full() const noexcept -> bool {
-        Assert(_finish <= _edge);
+        Assert(_finish <= _edge, "finish should always before edge");
         return _edge == _finish;
     }
     // data access section
     [[nodiscard, gnu::always_inline]] auto at(size_type index) const noexcept -> const_reference {
-        Assert(index < size());
+        Assert(index < size(), "index out of range");
         return _start[index];  // NOLINT
     }
     [[nodiscard, gnu::always_inline]] auto at(size_type index) noexcept -> reference {
-        Assert(index < size());
+        Assert(index < size(), "index out of range");
         return _start[index];  // NOLINT
     }
 
     [[gnu::always_inline]] void realloc_with_old_data(size_type new_cap) {
         // no check new_cap because it will be checked in caller.
         auto old_size = size();
-        Assert(new_cap >= old_size);
+        Assert(new_cap >= old_size, "new_cap should be larger than old_size, or it will cause data loss");
         _finish = realloc_with_move(_start, old_size, new_cap);
         _edge = _start + new_cap;
         return;
@@ -433,7 +433,7 @@ class core
     [[gnu::always_inline]] void realloc_and_emplace_back(size_type new_cap, Args&&... args) {
         // no check new_cap because it will be checked in caller.
         auto old_size = size();
-        Assert(new_cap > old_size);
+        Assert(new_cap > old_size, "new_cap should be larger than old_size, or it will cause data loss");
         // backup old _start, _finish, _edge
         auto* old_start = _start;
         auto* old_finish = _finish;
@@ -459,8 +459,8 @@ class core
         // if _start, _finish. _edge are nullptr, it was default constructed.
         // just do destroy, it will do nothing.
         // so we should allow start == end, and do a empty destroy.
-        Assert(_start <= _finish);
-        Assert(_finish <= _edge);
+        Assert(_start <= _finish, "start should always before finish");
+        Assert(_finish <= _edge, "finish should always before edge");
         destroy_range(_start, _finish);
     }
 
@@ -470,23 +470,23 @@ class core
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(T* __restrict__ dst, T* __restrict__ src) {
-        Assert(dst != src);
+        Assert(dst != src, "move_forward should not be called with same dst and src");
         move_range_forward(dst, src, _finish);
     }
 
     // move [src, end()) to dst start range from front to end
     [[gnu::always_inline]] void move_forward(const T* __restrict__ dst, const T* __restrict__ src) {
-        Assert(dst != src);
+        Assert(dst != src, "move_forward should not be called with same dst and src");
         move_range_forward(const_cast<T*>(dst), const_cast<T*>(src), _finish);  // NOLINT
     }
 
     // move [src, end()) to dst start range from end to front
     void move_backward(T* __restrict__ dst, T* __restrict__ src) {
-        Assert(dst != nullptr && src != nullptr);
+        Assert(dst != nullptr && src != nullptr, "dst and src can not be nullptr");
         // if src == _finish or src == _finish -1, just use move_forward
-        Assert(src < (_finish - 1));
+        Assert(src < (_finish - 1), "src should always before _finish - 1, or can not move backward");
         // if dst == src, no need to move
-        Assert(dst != src);
+        Assert(dst != src, "move_backward should not be called with same dst and src");
 
         T* dst_end = dst + (_finish - 1 - src);
         if constexpr (IsRelocatable<T>) {
@@ -560,8 +560,8 @@ class stdb_vector : public core<T>
     constexpr stdb_vector(InputIt first, InputIt last) : core<T>() {
         int64_t size = last - first;
         // if size == 0, then do nothing.and just for caller convenience.
-        Assert(size >= 0);
-        Assert((size_type)size <= this->max_size());
+        Assert(size >= 0, "stdb_vector should be constructed with non-negative size");
+        Assert((size_type)size <= this->max_size(), "stdb_vector size should be smaller than max_size");
         if (size > 0) [[likely]] {
             this->allocate((size_type)size);  // NOLINT
             copy_from_iterator(this->_start, first, last);
@@ -612,7 +612,7 @@ class stdb_vector : public core<T>
     constexpr void assign(Iterator first, Iterator last) {
         // int64_t size_to_assign = last - first;
         auto size_to_assign = std::distance(first, last);
-        Assert(size_to_assign >= 0);
+        Assert(size_to_assign >= 0, "stdb_vector should be assigned with non-negative size");
         auto count = (size_type)size_to_assign;  // NOLINT
         if (count > this->capacity()) {
             // if count is larger than current capacity, we need to reallocate memory
@@ -718,22 +718,22 @@ class stdb_vector : public core<T>
     }
 
     [[nodiscard, gnu::always_inline]] constexpr inline auto front() const noexcept -> const_reference {
-        Assert(size() > 0);
+        Assert(size() > 0, "front should not be called with empty vector");
         return *this->_start;
     }
 
     [[nodiscard, gnu::always_inline]] constexpr inline auto front() noexcept -> reference {
-        Assert(size() > 0);
+        Assert(size() > 0, "front should not be called with empty vector");
         return *this->_start;
     }
 
     [[nodiscard, gnu::always_inline]] constexpr inline auto back() const noexcept -> const_reference {
-        Assert(size() > 0);
+        Assert(size() > 0, "back should not be called with empty vector");
         return *(this->_finish - 1);
     }
 
     [[nodiscard, gnu::always_inline]] constexpr inline auto back() noexcept -> reference {
-        Assert(size() > 0);
+        Assert(size() > 0, "back should not be called with empty vector");
         return *(this->_finish - 1);
     }
 
@@ -928,7 +928,7 @@ class stdb_vector : public core<T>
                 this->realloc_and_emplace_back(compute_next_capacity(), std::forward<const_reference>(value));
             }
         } else {
-            Assert(not this->full());
+            Assert(not this->full(), "push_back should not be called with full vector");
             copy_cref(this->_finish++, std::forward<const_reference&>(value));
         }
     }
@@ -943,7 +943,7 @@ class stdb_vector : public core<T>
                 this->realloc_and_emplace_back(compute_next_capacity(), std::forward<rvalue_reference>(value));
             }
         } else {
-            Assert(not this->full());
+            Assert(not this->full(), "push_back should not be called with full vector");
             copy_value(this->_finish++, std::forward<rvalue_reference>(value));
         }
     }
@@ -958,7 +958,7 @@ class stdb_vector : public core<T>
             }
             return iterator{this->_finish - 1};
         } else {
-            Assert(not this->full());
+            Assert(not this->full(), "emplace_back should not be called with full vector");
             this->construct_at(this->_finish++, std::forward<Args>(args)...);
             return iterator{this->_finish - 1};
         }
@@ -970,7 +970,7 @@ class stdb_vector : public core<T>
     }
 
     constexpr auto erase(const_iterator pos) -> iterator {
-        Assert(pos >= cbegin() and pos < cend());
+        Assert(pos >= cbegin() and pos < cend(), "pos should be in [begin(), end())");
 
         auto pos_ptr = get_ptr_from_iter(pos);
         destroy_ptr(pos_ptr);
@@ -980,7 +980,7 @@ class stdb_vector : public core<T>
     }
 
     constexpr auto erase(iterator pos) -> iterator {
-        Assert(pos >= begin() and pos < end());
+        Assert(pos >= begin() and pos < end(), "pos should be in [begin(), end())");
         T* ptr = get_ptr_from_iter(pos);
         destroy_ptr(ptr);
         this->move_forward(ptr, ptr + 1);
@@ -989,8 +989,8 @@ class stdb_vector : public core<T>
     }
 
     constexpr auto erase(const_iterator first, const_iterator last) -> iterator {
-        Assert(first >= cbegin() and last <= cend());
-        Assert(last >= first);
+        Assert(first >= cbegin() and last <= cend(), "first and last should be in [begin(), end())");
+        Assert(last >= first, "last should be larger than first, or the input range is not valid");
         auto first_ptr = get_ptr_from_iter(first);
         auto last_ptr = get_ptr_from_iter(last);
         if (first_ptr != last_ptr) [[likely]] {
@@ -1002,8 +1002,8 @@ class stdb_vector : public core<T>
     }
 
     auto erase(iterator first, iterator last) -> iterator {
-        Assert(first >= begin() and last <= end());
-        Assert(last >= first);
+        Assert(first >= begin() and last <= end(), "first and last should be in [begin(), end())");
+        Assert(last >= first, "last should be larger than first, or the input range is not valid");
 
         T* first_ptr = get_ptr_from_iter(first);
         T* last_ptr = get_ptr_from_iter(last);
@@ -1200,7 +1200,7 @@ class stdb_vector : public core<T>
 
     template <Safety safety = Safety::Safe>
     constexpr auto insert(const_iterator pos, const_reference value) -> iterator {
-        Assert(pos >= cbegin() && pos <= cend());
+        Assert(pos >= cbegin() && pos <= cend(), "pos should be in [begin(), end())");
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
@@ -1209,7 +1209,7 @@ class stdb_vector : public core<T>
                 pos_ptr = this->_start + pos_index;
             }
         }
-        Assert(not this->full());
+        Assert(not this->full(), "insert should not be called with full vector");
         // insert value to the end pos
         if (pos_ptr == this->_finish) [[unlikely]] {
             copy_cref(this->_finish++, value);
@@ -1228,7 +1228,7 @@ class stdb_vector : public core<T>
 
     template <Safety safety = Safety::Safe>
     constexpr auto insert(const_iterator pos, rvalue_reference value) -> iterator {
-        Assert((pos >= cbegin()) && (pos <= cend()));
+        Assert((pos >= cbegin()) && (pos <= cend()), "pos should be in [begin(), end())");
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
             if (this->full()) [[unlikely]] {
@@ -1237,7 +1237,7 @@ class stdb_vector : public core<T>
                 pos_ptr = this->_start + pos_index;
             }
         }
-        Assert(not this->full());
+        Assert(not this->full(), "insert should not be called with full vector, it should be reserve first");
         // insert value to the end pos
         if (pos_ptr == this->_finish) [[unlikely]] {
             copy_value(this->_finish++, std::move(value));
@@ -1256,8 +1256,8 @@ class stdb_vector : public core<T>
 
     template <Safety safety = Safety::Safe>
     constexpr auto insert(const_iterator pos, size_type count, const_reference value) -> iterator {
-        Assert(count > 0);
-        Assert(pos >= cbegin() && pos <= cend());
+        Assert(count > 0, "count should be larger than 0");
+        Assert(pos >= cbegin() && pos <= cend(), "pos should be in [begin(), end())");
         auto size = this->size();
         T* pos_ptr = (T*)get_ptr_from_iter(pos);  // NOLINT
         if constexpr (safety == Safety::Safe) {
@@ -1267,7 +1267,8 @@ class stdb_vector : public core<T>
                 pos_ptr = this->_start + pos_index;
             }
         }
-        Assert((size + count) <= this->capacity());
+        Assert((size + count) <= this->capacity(),
+               "insert should not overflow the vector's cap, the vector should be reserved first");
         // new elements are inserted after the end pos
         if (pos_ptr + count >= this->_finish) {
             this->move_forward(pos_ptr + count, pos_ptr);
@@ -1299,7 +1300,8 @@ class stdb_vector : public core<T>
             }
         }
 
-        Assert((this->size() + size_to_insert) <= this->capacity());
+        Assert((this->size() + size_to_insert) <= this->capacity(),
+               "insert should not overflow the vector's cap, the vector should be reserved first");
         if (pos_ptr + count >= this->_finish) {
             this->move_forward(pos_ptr + count, pos_ptr);
         } else {
@@ -1327,7 +1329,7 @@ class stdb_vector : public core<T>
                 pos_ptr = this->_start + pos_offset;
             }
         }
-        Assert(not this->full());
+        Assert(not this->full(), "emplace should not be called with full vector");
         if (pos_ptr == this->_finish) [[unlikely]] {
             new (this->_finish++) T(std::forward<Args>(args)...);
             return iterator(pos_ptr);
@@ -1349,7 +1351,7 @@ class stdb_vector : public core<T>
                 reserve(compute_next_capacity());
             }
         }
-        Assert(not this->full());
+        Assert(not this->full(), "emplace should not be called with full vector");
         T* pos_ptr = this->_start + pos;
 
         if (pos_ptr == this->_finish) [[unlikely]] {
@@ -1368,7 +1370,7 @@ class stdb_vector : public core<T>
 
    private:
     [[nodiscard, gnu::always_inline]] inline auto compute_new_capacity(size_type new_size) const -> size_type {
-        Assert(new_size > capacity());
+        Assert(new_size > capacity(), "new_size should larger than old cap, or no need to compute new cap");
         if (auto next_capacity = compute_next_capacity(); next_capacity > new_size) {
             return next_capacity;
         }

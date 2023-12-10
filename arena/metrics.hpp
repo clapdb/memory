@@ -50,13 +50,13 @@
                       //
 namespace fmt {
 using std::atomic;
-template<typename T>
-struct formatter<atomic<T>> : formatter<T> {
-
-template<typename FormatContext>
-auto format(const atomic<T>& data, FormatContext& ctx) const noexcept {
-    return formatter<T>::format(data.load(), ctx);
-}
+template <typename T>
+struct formatter<atomic<T>> : formatter<T>
+{
+    template <typename FormatContext>
+    auto format(const atomic<T>& data, FormatContext& ctx) const noexcept {
+        return formatter<T>::format(data.load(), ctx);
+    }
 
 };  // struct formatter
 
