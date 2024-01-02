@@ -77,7 +77,7 @@ class arena_string_core
         Assert(&rhs != this, "arena_string_core copy ctor failed, self copy");
 #if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         auto thread_id = std::this_thread::get_id();
-        Assert(not rhs.cpu_.has_value() or rhs.cpu_.value() == thread_id);
+        Assert(not rhs.cpu_.has_value() or rhs.cpu_.value() == thread_id, "arena_string_core cross thread");
         // thread::id class do not has operator =, so no overwrite occurs in any case.
         if (not rhs.cpu_.has_value()) {
             cpu_ = thread_id;
@@ -133,7 +133,7 @@ class arena_string_core
     ~arena_string_core() noexcept {
 #if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         auto thread_id = std::this_thread::get_id();
-        Assert(not cpu_.has_value() or thread_id == cpu_.value());
+        Assert(not cpu_.has_value() or thread_id == cpu_.value(), "arena_string_core cross thread");
 #endif
         if (category() == Category::isSmall) {
             return;
