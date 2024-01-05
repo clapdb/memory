@@ -37,16 +37,17 @@
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <sstream>
 
 namespace stdb::optparse {
 
-auto trim_string(string input) -> string {
+auto trim_string(std::string_view input) -> string {
     size_t end_pos = input.find_last_not_of(" \t\n\r\f\v");
     size_t start_pos = input.find_first_not_of(" \t\n\r\f\v");
     if (end_pos == string::npos or start_pos == string::npos) {
         return "";
     }
-    return input.substr(start_pos, end_pos - start_pos + 1);
+    return string{input.substr(start_pos, end_pos - start_pos + 1)};
 }
 
 inline auto split(std::string_view str, std::string_view delimiter, bool skip_empty) -> vector<string> {
@@ -595,7 +596,7 @@ auto format_opt_names(const vector<string>& names) -> string {
 }
 
 auto OptionParser::format_help() -> string {
-    std::vector<std::pair<string, string>> line_and_helps;
+    vector<std::pair<string, string>> line_and_helps;
 
     for (auto& opt : _options) {
         string line = fmt::format("{}=<{}>", format_opt_names(opt.names()), opt.type());
