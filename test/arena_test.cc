@@ -239,12 +239,62 @@ TEST_CASE("AlignTest") {
         CHECK_EQ(AlignUpTo<16>(1024), 1024ULL);
     }
 
-    SUBCASE("AlignUpToTest4") {
-        CHECK_EQ(AlignUpTo<4>(15), 16ULL);
-        CHECK_EQ(AlignUpTo<4>(1), 4ULL);
-        CHECK_EQ(AlignUpTo<4>(32), 32ULL);
-        CHECK_EQ(AlignUpTo<4>(255), 256ULL);
-        CHECK_EQ(AlignUpTo<4>(1024), 1024ULL);
+    SUBCASE("AlignUpToTest32") {
+        CHECK_EQ(AlignUpTo<32>(15), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(1), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(31), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(32), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(255), 256ULL);
+        CHECK_EQ(AlignUpTo<32>(1024), 1024ULL);
+    }
+
+    SUBCASE("AlignUpToTest64") {
+        CHECK_EQ(AlignUpTo<64>(15), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(1), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(32), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(63), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(255), 256ULL);
+        CHECK_EQ(AlignUpTo<64>(1024), 1024ULL);
+    }
+
+    SUBCASE("AlignUpToTest128") {
+        CHECK_EQ(AlignUpTo<128>(15), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(1), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(32), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(63), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(255), 256ULL);
+        CHECK_EQ(AlignUpTo<128>(1024), 1024ULL);
+    }
+
+    SUBCASE("AlignUpToTest256") {
+        CHECK_EQ(AlignUpTo<256>(15), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(1), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(32), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(63), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(255), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(1024), 1024ULL);
+        CHECK_EQ(AlignUpTo<256>(4096), 4096ULL);
+    }
+
+    SUBCASE("AlignUpToTest512") {
+        CHECK_EQ(AlignUpTo<512>(15), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(1), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(32), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(63), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(255), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(1024), 1024ULL);
+        CHECK_EQ(AlignUpTo<512>(4096), 4096ULL);
+    }
+
+    SUBCASE("AlignUpToTest4k") {
+        CHECK_EQ(AlignUpTo<4096>(15), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(1), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(32), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(63), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(255), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(1024), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(4096), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(4099), 8192ULL);
     }
 
     // test without on_arena_* trigger
