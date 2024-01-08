@@ -34,22 +34,18 @@
 #include <fmt/format.h>
 
 #include <iterator>
-#include <list>
 #include <map>
 #include <optional>
 #include <set>
-#include <sstream>
 #include <variant>
 
 #include "container/stdb_vector.hpp"
-#include "string/string.hpp"
 
 namespace stdb::optparse {
 
 class Option;
 
-using string = memory::string;
-// using string = std::string;
+using string = std::string;
 
 template <typename T>
 using vector = stdb::container::stdb_vector<T>;
@@ -212,6 +208,12 @@ class Option
 
     [[nodiscard]] inline auto dest() const -> string { return _dest; }
 
+    inline auto default_value(const char* dft) -> Option& {
+        _default = std::string{dft};
+        return *this;
+    }
+
+    // for default_value("asdf")
     inline auto default_value(string dft) -> Option& {
         _default = std::move(dft);
         return *this;
