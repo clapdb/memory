@@ -32,6 +32,7 @@
 #pragma once
 
 #include <iostream>
+#include <memory_resource>
 #include <optional>
 #include <thread>
 
@@ -68,22 +69,43 @@ class arena_string_core
 
    public:
     explicit arena_string_core(const pmr::polymorphic_allocator<Char>& allocator) noexcept : allocator_(allocator) {
+        cpu_ = std::this_thread::get_id();
         reset();
     }
 
     arena_string_core(const Char* str, std::size_t len) : arena_string_core(str, len, pmr::get_default_resource()) {}
 
-    arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
+    arena_string_core(const arena_string_core& rhs)
+#if defined(CROSS_THREAD_CHECKING)
+        : allocator_(std::this_thread::get_id() == rhs.cpu_ ? rhs.allocator_ : pmr::get_default_resource()),
+          cpu_{std::this_thread::get_id()}
+#else
+        : allocator_(rhs.allocator_)
+#endif
+    {
         Assert(&rhs != this, "arena_string_core copy ctor failed, self copy");
-#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
-        auto thread_id = std::this_thread::get_id();
-        Assert(not rhs.cpu_.has_value() or rhs.cpu_.value() == thread_id, "arena_string_core cross thread");
-        // thread::id class do not has operator =, so no overwrite occurs in any case.
-        if (not rhs.cpu_.has_value()) {
-            cpu_ = thread_id;
-            rhs.cpu_ = thread_id;
+
+#if defined(CROSS_THREAD_CHECKING)
+        // deep copy the string if cross thread
+        if (rhs.cpu_ != cpu_) {
+            // copy from arena_string_core(const Char* const data, const size_t size, const
+            // pmr::polymorphic_allocator<Char>& allocator)
+            const auto* data = rhs.data();
+            const auto size = rhs.size();
+            if (size <= maxSmallSize) {
+                initSmall(data, size);
+            } else if (size <= maxMediumSize) {
+                initMedium(data, size);
+            } else {
+                initLarge(data, size);
+            }
+            Assert(this->size() == size, "arena_string_core ctor failed, size not equal");
+            Assert(size == 0 || memcmp(this->data(), data, size * sizeof(Char)) == 0,
+                   "arena_string_core ctor failed, data not equal");
+            return;
         }
 #endif
+
         switch (rhs.category()) {
             case Category::isSmall:
                 copySmall(rhs);
@@ -105,11 +127,35 @@ class arena_string_core
     auto operator=(const arena_string_core& rhs) -> arena_string_core& = delete;
     auto operator=(arena_string_core&&) -> arena_string_core& = delete;
 
-    arena_string_core(arena_string_core&& goner) noexcept : allocator_(std::move(goner.allocator_)) {
-        // move just work same as normal
-#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
-        cpu_ = std::move(goner.cpu_);  // NOLINT
+    arena_string_core(arena_string_core&& goner) noexcept
+#if defined(CROSS_THREAD_CHECKING)
+        : allocator_(std::this_thread::get_id() != goner.cpu_ and goner.isShared() ? pmr::get_default_resource()
+                                                                                   : std::move(goner.allocator_)),
+          cpu_{std::this_thread::get_id()}
+#else
+        : allocator_(std::move(goner.allocator_))
 #endif
+    {
+#if defined(CROSS_THREAD_CHECKING)
+        if (goner.cpu_ != cpu_ and goner.isShared()) {
+            // copy from arena_string_core(const Char* const data, const size_t size, const
+            // pmr::polymorphic_allocator<Char>& allocator)
+            const auto* data = goner.data();
+            const auto size = goner.size();
+            if (size <= maxSmallSize) {
+                initSmall(data, size);
+            } else if (size <= maxMediumSize) {
+                initMedium(data, size);
+            } else {
+                initLarge(data, size);
+            }
+            Assert(this->size() == size, "arena_string_core ctor failed, size not equal");
+            Assert(size == 0 || memcmp(this->data(), data, size * sizeof(Char)) == 0,
+                   "arena_string_core ctor failed, data not equal");
+            return;
+        }
+#endif
+
         // Take goner's guts
         ml_ = goner.ml_;  // NOLINT
         // Clean goner's carcass
@@ -118,6 +164,10 @@ class arena_string_core
 
     arena_string_core(const Char* const data, const size_t size, const pmr::polymorphic_allocator<Char>& allocator)
         : allocator_(allocator) {
+#if defined(CROSS_THREAD_CHECKING)
+        cpu_ = std::this_thread::get_id();
+#endif
+
         if (size <= maxSmallSize) {
             initSmall(data, size);
         } else if (size <= maxMediumSize) {
@@ -133,7 +183,7 @@ class arena_string_core
     ~arena_string_core() noexcept {
 #if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         auto thread_id = std::this_thread::get_id();
-        Assert(not cpu_.has_value() or thread_id == cpu_.value(), "arena_string_core cross thread");
+        Assert(thread_id == cpu_, "arena_string_core cross thread");
 #endif
         if (category() == Category::isSmall) {
             return;
@@ -149,7 +199,7 @@ class arena_string_core
         auto const t = ml_;  // NOLINT
         ml_ = rhs.ml_;       // NOLINT
         rhs.ml_ = t;         // NOLINT
-#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
+#if defined(CROSS_THREAD_CHECKING)
         std::swap(cpu_, rhs.cpu_);
 #endif
     }
@@ -434,8 +484,8 @@ class arena_string_core
     };
 
 // thread_id for contention checking in debug mode
-#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
-    mutable std::optional<std::thread::id> cpu_ = std::nullopt;
+#if defined(CROSS_THREAD_CHECKING)
+    mutable std::thread::id cpu_;
 #endif
 
     constexpr static size_t lastChar = sizeof(MediumLarge) - 1;
@@ -548,9 +598,9 @@ void arena_string_core<Char>::copyLarge(const arena_string_core& rhs) {
 template <class Char>
 inline void arena_string_core<Char>::initSmall(const Char* const data, const size_t size) {
 // Layout is: Char* data_, size_t size_, size_t capacity_
-#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
+#if defined(CROSS_THREAD_CHECKING)
     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>) +
-                                     sizeof(std::optional<std::thread::id>),
+                                     sizeof(std::thread::id),
                   "string has unexpected size");
 #else
     static_assert(sizeof(*this) == sizeof(Char*) + 2 * sizeof(size_t) + sizeof(pmr::polymorphic_allocator<Char>),
@@ -793,8 +843,8 @@ inline void arena_string_core<Char>::shrinkLarge(const size_t delta) {
     }
     // No need to write the terminator.
 }
-#if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
-static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t) + sizeof(std::optional<std::thread::id>));
+#if defined(CROSS_THREAD_CHECKING)
+static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t) + sizeof(std::thread::id));
 #else
 static_assert(sizeof(arena_string_core<char>) == 4 * sizeof(uint64_t));
 #endif
