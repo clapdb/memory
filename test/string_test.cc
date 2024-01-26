@@ -3341,6 +3341,10 @@ TEST_CASE("string::clone-then-move") {
     }
 }
 
+TEST_CASE("arena-string::dstr") {
+    arena_string str {"123122222222222222222222222222222224231423143214213415125345342634262346236236236326236326236236423462346263263236262626236234623463246262623626262364326236236236236"};
+}
+
 // uncomment this case will cause assert failure and crash.
 /*
 TEST_CASE("string::cross_cpu_check") {
