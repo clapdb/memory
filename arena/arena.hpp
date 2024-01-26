@@ -48,6 +48,7 @@
 #include <unordered_map>  // for polymorphic_allocator
 #include <utility>        // for exchange, forward
 #include <variant>
+#include <vector>
 
 #include "align/align.hpp"  // for AlignUpTo
 #include "arenahelper.hpp"  // for ArenaHelper
@@ -363,6 +364,8 @@ class Arena
         }
         // free memory_resource first
         delete _resource;
+
+        for (auto* ptr : _cached_ptrs) free(ptr);
     }
 
     /*
@@ -652,6 +655,8 @@ class Arena
     void* _cookie;
 
     uint64_t _space_allocated;
+
+    std::vector<void*> _cached_ptrs{};
 
     static constexpr uint64_t kThresholdHuge = 4;
 

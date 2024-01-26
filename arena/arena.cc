@@ -126,6 +126,10 @@ void Arena::Block::Reset() noexcept {
  * if return nullptr means failure
  */
 auto Arena::allocateAligned(uint64_t bytes) noexcept -> char* {
+    auto* ptr = std::malloc(bytes);
+    _cached_ptrs.push_back(ptr);
+    return reinterpret_cast<char*>(ptr);
+
     uint64_t needed = align_size(bytes);
     if (need_create_new_block(needed)) [[unlikely]] {
         Block* curr = newBlock(needed, _last_block);
