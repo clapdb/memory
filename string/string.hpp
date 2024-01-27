@@ -1607,7 +1607,7 @@ class basic_string
     }
 
     [[nodiscard]] auto contains(std::basic_string_view<value_type> str) const noexcept -> bool {
-        return find(str) != basic_string::npos;
+        return find(str.data()) != basic_string::npos;
     }
 
     [[nodiscard]] auto contains(const basic_string& str) const noexcept -> bool {
