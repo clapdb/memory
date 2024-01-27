@@ -33,6 +33,7 @@
 
 #include <iostream>
 #include <optional>
+#include <stdexcept>
 #include <thread>
 
 #include "arena/arenahelper.hpp"
@@ -74,7 +75,14 @@ class arena_string_core
     friend class basic_string;
 
    public:
-    explicit arena_string_core(const pmr::polymorphic_allocator<Char>& allocator) noexcept : allocator_(allocator) {
+    explicit arena_string_core(const pmr::polymorphic_allocator<Char>& allocator) : allocator_(allocator) {
+#ifndef NDEBUG
+        if (allocator_ == pmr::polymorphic_allocator<Char>()) {
+            std::cerr << "###### Warning: arena_string with default polymorphic_allocator! ######" << std::endl;
+            throw std::logic_error("###### arena_string with default polymorphic_allocator! ######");
+        }
+#endif
+
 #if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         cpu_ = std::this_thread::get_id();
 #endif
@@ -82,7 +90,10 @@ class arena_string_core
         reset();
     }
 
-    arena_string_core(const Char* str, std::size_t len) : arena_string_core(str, len, pmr::get_default_resource()) {}
+    arena_string_core(const Char* str, std::size_t len) : arena_string_core(str, len, pmr::get_default_resource()) {
+        std::cerr << "###### Warning: arena_string cstr just with str and len, but no allocator! ######" << std::endl;
+        throw std::logic_error("###### arena_string cstr just with str and len, but no allocator! ######");
+    }
 
     arena_string_core(const arena_string_core& rhs) : allocator_(rhs.allocator_) {
         Assert(&rhs != this, "arena_string_core copy ctor failed, self copy");
@@ -130,6 +141,12 @@ class arena_string_core
 
     arena_string_core(const Char* const data, const size_t size, const pmr::polymorphic_allocator<Char>& allocator)
         : allocator_(allocator) {
+#ifndef NDEBUG
+        if (allocator_ == pmr::polymorphic_allocator<Char>()) {
+            std::cerr << "###### Warning: arena_string(ptr, size, allocator) with default polymorphic_allocator! ######" << std::endl;
+            throw std::logic_error("###### arena_string(ptr, size, allocator) with default polymorphic_allocator! ######");
+        }
+#endif
 #if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         cpu_ = std::this_thread::get_id();
 #endif

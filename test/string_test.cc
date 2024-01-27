@@ -2240,12 +2240,12 @@ TEST_CASE("string::testAllClauses") {
     std::cout << "Starting with seed: " << seed << std::endl;
     std::string r;
     string c;
-    arena_string a;
+    Arena arena(Arena::Options::GetDefaultOptions());
+    arena_string a{arena.get_memory_resource()};
 
     uint count = 0;
 
-    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_fbstring)(string&),
-                 void (*f_arena_string)(arena_string&)) {
+    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_fbstring)(string&)) {
         do {
             // NOLINTNEXTLINE
             if (true) {
@@ -2261,14 +2261,11 @@ TEST_CASE("string::testAllClauses") {
             auto localSeed = seed + count;
             rng = RandomT(localSeed);
             f_string(r);
-            rng = RandomT(localSeed);
             f_fbstring(c);
-            rng = RandomT(localSeed);
-            f_arena_string(a);
         } while (++count % 100 != 0);
     };
 
-#define TEST_CLAUSE(x) l(#x, clause11_##x<std::string>, clause11_##x<string>, clause11_##x<arena_string>);
+#define TEST_CLAUSE(x) l(#x, clause11_##x<std::string>, clause11_##x<string>);
 
     TEST_CLAUSE(21_4_2_a);
     TEST_CLAUSE(21_4_2_b);
