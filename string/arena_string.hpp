@@ -99,7 +99,10 @@ class arena_string_core
         Assert(&rhs != this, "arena_string_core copy ctor failed, self copy");
 #if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
         auto thread_id = std::this_thread::get_id();
-        Assert(rhs.cpu_ == thread_id, "arena_string_core cross thread");
+        if (rhs.cpu_ != thread_id) {
+            std::cerr << "###### Warning: arena_string_core cross thread ######" << std::endl;
+            throw std::logic_error("###### Warning: arena_string_core cross thread ######");
+        }
         // thread::id class do not has operator =, so no overwrite occurs in any case.
         cpu_ = thread_id;
 
