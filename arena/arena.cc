@@ -125,8 +125,8 @@ void Arena::Block::Reset() noexcept {
  * allocate a piece of memory that aligned.
  * if return nullptr means failure
  */
-auto Arena::allocateAligned(uint64_t bytes) noexcept -> char* {
-    uint64_t needed = align_size(bytes);
+auto Arena::allocateAligned(uint64_t bytes, uint64_t alignment) noexcept -> char* {
+    uint64_t needed = align_size(bytes, alignment);
     if (need_create_new_block(needed)) [[unlikely]] {
         Block* curr = newBlock(needed, _last_block);
         if (curr != nullptr) [[likely]] {
@@ -135,10 +135,10 @@ auto Arena::allocateAligned(uint64_t bytes) noexcept -> char* {
             return nullptr;
         }
     }
-    char* result = _last_block->alloc(needed);
+    char* result = _last_block->alloc(needed, alignment);
     // re make sure aligned in debug model
-    Assert((reinterpret_cast<uint64_t>(result) & kByteSizeMask) == 0,
-           "alloc result should aligned kByteSize");  // NOLINT
+    Assert((reinterpret_cast<uint64_t>(result) & (alignment - 1)) == 0,
+           "alloc result should aligned");  // NOLINT
     return result;
 }
 

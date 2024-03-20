@@ -76,9 +76,15 @@ struct CleanupNode
     void (*cleanup)(void*);
 };
 
-inline constexpr uint64_t kByteSize = 8;
-inline constexpr uint64_t kByteSizeMask = kByteSize - 1;
-static constexpr uint64_t kCleanupNodeSize = AlignUpTo<kByteSize>(sizeof(memory::CleanupNode));
+inline constexpr uint64_t kMinAlignBytes = 8;
+inline constexpr uint64_t kMidAlignBytes = 16;
+inline constexpr uint64_t kMaxAlignBytes = 32;
+static constexpr uint64_t kCleanupNodeSize = AlignUpTo<kMinAlignBytes>(sizeof(memory::CleanupNode));
+
+/**
+ * @brief aligned alloc with kMaxAlignBytes
+ */
+static auto aligned_alloc(std::size_t size) -> void* { return std::aligned_alloc(kMaxAlignBytes, size); }
 
 /*
  * destructor closure of type T
@@ -222,7 +228,7 @@ class Arena
               .normal_block_size = 4 * kKiloByte,
               .huge_block_size = 2 * kMegaByte,
               .suggested_init_block_size = 4 * kKiloByte,
-              .block_alloc = &std::malloc,
+              .block_alloc = &aligned_alloc,
               .block_dealloc = &std::free,
               .logger_func = &default_logger_func,
             };
@@ -249,11 +255,17 @@ class Arena
             return reinterpret_cast<char*>(this) + _limit;  // NOLINT
         }
 
-        auto alloc(uint64_t size) noexcept -> char* {
+        auto alloc(uint64_t size, uint64_t alignment = kMinAlignBytes) noexcept -> char* {
             Assert(size <= (_limit - _pos), "Block::alloc should make sure size < block's rest space");  // NOLINT
+
+            Assert(reinterpret_cast<uint64_t>(this) % kMaxAlignBytes == 0, "the block must be aligned with 32 bytes");
+
+            // re align the _pos with alignment
+            _pos = align_size(_pos, alignment);
+
             char* ptr = Pos();
             _pos += size;
-            return ptr;
+            return ptr;  // NOLINT
         }
 
         [[gnu::always_inline]] inline auto alloc_cleanup() noexcept -> char* {
@@ -315,8 +327,9 @@ class Arena
         [[nodiscard]] auto get_arena() const -> Arena* { return _arena; }
 
        protected:
-        auto do_allocate(size_t bytes, size_t /* alignment */) noexcept -> void* override {
-            return reinterpret_cast<char*>(_arena->allocateAligned(bytes));
+        auto do_allocate(size_t bytes, size_t alignment) noexcept -> void* override {
+            auto new_alignment = std::max(kMinAlignBytes, alignment);
+            return reinterpret_cast<char*>(_arena->allocateAligned(bytes, new_alignment));
         }
 
         void do_deallocate([[maybe_unused]] void* /*unused*/, [[maybe_unused]] size_t /*unused*/,
@@ -546,13 +559,16 @@ class Arena
     /*
      * internal allocate aligned impl.
      */
-    auto allocateAligned(uint64_t) noexcept -> char*;
+    auto allocateAligned(uint64_t bytes, uint64_t alignment = kMinAlignBytes) noexcept -> char*;
 
     /*
      * check if needed a new block
      */
-    [[nodiscard, gnu::always_inline]] inline auto need_create_new_block(uint64_t need_bytes) noexcept -> bool {
-        return (_last_block == nullptr) || (need_bytes > _last_block->remain());
+    [[nodiscard, gnu::always_inline]] inline auto need_create_new_block(uint64_t need_bytes,
+                                                                        uint64_t alignment = kMinAlignBytes) noexcept
+      -> bool {
+        return (_last_block == nullptr) ||
+               (need_bytes > _last_block->remain() - (align_size(_last_block->pos(), alignment) - _last_block->pos()));
     }
 
     /*
@@ -574,8 +590,11 @@ class Arena
     /*
      * a thin wrapper for AlignUpTo
      */
-    [[nodiscard, gnu::always_inline]] static inline auto align_size(uint64_t n) noexcept -> uint64_t {
-        return AlignUpTo<kByteSize>(n);
+    [[nodiscard, gnu::always_inline]] static inline auto align_size(uint64_t bytes, uint64_t alignment) noexcept
+      -> uint64_t {
+        Assert(alignment == kMinAlignBytes or alignment == kMidAlignBytes or alignment == kMaxAlignBytes,
+               "alignment must be 8/16/32");
+        return (bytes + alignment - 1) & static_cast<uint64_t>(-alignment);
     }
 
     template <typename T>
@@ -676,6 +695,8 @@ class Arena
 };  // class Arena
 
 // the size of the Block's header.
-static constexpr uint64_t kBlockHeaderSize = AlignUpTo<kByteSize>(sizeof(memory::Arena::Block));
+static constexpr uint64_t kBlockHeaderSize = AlignUpTo<kMinAlignBytes>(sizeof(memory::Arena::Block));
+static_assert(kBlockHeaderSize % kMaxAlignBytes == 0,
+              "block header is not align to max align bytes, Block::alloc should be adjusted");
 
 }  // namespace stdb::memory
