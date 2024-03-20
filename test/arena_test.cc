@@ -39,6 +39,8 @@
 #include <string>    // for string, operator==, basic_string
 #include <typeinfo>  // for type_info
 #include <vector>    // for vector, vector<>::allocator_type
+
+#include "align/align.hpp"
 #ifndef _MULTI_THREAD_TEST_
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #endif
@@ -709,7 +711,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.CreateTest") {
     CHECK(r != nullptr);
     CHECK_EQ(1, a->cleanups());  // mock_struct will not be register to cleanup
     auto r2 = ah.last_block()->remain();
-    CHECK_EQ(r1 - r2, sizeof(mock_struct));
+    CHECK_EQ(r1 - r2, AlignUpTo<16>(sizeof(mock_struct)));
 
     // auto pass Arena*
     (void)a->Create<mock_class_with_arena>();
@@ -810,7 +812,7 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.RemainsTest") {
     auto* next_ptr = x->AllocateAligned(755);
     CHECK_EQ(next_ptr, static_cast<char*>(mock->ptrs.back()) + sizeof(Arena::Block));
 
-    CHECK_EQ(x->SpaceRemains(), 1024ULL - kBlockHeaderSize - 760);
+    CHECK_EQ(x->SpaceRemains(), 1024ULL - kBlockHeaderSize - 768);
     CHECK_EQ(xh.last_block(), mock->ptrs.back());
 
     delete x;
@@ -1114,11 +1116,11 @@ TEST_CASE_FIXTURE(ArenaTest, "ArenaTest.AllocatorAwareTest") {
         // EXPECT_CALL(*mock, dealloc(std::data(mem))).Times(1);
 
         foo.vec_.resize(2);
-        CHECK_EQ(256 - 8 - kBlockHeaderSize, ah.last_block()->remain());
+        CHECK_EQ(256 - 16 - kBlockHeaderSize, ah.last_block()->remain());
         foo.vec_.resize(1);
-        CHECK_EQ(256 - 8 - kBlockHeaderSize, ah.last_block()->remain());
+        CHECK_EQ(256 - 16 - kBlockHeaderSize, ah.last_block()->remain());
         foo.vec_.resize(4);
-        CHECK_EQ(256 - 8 - 16 - kBlockHeaderSize, ah.last_block()->remain());
+        CHECK_EQ(256 - 16 - 16 - kBlockHeaderSize, ah.last_block()->remain());
 
         delete arena;
         CHECK_EQ(mock->ptrs.size(), 1);

@@ -76,7 +76,7 @@ struct CleanupNode
     void (*cleanup)(void*);
 };
 
-inline constexpr uint64_t kByteSize = 8;
+inline constexpr uint64_t kByteSize = 16;
 inline constexpr uint64_t kByteSizeMask = kByteSize - 1;
 static constexpr uint64_t kCleanupNodeSize = AlignUpTo<kByteSize>(sizeof(memory::CleanupNode));
 
