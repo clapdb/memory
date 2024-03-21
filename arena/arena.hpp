@@ -253,7 +253,7 @@ class Arena
          * @return char* as the new memory address.
          */
         auto alloc(uint64_t size, uint64_t alignment = kByteSize) noexcept -> char* {
-            Assert(size <= (_limit - _pos), "Block::alloc should make sure size < block's rest space");  // NOLINT
+            Assert(has_enough_space(alignment, size), "Block::alloc should make sure has enough space to alloc");  // NOLINT
             char* ptr = Pos();
             auto [aligned_ptr, alignment_waste] = AlignPos(ptr, alignment);
             _pos += (size + alignment_waste);
@@ -562,7 +562,7 @@ class Arena
      */
     [[nodiscard, gnu::always_inline]] inline auto need_create_new_block(uint64_t need_bytes,
                                                                         uint64_t alignment) noexcept -> bool {
-        return (_last_block == nullptr) || _last_block->has_enough_space(alignment, need_bytes);
+        return (_last_block == nullptr) || not _last_block->has_enough_space(alignment, need_bytes);
     }
 
     /*
