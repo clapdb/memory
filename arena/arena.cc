@@ -44,6 +44,17 @@ using stdb::memory::Arena;
  */
 Arena::Block::Block(uint64_t size, Block* prev) : _prev(prev), _pos(kBlockHeaderSize), _size(size), _limit(size) {}
 
+auto Arena::Block::AlignPos(char* ptr, uint64_t alignment) noexcept -> Arena::Block::Alignment {
+    Assert(alignment >= kByteSize, "AlignPos need alignment >= 8");     // NOLINT
+    Assert(alignment <= kInt256Size, "AlignPos need alignment <= 32");  // NOLINT
+    // if aligment == 9, this function is useless, but if is expensive, just do the calculation below.
+    auto ptr_as_int = reinterpret_cast<uint64_t>(ptr);
+    auto reminder = ptr_as_int % alignment;
+    // auto forward = (reminder == 0) ? 0 : (alignment - reminder);
+    // remove if in below code
+    auto forward = alignment * uint64_t(bool(reminder)) - reminder;
+    return {ptr + forward, forward};  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+}
 /*
  * will generate a new Block with a good size.
  */
@@ -125,9 +136,9 @@ void Arena::Block::Reset() noexcept {
  * allocate a piece of memory that aligned.
  * if return nullptr means failure
  */
-auto Arena::allocateAligned(uint64_t bytes) noexcept -> char* {
+auto Arena::allocateAligned(uint64_t bytes, uint64_t alignment) noexcept -> char* {
     uint64_t needed = align_size(bytes);
-    if (need_create_new_block(needed)) [[unlikely]] {
+    if (need_create_new_block(needed, alignment)) [[unlikely]] {
         Block* curr = newBlock(needed, _last_block);
         if (curr != nullptr) [[likely]] {
             _last_block = curr;
@@ -135,7 +146,7 @@ auto Arena::allocateAligned(uint64_t bytes) noexcept -> char* {
             return nullptr;
         }
     }
-    char* result = _last_block->alloc(needed);
+    char* result = _last_block->alloc(needed, alignment);
     // re make sure aligned in debug model
     Assert((reinterpret_cast<uint64_t>(result) & kByteSizeMask) == 0,
            "alloc result should aligned kByteSize");  // NOLINT

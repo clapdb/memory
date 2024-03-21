@@ -42,6 +42,8 @@
 #ifndef _MULTI_THREAD_TEST_
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #endif
+#include <immintrin.h>
+
 #include "arena/arenahelper.hpp"  // for ArenaFullManagedTag, ArenaManagedCr...
 #include "doctest/doctest.h"      // for binary_assert, CHECK_EQ, TestCase
 #include "string/string.hpp"
@@ -1327,5 +1329,46 @@ TEST_CASE("ArenaTest.MoveAssignmentTest") {
     (void)*obj_a1;
 }
  */
+struct int256_t
+{
+    __m256i val;
+};
+
+using int128_t = __int128_t;
+#define TYPES int8_t, int16_t, int32_t, int64_t, int128_t, int256_t
+
+/**
+ * @brief test memory_resource::do_allocate alignment
+ * @warning make sure the sanitizer don't generate any error
+ */
+TEST_CASE_TEMPLATE("arena::pmr", T, TYPES) {
+    Arena arena{Arena::Options::GetDefaultOptions()};
+
+    {
+        auto* resource = arena.get_memory_resource();
+        pmr::vector<T> vec(resource);
+        vec.reserve(128);
+    }
+
+    // align 8 bytes
+    (void)arena.Create<bool>(false);
+
+    auto* resource = arena.get_memory_resource();
+    pmr::vector<T> vec(resource);
+    vec.reserve(3);
+
+    vec.emplace_back();
+    vec.emplace_back();
+    vec.emplace_back();
+
+    // access the vector to check alignment
+    for (const auto val : vec) {
+        if constexpr (std::is_same_v<T, __m256i>) {
+            fmt::print("=== val : {}\n", val);
+        } else {
+            fmt::print("=== val : {}\n", sizeof(val));
+        }
+    }
+}
 
 }  // namespace stdb::memory
