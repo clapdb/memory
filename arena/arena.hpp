@@ -37,6 +37,7 @@
 #include <boost/assert/source_location.hpp>
 #include <boost/core/demangle.hpp>  // for demangle
 #include <concepts>
+#include <cstdint>
 #include <cstdlib>        // for free, malloc, size_t
 #include <exception>      // for type_info
 #include <iostream>       // for endl, basic_ostream, cerr
@@ -77,6 +78,7 @@ struct CleanupNode
 };
 
 inline constexpr uint64_t kByteSize = 8;
+inline constexpr uint64_t kInt256Size = 32;
 inline constexpr uint64_t kByteSizeMask = kByteSize - 1;
 static constexpr uint64_t kCleanupNodeSize = AlignUpTo<kByteSize>(sizeof(memory::CleanupNode));
 
@@ -159,20 +161,6 @@ class Arena
           _cookie(std::exchange(other._cookie, nullptr)),
           _space_allocated(std::exchange(other._space_allocated, 0)) {}
     auto operator=(Arena&&) noexcept -> Arena& = delete;
-    /*
-    [[gnu::always_inline]] auto operator=(Arena&& other) noexcept -> Arena& {
-        if (this == &other) [[unlikely]] {
-            return *this;
-        }
-        this->~Arena();
-        _options = other._options;
-        _last_block = std::exchange(other._last_block, nullptr);
-        _resource = std::exchange(other._resource, nullptr);
-        _cookie = std::exchange(other._cookie, nullptr);
-        _space_allocated = std::exchange(other._space_allocated, 0);
-        return *this;
-    }
-    */
 
     /*
      * Arena Options class for the Arena class' configuration.
@@ -236,6 +224,12 @@ class Arena
      */
     class Block
     {
+        struct Alignment
+        {
+            char* ptr;
+            uint64_t alignment_waste;
+        };
+
        public:
         Block(uint64_t size, Block* prev);
 
@@ -244,16 +238,26 @@ class Arena
         // NOLINTNEXTLINE
         [[gnu::always_inline]] inline auto Pos() noexcept -> char* { return reinterpret_cast<char*>(this) + _pos; }
 
+        static auto AlignPos(char* ptr, uint64_t alignment) noexcept -> Alignment;
+
         // NOLINTNEXTLINE
         [[gnu::always_inline]] inline auto CleanupPos() noexcept -> char* {
             return reinterpret_cast<char*>(this) + _limit;  // NOLINT
         }
 
-        auto alloc(uint64_t size) noexcept -> char* {
+        /**
+         * @brief alloc the memory in the block.
+         * @notice alloc will not promise the Block has enough space for the alloc
+         * @param size, aligned to 8 in outter function.
+         * @param alignment
+         * @return char* as the new memory address.
+         */
+        auto alloc(uint64_t size, uint64_t alignment = kByteSize) noexcept -> char* {
             Assert(size <= (_limit - _pos), "Block::alloc should make sure size < block's rest space");  // NOLINT
             char* ptr = Pos();
-            _pos += size;
-            return ptr;
+            auto [aligned_ptr, alignment_waste] = AlignPos(ptr, alignment);
+            _pos += (size + alignment_waste);
+            return aligned_ptr;
         }
 
         [[gnu::always_inline]] inline auto alloc_cleanup() noexcept -> char* {
@@ -279,6 +283,11 @@ class Arena
         [[nodiscard, gnu::always_inline]] inline auto remain() const noexcept -> uint64_t {
             Assert(_limit >= _pos, "remain should be ge than 0");  // NOLINT
             return _limit - _pos;
+        }
+
+        [[nodiscard, gnu::always_inline]] inline auto has_enough_space(uint64_t alignment, uint64_t size) -> bool {
+            auto [_, alignment_waste] = AlignPos(Pos(), alignment);
+            return _pos + alignment_waste + align_size(size) <= _limit;
         }
 
         void run_cleanups() noexcept {
@@ -315,8 +324,8 @@ class Arena
         [[nodiscard]] auto get_arena() const -> Arena* { return _arena; }
 
        protected:
-        auto do_allocate(size_t bytes, size_t /* alignment */) noexcept -> void* override {
-            return reinterpret_cast<char*>(_arena->allocateAligned(bytes));
+        auto do_allocate(size_t bytes, size_t alignment) noexcept -> void* override {
+            return reinterpret_cast<char*>(_arena->allocateAligned(bytes, std::max(kByteSize, alignment)));
         }
 
         void do_deallocate([[maybe_unused]] void* /*unused*/, [[maybe_unused]] size_t /*unused*/,
@@ -467,8 +476,8 @@ class Arena
      * return nullptr means failure
      * this function is used for replacement of std::malloc.
      */
-    [[nodiscard]] auto AllocateAligned(uint64_t bytes) noexcept -> char* {
-        if (char* ptr = allocateAligned(bytes); ptr != nullptr) [[likely]] {
+    [[nodiscard]] auto AllocateAligned(uint64_t bytes, uint64_t alignment = kByteSize) noexcept -> char* {
+        if (char* ptr = allocateAligned(bytes, alignment); ptr != nullptr) [[likely]] {
             if (_options.on_arena_allocation != nullptr) [[likely]] {
                 _options.on_arena_allocation(nullptr, bytes, _cookie);
             }
@@ -546,20 +555,21 @@ class Arena
     /*
      * internal allocate aligned impl.
      */
-    auto allocateAligned(uint64_t) noexcept -> char*;
+    auto allocateAligned(uint64_t bytes, uint64_t alignment = kByteSize) noexcept -> char*;
 
     /*
      * check if needed a new block
      */
-    [[nodiscard, gnu::always_inline]] inline auto need_create_new_block(uint64_t need_bytes) noexcept -> bool {
-        return (_last_block == nullptr) || (need_bytes > _last_block->remain());
+    [[nodiscard, gnu::always_inline]] inline auto need_create_new_block(uint64_t need_bytes,
+                                                                        uint64_t alignment) noexcept -> bool {
+        return (_last_block == nullptr) || _last_block->has_enough_space(alignment, need_bytes);
     }
 
     /*
      * add A Cleanup node to current block.
      */
     [[nodiscard]] auto addCleanup(void* obj, void (*cleanup)(void*)) noexcept -> bool {
-        if (need_create_new_block(kCleanupNodeSize)) [[unlikely]] {
+        if (need_create_new_block(kCleanupNodeSize, kByteSize)) [[unlikely]] {
             Block* curr = newBlock(kCleanupNodeSize, _last_block);
             if (curr != nullptr) {
                 _last_block = curr;

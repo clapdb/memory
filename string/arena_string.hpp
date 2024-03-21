@@ -47,12 +47,12 @@ inline auto arena_smartRealloc(pmr::polymorphic_allocator<Char>& allocator, void
     Assert(ptr, "arena_smartRealloc: origin source ptr is nullptr");
     Assert(currentSize <= currentCapacity && currentCapacity < newCapacity, "arena_smartRealloc: invalid capacity");
 
-    #ifndef NDEBUG
+#ifndef NDEBUG
     if (allocator == pmr::polymorphic_allocator<Char>()) {
         throw std::logic_error("######## arena_smartRealloc: use default polymorphic_allocator ########");
     }
 
-    #endif
+#endif
 
     // arena do not support realloc, just allocate, and memcpy.
     if (auto* const result = allocator.allocate(newCapacity); result != nullptr) [[likely]] {
@@ -146,8 +146,10 @@ class arena_string_core
         : allocator_(allocator) {
 #ifndef NDEBUG
         if (allocator_ == pmr::polymorphic_allocator<Char>()) {
-            std::cerr << "###### Warning: arena_string(ptr, size, allocator) with default polymorphic_allocator! ######" << std::endl;
-            throw std::logic_error("###### arena_string(ptr, size, allocator) with default polymorphic_allocator! ######");
+            std::cerr << "###### Warning: arena_string(ptr, size, allocator) with default polymorphic_allocator! ######"
+                      << std::endl;
+            throw std::logic_error(
+              "###### arena_string(ptr, size, allocator) with default polymorphic_allocator! ######");
         }
 #endif
 #if not defined(NDEBUG) && defined(CROSS_THREAD_CHECKING)
@@ -367,19 +369,19 @@ class arena_string_core
         }
 
         static auto create(pmr::polymorphic_allocator<Char>& allocator, size_t* size) -> RefCounted* {
-            /*
-            size_t capacityBytes = 0;
-            if (!checked_add(&capacityBytes, *size, static_cast<size_t>(1))) {
-                throw(std::length_error(""));
-            }
-            if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset())) {
-                throw(std::length_error(""));
-            }*/
-            #ifndef NDEBUG
+/*
+size_t capacityBytes = 0;
+if (!checked_add(&capacityBytes, *size, static_cast<size_t>(1))) {
+    throw(std::length_error(""));
+}
+if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset())) {
+    throw(std::length_error(""));
+}*/
+#ifndef NDEBUG
             if (allocator == pmr::polymorphic_allocator<Char>()) {
                 throw std::logic_error("######## RefCounted::create: use default polymorphic_allocator ########");
             }
-            #endif
+#endif
 
             ::size_t capacityBytes = calc_large_by_size(*size, getDataOffset());
             //            const size_t allocSize = goodMallocSize(capacityBytes);
@@ -492,11 +494,11 @@ class arena_string_core
 
     // this function exist because for throwing bad_alloc, make arena act as std::allocator.
     [[nodiscard, gnu::always_inline]] auto alloc(::size_t size) -> void* {
-        #ifndef NDEBUG
+#ifndef NDEBUG
         if (allocator_ == pmr::polymorphic_allocator<Char>()) {
             throw std::logic_error("######## arena_string_core::alloc: use default polymorphic_allocator ########");
         }
-        #endif
+#endif
 
         if (auto* rst = allocator_.allocate(size); rst != nullptr) [[likely]] {
             return rst;
