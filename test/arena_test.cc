@@ -1332,8 +1332,7 @@ TEST_CASE("ArenaTest.MoveAssignmentTest") {
  */
 
 using int128_t = __int128_t;
-using int256_t = __m256i;
-#define TYPES int8_t, int16_t, int32_t, int64_t, int128_t, int256_t
+#define TYPES int8_t, int16_t, int32_t, int64_t, int128_t, __m256i
 
 /**
  * @brief test memory_resource::do_allocate alignment
@@ -1361,7 +1360,7 @@ TEST_CASE_TEMPLATE("arena::pmr", T, TYPES) {
 
     // access the vector to check alignment
     for (const auto val : vec) {
-        if constexpr (std::is_same_v<T, int256_t>) {
+        if constexpr (std::is_same_v<T, __m256i>) {
             fmt::print("=== ignore int256\n");
         } else {
             fmt::print("=== {}\n", val);
