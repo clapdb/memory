@@ -1363,11 +1363,7 @@ TEST_CASE_TEMPLATE("arena::pmr", T, TYPES) {
 
     // access the vector to check alignment
     for (const auto val : vec) {
-        if constexpr (std::is_same_v<T, __m256i>) {
-            fmt::print("=== val : {}\n", val);
-        } else {
-            fmt::print("=== val : {}\n", sizeof(val));
-        }
+        fmt::print("=== val : {}\n", sizeof(val));
     }
 }
 

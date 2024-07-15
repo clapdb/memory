@@ -833,6 +833,8 @@ class stdb_vector : public core<T>
             return IteratorT{rhs._ptr + offset};
         }
 
+        friend auto iter_swap(const IteratorT& lhs, const IteratorT& rhs) noexcept -> void { std::iter_swap(lhs, rhs); }
+
     };  // class IteratorT
     using iterator = IteratorT<false>;
     using Iterator = IteratorT<false>;
@@ -1313,8 +1315,8 @@ class stdb_vector : public core<T>
     }
 
     template <Safety safety = Safety::Safe>
-    [[gnu::always_inline]] constexpr inline auto insert(const_iterator pos, std::initializer_list<T> ilist)
-      -> iterator {
+    [[gnu::always_inline]] constexpr inline auto insert(const_iterator pos,
+                                                        std::initializer_list<T> ilist) -> iterator {
         return insert<safety>(pos, ilist.begin(), ilist.end());
     }
 
