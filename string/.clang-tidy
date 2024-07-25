@@ -179,7 +179,6 @@ Checks: '-*,
   llvm-namespace-comment'
 WarningsAsErrors: '*'
 HeaderFilterRegex: '^?!(.*build.*|.*test.*|.*CMake.*|.*thirdparty.*)$'
-AnalyzeTemporaryDtors: false
 FormatStyle:    file
 CheckOptions:
   - key:             cert-dcl16-c.NewSuffixes
