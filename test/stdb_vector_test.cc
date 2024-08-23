@@ -213,6 +213,25 @@ TEST_CASE("Hilbert::stdb_vector::int") {
         }
     }
 
+    SUBCASE("assign vector with different type") {
+        stdb_vector<uint16_t> vec;
+        std::vector<uint32_t> input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+        vec.assign(input.begin(), input.end());
+        CHECK_EQ(vec.size(), input.size());
+        CHECK_EQ(vec.capacity(), input.size());
+        for (std::size_t i = 0; i < vec.size(); i++) {
+            CHECK_EQ(vec[i], input[i]);
+            CHECK_EQ(vec.at(i), input.at(i));
+        }
+        auto vec_iter = vec.begin();
+        auto input_iter = input.begin();
+        while (vec_iter != vec.end()) {
+            CHECK_EQ(*vec_iter, *input_iter);
+            ++vec_iter;
+            ++input_iter;
+        }
+    }
+
     SUBCASE("assign vector with initializer list") {
         stdb_vector<int> vec;
         vec.assign({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});

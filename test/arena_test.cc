@@ -1347,7 +1347,7 @@ TEST_CASE_TEMPLATE("arena::pmr", T, TYPES) {
     {
         auto* resource = arena.get_memory_resource();
         pmr::vector<T> vec(resource);
-        vec.reserve(128);
+        vec.reserve(64);
     }
 
     // align 8 bytes
