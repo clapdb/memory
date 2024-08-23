@@ -167,7 +167,6 @@ concept PointerCompatibleIterator = std::is_pointer_v<It> or std::random_access_
 template <typename T, typename Iterator>
 [[gnu::always_inline]] inline void copy_from_iterator(T* __restrict__ dst, Iterator first, Iterator last) {
     Assert(dst != nullptr, "copy_from_iterator dst can not be nullptr");
-    Assert(first != last, "copy_from_iterator first can not accept empty range means (first == last)");
 
     if constexpr (IsRelocatable<T> and PointerCompatibleIterator<Iterator>) {
         if (get_ptr_from_iter(first) < get_ptr_from_iter(last)) [[likely]] {
