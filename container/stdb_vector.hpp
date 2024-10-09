@@ -526,7 +526,7 @@ class core
  * stdb_vector is a vector-like container that uses a variadic size buffer to store elements.
  * it is designed to be used in the non-arena memory.
  */
-template <typename T>
+template <typename T, typename UselessPlaceholder = void>
 class stdb_vector : public core<T>
 {
    public:
