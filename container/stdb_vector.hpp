@@ -526,7 +526,7 @@ class core
  * stdb_vector is a vector-like container that uses a variadic size buffer to store elements.
  * it is designed to be used in the non-arena memory.
  */
-template <typename T, typename UselessPlaceholder = void>
+template <typename T, typename Alloc = std::allocator<T>>
 class stdb_vector : public core<T>
 {
    public:
@@ -538,6 +538,7 @@ class stdb_vector : public core<T>
     using reference = T&;
     using const_reference = const T&;
     using rvalue_reference = T&&;
+    using allocator_type = Alloc;
 
     /*
      * default constructor
@@ -546,6 +547,8 @@ class stdb_vector : public core<T>
      * default constructor is not noexcept, because it may throw std::bad_alloc
      */
     constexpr stdb_vector() : core<T>() {}
+
+    constexpr explicit stdb_vector([[maybe_unused]] const Alloc& alloc) : core<T>() {}
 
     /*
      * constructor with capacity
