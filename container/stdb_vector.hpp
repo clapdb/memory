@@ -960,19 +960,18 @@ class stdb_vector : public core<T>
     }
 
     template <Safety safety = Safety::Safe, typename... Args>
-    auto emplace_back(Args&&... args) -> iterator {
+    auto emplace_back(Args&&... args) -> reference{
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
                 this->construct_at(this->_finish++, std::forward<Args>(args)...);
             } else {
                 this->realloc_and_emplace_back(compute_next_capacity(), std::forward<Args>(args)...);
             }
-            return iterator{this->_finish - 1};
         } else {
             Assert(not this->full(), "emplace_back should not be called with full vector");
             this->construct_at(this->_finish++, std::forward<Args>(args)...);
-            return iterator{this->_finish - 1};
         }
+        return *(this->_finish - 1);
     }
 
     [[gnu::always_inline]] inline void clear() noexcept {
