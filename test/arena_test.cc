@@ -1368,3 +1368,20 @@ TEST_CASE_TEMPLATE("arena::pmr", T, TYPES) {
 }
 
 }  // namespace stdb::memory
+
+namespace stdb::memory::arena {
+struct arena_managed_struct
+{
+    using ArenaManaged_ = void;
+};
+
+struct arena_non_managed_struct
+{
+};
+
+TEST_CASE("ArenaHelper") {
+    static_assert(is_arena_full_managable<arena_managed_struct>::value, "arena_managed_struct should have full managed tag");
+    static_assert(not is_arena_full_managable<arena_non_managed_struct>::value, "arena_managed_struct should not have full managed tag");
+}
+
+}  // namespace stdb::memory::arena
