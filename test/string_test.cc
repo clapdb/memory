@@ -33,6 +33,8 @@
 #include "arena/arena.hpp"    // for size_t, Arena, Arena::Options
 #include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK
 #include "string/arena_string.hpp"
+#include "string/string.hpp"
+#include "string/small_string.hpp"
 
 namespace stdb::memory {
 
@@ -3380,5 +3382,9 @@ TEST_CASE("arena_string::cross_cpu_check") {
     t1.join();
 }
 */
+
+TEST_CASE("string::small_string") {
+    basic_small_string<char> str("1234567890");
+}
 
 }  // namespace stdb::memory
