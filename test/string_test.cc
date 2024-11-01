@@ -3346,6 +3346,18 @@ TEST_CASE("arena-string::dstr") {
       arena.get_memory_resource()};
 }
 
+TEST_CASE("string::contains_zero") {
+    string str("1234567890");
+    string str1("1234567899");
+    str[3] = '\0';
+    str1[3] = '\0';
+    CHECK_NE(str, str1);
+    CHECK_EQ(str.find('\0'), 3);
+    CHECK_EQ(str1.find('\0'), 3);
+    CHECK_EQ(str.size(), 10);
+    CHECK_EQ(str1.size(), 10);
+}
+
 // uncomment this case will cause assert failure and crash.
 /*
 TEST_CASE("string::cross_cpu_check") {
