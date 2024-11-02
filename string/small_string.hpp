@@ -13,9 +13,14 @@
 
 namespace stdb::memory {
 
+constexpr static inline uint32_t kInvalidSize = std::numeric_limits<uint32_t>::max();
 constexpr static inline uint32_t kMaxInternalBufferSize = 7;
 constexpr static inline uint32_t kMaxSmallStringSize = 1024;
 constexpr static inline uint32_t kMaxMediumStringSize = 4096;
+constexpr static inline uint32_t kMediumStringSizeMask = kMaxMediumStringSize - 1U;
+// the largest buffer is 2 ^ 32 == 4G, the header is 8 bytes, so the largest size is 2 ^ 32 - 8
+constexpr static inline uint64_t kLargeStringSizeMask = (1ULL << 32ULL) - 2 * sizeof(uint32_t);
+// if the delta is kDeltaMax, the real delta is >= kDeltaMax
 constexpr static inline uint16_t kDeltaMax = (1U << 14U) - 1U;
 
 [[nodiscard, gnu::always_inline]] constexpr inline auto next_power_of_2(uint16_t size) noexcept -> uint32_t {
@@ -24,7 +29,9 @@ constexpr static inline uint16_t kDeltaMax = (1U << 14U) - 1U;
     // because the size of internal buffer is 7
     Assert(size > kMaxInternalBufferSize, "size should be greater than 7");
     // make sure get 16U at least.
-    return 1U << static_cast<uint16_t>(std::bit_width(std::max<uint16_t>(size, 16U)- 1UL));
+    constexpr uint16_t kMediumMask = 0xF8U;
+    // if size < 8, add 8, or return the size, remove any if branch
+    return size + (uint16_t)(not (bool)(size & kMediumMask)) * 8U;
 }
 
 [[nodiscard, gnu::always_inline]] constexpr inline auto is_power_of_2(uint16_t size) noexcept -> bool {
@@ -49,7 +56,11 @@ constexpr static inline auto next_medium_size(uint32_t size) noexcept -> uint32_
 constexpr static inline auto next_large_size(uint32_t size) noexcept -> uint32_t {
     // AlignUp to the next 16 bytes, the fastest way in Arm, x64 is 8
     Assert(size > kMaxMediumStringSize, "size should be bigger than 4096");
-    return stdb::memory::align::AlignUpTo<16>(size); // just align to 16 bytes, to save the memory
+    if (size <= kLargeStringSizeMask) [[likely]] {
+        return stdb::memory::align::AlignUpTo<16>(size); // just align to 16 bytes, to save the memory
+    }
+    // the size is overflow, return 0.
+    return 0;
 }
 
 
@@ -60,8 +71,12 @@ constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capaci
         return next_power_of_2(least_new_capacity);
     } else if (least_new_capacity <= kMaxMediumStringSize) [[likely]] {
         return next_medium_size(least_new_capacity);
+    } else if (least_new_capacity <= kInvalidSize - 2 * sizeof(uint32_t)) [[likely]] {
+        // the size_or_mask is not overflow
+        return next_large_size(least_new_capacity + 2 * sizeof(uint32_t));
     }
-    return next_large_size(least_new_capacity + 2 * sizeof(uint32_t));
+    // the next_large_size always was aligned to 16 bytes, so kInvalidSize means overflow is OK
+    return 0;
 }
 
 
@@ -111,53 +126,110 @@ struct external_core {
     // 11xx : over 4096, and [capacity:4B, size:4B] in the head of the buffer,
     // and the 14bits of the size_or_mask is the capacity - size, if the value is 1<<14 -1, the delta overflow, and
     // ignore the 14bits
+    struct cap_and_size {
+        uint8_t shift_or_times_or_delta : 4;
+        uint16_t external_size : 12;  
+    };
 
-    uint8_t shift_or_times_or_delta: 4;
-    uint16_t external_size : 12;  
+    struct flag_and_delta {
+        uint16_t flag: 2; //11
+        uint16_t delta: 14;
+    };
 
-    constexpr static inline uint32_t kInvalidSize = std::numeric_limits<uint32_t>::max();
+    union {
+        cap_and_size cap_size;
+        flag_and_delta flag_delta;
+    };
 
-    [[nodiscard]] auto capacity() const noexcept -> uint32_t {
-        if (shift_or_times_or_delta <= 8U) [[likely]] {
-            return 8U << shift_or_times_or_delta;
-        } else if (shift_or_times_or_delta < 12U) [[likely]] { // < 1100
-            return ((shift_or_times_or_delta - 8U + 2U) << 10U);
+    [[nodiscard]] auto capacity_fast() const noexcept -> uint32_t {
+        if (cap_size.shift_or_times_or_delta <= 8U) [[likely]] {
+            return 8U << cap_size.shift_or_times_or_delta;
+        } else if (cap_size.shift_or_times_or_delta < 12U) [[likely]] {  // < 1100
+            return ((cap_size.shift_or_times_or_delta - 8U + 2U) << 10U);
         } else {
-            // means I don't know the capacity, because the size_or_mask is overflow
+            // means don't know the capacity, because the size_or_mask is overflow
+            // return *((uint32_t*)c_str_ptr - 2);
             return kInvalidSize;
         }
     }
 
-    [[nodiscard]] auto size() const noexcept -> uint32_t {
+    [[nodiscard]] auto capacity() const noexcept -> uint32_t {
+        auto cap = capacity_fast();
+        // means don't know the capacity, because the size_or_mask is overflow
+        return cap != kInvalidSize ? cap : *((uint32_t*)c_str_ptr - 2);
+    }
+
+    [[nodiscard]] auto size_fast() const noexcept -> uint32_t {
         // assert if shift_or_times_or_delta is 11U, the external_size must be 0
-        Assert(shift_or_times_or_delta != 11U or external_size == 0U, "if size_or_mask is '1011', the external_size must be 0");
-        return shift_or_times_or_delta < 11U    ? external_size  // 0000 ~ 1010
-               : shift_or_times_or_delta > 11U ? kInvalidSize // 1100 ~ 1111
-                                                : 4096; // 1011
+        Assert(cap_size.shift_or_times_or_delta != 11U or cap_size.external_size == 0U, "if size_or_mask is '1011', the external_size must be 0");
+        return cap_size.shift_or_times_or_delta < 11U   ? cap_size.external_size // 0000 ~ 1010
+               : cap_size.shift_or_times_or_delta > 11U ? kInvalidSize // 1100 ~ 1111
+                                                        : 4096; // 1011
+    }
+
+    [[nodiscard]] auto size() const noexcept -> uint32_t {
+        auto size = size_fast();
+        return size != kInvalidSize ? size : *((uint32_t*)c_str_ptr - 1);
+    }
+
+    [[gnu::always_inline]] inline auto set_size_fast(uint32_t new_size) noexcept -> void {
+        cap_size.external_size = new_size;
+    }
+
+    auto set_size(uint32_t new_size) noexcept -> void {
+        if (cap_size.shift_or_times_or_delta <= 11U) [[likely]] {
+            Assert(new_size <= kMaxMediumStringSize, "the new_size is must be less than the 4k");
+            set_size_fast(new_size);
+        }
+        // set to the buffer head
+        auto* ptr = (uint32_t*)c_str_ptr;
+        *(ptr -1)= new_size;
+    }
+
+    // just change the external_core, do not change the buffer
+    auto set_delta_fast(uint32_t new_delta) noexcept {
+        if (cap_size.shift_or_times_or_delta < 11U) [[likely]] {
+            if (new_delta < kDeltaMax) [[likely]] {
+                flag_delta.flag = 11U;
+                flag_delta.delta = new_delta;
+            }
+            // set the all bit of external_core to 1
+            memset(this, 0xFF, sizeof(*this));
+            // and do not save the delta in anywhere.
+        }
+    }
+
+    // capcity - size in fast way
+    [[nodiscard, gnu::always_inline]] auto idle_capacity_fast() const noexcept -> uint32_t {
+        // capacity() - size() will be a little bit slower.
+        if (cap_size.shift_or_times_or_delta < 8U) [[likely]] { // 0000 ~ 0111
+            Assert(cap_size.external_size < (8U << cap_size.shift_or_times_or_delta), "the external_size is must be less than the capacity");
+            return (8U << cap_size.shift_or_times_or_delta) - cap_size.external_size;
+        } else if (cap_size.shift_or_times_or_delta < 11U) [[likely]] { // 1000 ~ 1010
+            Assert(cap_size.external_size < ((cap_size.shift_or_times_or_delta - 8U + 2U) << 10U), "the external_size is must be less than the capacity");
+            return ((cap_size.shift_or_times_or_delta - 8U + 2U) << 10U) - cap_size.external_size;
+        } else if (cap_size.shift_or_times_or_delta == 11U) [[likely]] { // 1011
+            return 0;
+        }
+        Assert(flag_delta.flag == 3U, "if the shift_or_times_or_delta is 11, the flag must be 11");
+        return flag_delta.delta;
     }
 
     // capacity - size
     [[nodiscard]] auto idle_capacity() const noexcept -> uint32_t {
-        // capacity() - size() will be a little bit slower.
-        if (shift_or_times_or_delta < 8U) [[likely]] { // 0000 ~ 0111
-            Assert(external_size < (8U << shift_or_times_or_delta), "the external_size is must be less than the capacity");
-            return (8U << shift_or_times_or_delta) - external_size;
-        } else if (shift_or_times_or_delta < 11U) [[likely]] { // 1000 ~ 1010
-            Assert(external_size < ((shift_or_times_or_delta - 8U + 2U) << 10U), "the external_size is must be less than the capacity");
-            return ((shift_or_times_or_delta - 8U + 2U) << 10U) - external_size;
-        } else if (shift_or_times_or_delta == 11U) [[likely]] { // 1011
-            return 0;
-        }
-        uint32_t delta = ((shift_or_times_or_delta & 0x3U) << 12U) + external_size; // 1100 ~ 1111, starts with 11, means all of the 14bits are the idle capacity
-        if (delta != kDeltaMax) [[unlikely]] {
+        auto delta = idle_capacity_fast();
+        if (delta != kDeltaMax) [[likely]] {
             return delta;
         }
-        return kInvalidSize;
+        // calculate the idle capacity with the buffer head,
+        // the buffer head is [capacity, size], the external.ptr point to the 8 bytes after the head
+        auto* ptr =(uint32_t*)c_str_ptr;
+        return *(ptr - 2) - *(ptr - 1);
     }
 
     [[gnu::always_inline]] void deallocate() noexcept {
         // check the ptr is pointed to a buffer or the after pos of the buffer head
-        if (shift_or_times_or_delta < 12U) [[likely]] {
+        if (flag_delta.flag != 3U) [[likely]] {
             // is not the large buffer
             std::free((Char*)(c_str_ptr));
         } else {
@@ -193,6 +265,50 @@ auto allocate_new_external_buffer(uint32_t new_buffer_size, uint32_t new_str_siz
     return {12U + (delta >> 12U), delta & (kMaxMediumStringSize - 1), reinterpret_cast<int64_t>(head + 2)};
 }
 
+// this function handle append / push_back / operator +='s internal reallocation
+template<typename Char>
+auto allocate_new_external_buffer_if_need_from_delta(external_core<Char>& old_external, uint32_t new_append_size) noexcept -> void {
+    auto old_delta = old_external.idle_capacity_fast();
+    // if no need, do nothing, just update the size or delta
+    if (old_delta >= new_append_size) [[likely]] {
+        // must not allocate a new buffer, just update the size or delta
+        if (old_external.flag_delta.flag != 3U) [[likely]] {
+            // increase the size
+            old_external.cap_size.external_size += new_append_size;
+        } else {
+            // increase the buffer header's size,
+            auto new_size = (*((uint32_t*)(old_external.c_str_ptr) - 1) += new_append_size);
+            auto old_cap = *((uint32_t*)(old_external.c_str_ptr) - 2);
+            // re-calc the delta, and store to the delta
+            old_external.flag_delta.delta = std::min<uint16_t>(old_cap - new_size, kDeltaMax);
+        }
+        return;
+    }
+    // by now, new_append_size > old_delta
+    // check the delta is overflow
+    if (old_delta == kDeltaMax) [[unlikely]] {
+        // the delta is overflow, re-calc the delta
+        auto* cap = (uint32_t*)(old_external.c_str_ptr) - 2;
+        auto* size = (uint32_t*)(old_external.c_str_ptr) - 1;
+        if ((*cap - *size) > new_append_size) {
+            // update the size 
+            *size += new_append_size;
+            // re-calc the delta
+            old_external.flag_delta.delta = std::min<uint32_t>(*cap - *size, kDeltaMax); // do narrow cast
+            // no need to allocate a new buffer, just return
+            return;
+        }
+    }
+    // have to allocate a new buffer, to save the new_append_size
+    auto new_buffer_size = calculate_new_buffer_size(old_external.size() + new_append_size);
+    auto new_external = allocate_new_external_buffer<Char>(new_buffer_size, old_external.size() + new_append_size);
+    // copy the old data to the new buffer
+    std::memcpy(reinterpret_cast<Char*>(new_external.ptr), old_external.c_str(), old_external.size());
+    // replace the old external with the new one
+    old_external = new_external;
+    return;
+}
+
 static_assert(sizeof(external_core<char>) == 8);
 
 template <typename Char, class Traits = std::char_traits<Char>, class Allocator = std::allocator<Char>>
@@ -213,21 +329,9 @@ class basic_small_string {
         return is_external() ? external.buffer_size() : internal.buffer_size();
     }
 
-    [[nodiscard, gnu::always_inline]] auto idle_capacity_fast() const noexcept -> uint32_t {
+    [[nodiscard, gnu::always_inline]] auto idle_capacity() const noexcept -> uint32_t {
         return is_external() ? external.idle_capacity() : internal.idle_capacity();
     }
-
-    [[nodiscard, gnu::always_inline]] auto idle_capacity() const noexcept -> uint32_t {
-        auto delta = idle_capacity_fast();
-        if (delta != std::numeric_limits<uint32_t>::max()) [[likely]] {
-            return delta;
-        }
-        // read the head of the buffer, the head is [capacity, size], the external.ptr point to the 8 bytes after the head
-        Assert(external.ptr != 0, "the external pointer can not be nullptr");
-        auto* head = reinterpret_cast<uint32_t*>(external.ptr - 2);
-        return *head - *(head + 1);
-    }
-
 
    public:
     // types
@@ -433,29 +537,35 @@ class basic_small_string {
      * @brief The maximum number of elements that can be stored in the string.
      * the buffer largest size is 1 << 15, the cap occupy 2 bytes, so the max size is 1 << 15 - 2, is 65534
      */
-    [[nodiscard]] constexpr auto max_size() const noexcept -> uint16_t {
-        return std::numeric_limits<size_type>::max();
+    [[nodiscard]] constexpr auto max_size() const noexcept -> uint32_t {
+        return kInvalidSize - 1;
     }
+
 
     constexpr auto reserve(size_type new_cap) -> void {
-        Assert(new_cap >= 7, "new_size is too small");
+        // check the new_cap is larger than the internal capacity, and larger than current cap
+        if (new_cap > capacity()) [[likely]] {
             // still be a small string
-        auto new_buffer_size = calculate_new_buffer_size(new_cap);
-        // allocate a new buffer
-        auto new_external  = allocate_new_external_buffer<Char>(new_buffer_size, size());
-        // copy the old data to the new buffer
-        std::memcpy(reinterpret_cast<Char*>(new_external.ptr), c_str(), size());
-        // copy the old size to tmp
-        if (is_external()) [[likely]] { // we do not wish reserve a internal string to a external str, it will be a little slower.
-            // if the old string is a external string, deallocate the old buffer
-            external.deallocate();
-        } 
-        // replace the old external with the new one
-        external = new_external;
+            auto new_buffer_size = calculate_new_buffer_size(new_cap);
+            // allocate a new buffer
+            auto new_external = allocate_new_external_buffer<Char>(new_buffer_size, size());
+            // copy the old data to the new buffer
+            std::memcpy(reinterpret_cast<Char*>(new_external.ptr), c_str(), size());
+            // copy the old size to tmp
+            if (is_external())
+              [[likely]] {  // we do not wish reserve a internal string to a external str, it will be a little slower.
+                // if the old string is a external string, deallocate the old buffer
+                external.deallocate();
+            }
+            // replace the old external with the new one
+            external = new_external;
+        }
+        // else is internal, then do nothing
     }
 
+    // it was a just exported function, should not be called frequently, it was a little bit slow in some case.
     [[nodiscard, gnu::always_inline]] auto capacity() const noexcept -> size_type {
-        return is_external() ? external.capacity() : sizeof(internal.data);
+        return is_external() ? external.capacity() : internal_core<Char>::capacity();
     }
 
     auto shrink_to_fit() -> void {
