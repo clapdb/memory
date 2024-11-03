@@ -236,7 +236,7 @@ struct external_core {
             std::free((Char*)(c_str_ptr));
         } else {
             // the ptr is pointed to the after pos of the buffer head
-            std::free((char*)(c_str_ptr - 2 * sizeof(uint32_t)));
+            std::free((Char*)(c_str_ptr) - 2 * sizeof(uint32_t));
         }
     }
 
@@ -455,6 +455,142 @@ class basic_small_string {
     }
 
     basic_small_string(std::nullptr_t) = delete;
+
+    ~basic_small_string() noexcept {
+        if (is_external()) {
+            external.deallocate();
+        }
+    }
+
+    // copy assignment
+    auto operator=(const basic_small_string& other) -> basic_small_string& {
+        if (this == &other) [[unlikely]] {
+            return *this;
+        }
+        if (is_external()) {
+            external.deallocate();
+        }
+        // call the copy constructor
+        new (this) basic_small_string(other);
+        return *this;
+    }
+
+    // move assignment
+    auto operator=(basic_small_string&& other) noexcept -> basic_small_string& {
+        if (this == &other) [[unlikely]] {
+            return *this;
+        }
+        if (is_external()) {
+            external.deallocate();
+        }
+        // call the move constructor
+        new (this) basic_small_string(std::move(other));
+        return *this;
+    }
+
+    auto operator=(const Char* s) -> basic_small_string& {
+        clear();
+        append(s);
+        return *this;
+    }
+
+    auto operator=(Char ch) -> basic_small_string& {
+        clear();
+        append(1, ch);
+        return *this;
+    }
+
+    auto operator=(std::initializer_list<Char> ilist) -> basic_small_string& {
+        clear();
+        append(ilist);
+        return *this;
+    }
+
+    template<class StringViewLike> requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> and not std::is_convertible_v<const StringViewLike&, const Char*>)
+    auto operator=(const StringViewLike& s) -> basic_small_string& {
+        clear();
+        append(s);
+        return *this;
+    }
+
+    auto operator=(std::nullptr_t) -> basic_small_string& = delete;
+
+
+    // assign
+
+    auto assign(size_type count, Char ch) -> basic_small_string& {
+        clear();
+        append(count, ch);
+        return *this;
+    }
+
+    auto assign(const basic_small_string& str) -> basic_small_string& {
+        clear();
+        append(str);
+        return *this;
+    }
+
+    auto assign(const basic_small_string& str, size_type pos, size_type count = npos) -> basic_small_string& {
+        clear();
+        append(str, pos, count);
+        return *this;
+    }
+
+    auto assign(basic_small_string&& gone) noexcept -> basic_small_string& {
+        if (this == &gone) [[unlikely]] {
+            return *this;
+        }
+        if (is_external()) {
+            external.deallocate();
+        }
+        // call the move constructor
+        new (this) basic_small_string(std::move(gone));
+        return *this;
+    }
+
+    auto assign(const Char* s, size_type count) -> basic_small_string& {
+        clear();
+        append(s, count);
+        return *this;
+    }
+
+    auto assign(const Char* s) -> basic_small_string& {
+        clear();
+        append(s);
+        return *this;
+    }
+
+
+    template<class InputIt>
+    auto assign(InputIt first, InputIt last) -> basic_small_string& {
+        clear();
+        append(first, last);
+        return *this;
+    }
+
+    auto assign(std::initializer_list<Char> ilist) -> basic_small_string& {
+        clear();
+        append(ilist);
+        return *this;
+    }
+
+    template<class StringViewLike> requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> and not std::is_convertible_v<const StringViewLike&, const Char*>)
+    auto assign(const StringViewLike& s) -> basic_small_string& {
+        clear();
+        append(s);
+        return *this;
+    }
+
+    template<class StringViewLike> requires(std::is_convertible_v<const StringViewLike&, const Char*> and not std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>>)
+    auto assign(const StringViewLike& s, size_type pos, size_type n = npos) -> basic_small_string& {
+        clear();
+        append(s, pos, n);
+        return *this;
+    }
+
+    auto get_allocator() const -> Allocator {
+        return Allocator();
+    }
 
     // element access
     template<bool Safe = true>
