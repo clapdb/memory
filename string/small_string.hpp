@@ -127,12 +127,12 @@ struct external_core {
     // and the 14bits of the size_or_mask is the capacity - size, if the value is 1<<14 -1, the delta overflow, and
     // ignore the 14bits
     struct cap_and_size {
-        uint8_t shift_or_times_or_delta : 4; // 0x0U ~ 0xBU
+        uint8_t shift_or_times : 4; // 0x0U ~ 0xBU
         uint16_t external_size : 12;  
     };
 
     struct flag_and_delta {
-        uint16_t flag : 2;  // 0x3U
+        uint8_t flag : 2;  // 0x3U
         uint16_t delta: 14;
     };
 
@@ -142,10 +142,10 @@ struct external_core {
     };
 
     [[nodiscard]] auto capacity_fast() const noexcept -> uint32_t {
-        if (cap_size.shift_or_times_or_delta <= 8U) [[likely]] {
-            return 8U << cap_size.shift_or_times_or_delta;
-        } else if (cap_size.shift_or_times_or_delta < 12U) [[likely]] {  // < 1100
-            return ((cap_size.shift_or_times_or_delta - 8U + 2U) << 10U);
+        if (cap_size.shift_or_times <= 8U) [[likely]] {
+            return 8U << cap_size.shift_or_times;
+        } else if (cap_size.shift_or_times < 12U) [[likely]] {  // < 1100
+            return ((cap_size.shift_or_times - 8U + 2U) << 10U);
         } else {
             // means don't know the capacity, because the size_or_mask is overflow
             // return *((uint32_t*)c_str_ptr - 2);
@@ -161,9 +161,9 @@ struct external_core {
 
     [[nodiscard]] auto size_fast() const noexcept -> uint32_t {
         // assert if shift_or_times_or_delta is 11U, the external_size must be 0
-        Assert(cap_size.shift_or_times_or_delta != 11U or cap_size.external_size == 0U, "if size_or_mask is '1011', the external_size must be 0");
-        return cap_size.shift_or_times_or_delta < 11U   ? cap_size.external_size // 0000 ~ 1010
-               : cap_size.shift_or_times_or_delta > 11U ? kInvalidSize // 1100 ~ 1111
+        Assert(cap_size.shift_or_times != 11U or cap_size.external_size == 0U, "if size_or_mask is '1011', the external_size must be 0");
+        return cap_size.shift_or_times < 11U   ? cap_size.external_size // 0000 ~ 1010
+               : cap_size.shift_or_times > 11U ? kInvalidSize // 1100 ~ 1111
                                                         : 4096; // 1011
     }
 
@@ -190,7 +190,7 @@ struct external_core {
 
     // just change the external_core, do not change the buffer
     auto set_delta_fast(uint32_t new_delta) noexcept {
-        if (cap_size.shift_or_times_or_delta < 11U) [[likely]] {
+        if (cap_size.shift_or_times < 11U) [[likely]] {
             if (new_delta < kDeltaMax) [[likely]] {
                 flag_delta.flag = 11U;
                 flag_delta.delta = new_delta;
@@ -204,13 +204,13 @@ struct external_core {
     // capcity - size in fast way
     [[nodiscard, gnu::always_inline]] auto idle_capacity_fast() const noexcept -> uint32_t {
         // capacity() - size() will be a little bit slower.
-        if (cap_size.shift_or_times_or_delta < 8U) [[likely]] { // 0000 ~ 0111
-            Assert(cap_size.external_size < (8U << cap_size.shift_or_times_or_delta), "the external_size is must be less than the capacity");
-            return (8U << cap_size.shift_or_times_or_delta) - cap_size.external_size;
-        } else if (cap_size.shift_or_times_or_delta < 11U) [[likely]] { // 1000 ~ 1010
-            Assert(cap_size.external_size < ((cap_size.shift_or_times_or_delta - 8U + 2U) << 10U), "the external_size is must be less than the capacity");
-            return ((cap_size.shift_or_times_or_delta - 8U + 2U) << 10U) - cap_size.external_size;
-        } else if (cap_size.shift_or_times_or_delta == 11U) [[likely]] { // 1011
+        if (cap_size.shift_or_times < 8U) [[likely]] { // 0000 ~ 0111
+            Assert(cap_size.external_size < (8U << cap_size.shift_or_times), "the external_size is must be less than the capacity");
+            return (8U << cap_size.shift_or_times) - cap_size.external_size;
+        } else if (cap_size.shift_or_times < 11U) [[likely]] { // 1000 ~ 1010
+            Assert(cap_size.external_size < ((cap_size.shift_or_times - 8U + 2U) << 10U), "the external_size is must be less than the capacity");
+            return ((cap_size.shift_or_times - 8U + 2U) << 10U) - cap_size.external_size;
+        } else if (cap_size.shift_or_times == 11U) [[likely]] { // 1011
             return 0;
         }
         Assert(flag_delta.flag == 3U, "if the shift_or_times_or_delta is 11, the flag must be 11");
@@ -252,12 +252,15 @@ auto allocate_new_external_buffer(uint32_t new_buffer_size, uint32_t new_str_siz
     if (new_buffer_size <= kMaxSmallStringSize) [[likely]] {
         Assert(is_power_of_2(new_buffer_size), "new_buffer_size should be a power of 2");
         // the shift_or_times_or_delta is the (bit_width of the new_buffer_size) - 4
-        return {external_core<Char>::cap_and_size(static_cast<uint16_t>(std::bit_width(new_buffer_size)) - 4U),
-                new_str_size, 0, std::malloc(new_buffer_size)};
+        return {.c_str_ptr = reinterpret_cast<int64_t>(std::malloc(new_buffer_size)),
+                .cap_size = {
+                  .shift_or_times = static_cast<uint8_t>(static_cast<uint8_t>(std::bit_width(new_buffer_size)) - 4U),
+                  .external_size = static_cast<uint16_t>(new_str_size)}};
     } else if (new_buffer_size <= kMaxMediumStringSize) [[likely]] {
         Assert((new_buffer_size & kMaxMediumStringSize) == 0, "the medium new_buffer_size is not aligned to 1024");
-        return {external_core<Char>::cap_and_size(8U & ((new_buffer_size >> 10U) - 2U)), new_str_size, 0,
-                std::malloc(new_buffer_size)};
+        return {.c_str_ptr = reinterpret_cast<int64_t>(std::malloc(new_buffer_size)),
+                .cap_size = {.shift_or_times = static_cast<uint8_t>(8U & ((new_buffer_size >> 10U) - 2U)),
+                             .external_size = static_cast<uint16_t>(new_str_size)}};
     }
     // the large buffer
     uint16_t delta = std::min<uint32_t>(new_buffer_size - new_str_size, kDeltaMax);
@@ -266,7 +269,7 @@ auto allocate_new_external_buffer(uint32_t new_buffer_size, uint32_t new_str_siz
     *head = new_buffer_size;
     *(head + 1) = new_str_size;
     // the ptr point to the 8 bytes after the head
-    return {external_core<Char>::flag_and_delta(3U, delta), reinterpret_cast<int64_t>(head + 2)};
+    return {.c_str_ptr = reinterpret_cast<int64_t>(head + 2), .flag_delta = {.flag = 3U, .delta = delta}};
 }
 
 // this function handle append / push_back / operator +='s internal reallocation
@@ -307,7 +310,7 @@ auto allocate_new_external_buffer_if_need_from_delta(external_core<Char>& old_ex
     auto new_buffer_size = calculate_new_buffer_size(old_external.size() + new_append_size);
     auto new_external = allocate_new_external_buffer<Char>(new_buffer_size, old_external.size() + new_append_size);
     // copy the old data to the new buffer
-    std::memcpy(reinterpret_cast<Char*>(new_external.ptr), old_external.c_str(), old_external.size());
+    std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), old_external.c_str(), old_external.size());
     // replace the old external with the new one
     old_external = new_external;
     return;
@@ -326,7 +329,7 @@ class basic_small_string {
 
    private:
     [[nodiscard]] auto is_external() const noexcept -> bool {
-        return internal.is_external;
+        return internal.is_internal != 0;
     }
 
     [[nodiscard]] auto buffer_size() const noexcept -> uint16_t {
@@ -364,23 +367,23 @@ class basic_small_string {
 
     constexpr explicit basic_small_string([[maybe_unused]] const Allocator& /*unused*/) noexcept : internal{} {}
 
-    constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& alloc = Allocator()) : internal{} {
+    constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& /*unused*/= Allocator()) : internal{} {
         // the best way to initialize the string is to append the char count times
         append(count, ch);
     }
 
-    basic_small_string(const basic_small_string& other) noexcept : external{other.external} {
+    // copy constructor
+    basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) : external{other.external} {
         if (not is_external()) {
             // is a internal string, just copy the internal part
             return;
         }
-        Assert(false, "Not implemented");
         // is a external string, check if the size is larger than the internal capacity
         auto other_size = other.size();
         if (other_size <= internal_core<Char>::capacity()) {
-            // the size is smaller than the internal capacity, it need to shrink
+            // the size is smaller than the internal capacity, do not need to allocate a new buffer
 
-            // set the size
+            // set the size first
             internal.set_size(other_size);
             // copy the data from the other
             std::memcpy(internal.data, other.c_str(), other_size);
@@ -388,9 +391,70 @@ class basic_small_string {
         // by now, need external buffer, allocate a new buffer
         external = allocate_new_external_buffer<Char>(calculate_new_buffer_size(other_size), other_size);
         // copy the data from the other
-        std::memcpy(reinterpret_cast<Char*>(external.ptr), other.c_str(), other_size);
+        std::memcpy((Char*)(external.ptr), other.c_str(), other_size);
     }
 
+    constexpr basic_small_string(const basic_small_string& other, size_type pos, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
+        auto new_size = other.size() - pos;
+        if (new_size <= internal_core<Char>::capacity()) {
+            // the size is smaller than the internal capacity, do not need to allocate a new buffer
+            internal.set_size(new_size);
+            std::memcpy(internal.data, other.c_str() + pos, new_size);
+        } else {
+            // by now, need external buffer, allocate a new buffer
+            external = allocate_new_external_buffer<Char>(calculate_new_buffer_size(new_size), new_size);
+            // copy the data from the other
+            std::memcpy((Char*)(external.ptr), other.c_str() + pos, new_size);
+        }
+    }
+
+    constexpr basic_small_string(basic_small_string&& other, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) noexcept : external(other.external) {
+        // set the other's external to 0, to avoid double free
+        memset(&other.external, 0, sizeof(other.external));
+    }
+
+    constexpr basic_small_string(basic_small_string&& other, size_type pos,
+                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
+        : basic_small_string{other.substr(pos)} {}
+
+    constexpr basic_small_string(const basic_small_string& other, size_type pos, size_type count, [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
+        : basic_small_string{other.substr(pos, count)} {}
+
+    constexpr basic_small_string(basic_small_string&& other, size_type pos, size_type count, [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
+        : basic_small_string{other.substr(pos, count)} {}
+
+    constexpr basic_small_string(const Char* s, size_type count, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) : internal{} {
+        append(s, count);
+    }
+
+    constexpr basic_small_string(const Char* s, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) : basic_small_string(s, std::strlen(s)) { }
+
+    template <class InputIt>
+    constexpr basic_small_string(InputIt first, InputIt last, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) : internal{} {
+        append(first, last);
+    }
+
+    constexpr basic_small_string(std::initializer_list<Char> ilist, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) : internal{} {
+        append(ilist.begin(), ilist.end());
+    }
+
+    template <class StringViewLike>
+        requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> and
+                 not std::is_convertible_v<const StringViewLike&, const Char*>)
+    constexpr basic_small_string(const StringViewLike& s, [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
+        : internal{} {
+        append(s.begin(), s.end());
+    }
+
+    template <class StringViewLike>
+        requires(std::is_convertible_v<const StringViewLike&, const Char*> and
+                 not std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>>)
+    constexpr basic_small_string(const StringViewLike& s, size_type pos, size_type n, [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
+        : internal{} {
+        append(s, pos, n);
+    }
+
+    basic_small_string(std::nullptr_t) = delete;
 
     // element access
     template<bool Safe = true>
@@ -460,7 +524,7 @@ class basic_small_string {
     }
 
     [[nodiscard, gnu::always_inline]] auto c_str() noexcept -> Char* {
-        return is_external() ? reinterpret_cast<Char*>(external.ptr) : internal.data;
+        return is_external() ? reinterpret_cast<Char*>(external.c_str_ptr) : internal.data;
     }
 
     [[nodiscard, gnu::always_inline]] auto data() noexcept -> Char* {
@@ -984,6 +1048,7 @@ class basic_small_string {
             
             // move the [last, end] -> [first + count2, end() - last + count2]
             // the memmove will handle the overlap automatically
+            std::memmove(first + count2, last, end() - last);
         }
         // the buffer is ready
         std::copy(first2, last2, first);
