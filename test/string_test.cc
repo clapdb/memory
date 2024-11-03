@@ -3384,7 +3384,11 @@ TEST_CASE("arena_string::cross_cpu_check") {
 */
 
 TEST_CASE("string::small_string") {
+    basic_small_string<char> str1("1234567");
+    CHECK_EQ((char*)&str1, str1.c_str());
+
     basic_small_string<char> str("1234567890");
+    CHECK_NE(str.c_str(), (char*)&str);
 }
 
 }  // namespace stdb::memory
