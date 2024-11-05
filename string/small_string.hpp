@@ -158,8 +158,6 @@ struct external_core {
         uint8_t flag: 2; // must be 11
     };
 
-
-
     union {
         size_and_shift size_shift;
         size_and_times size_times;
@@ -167,7 +165,7 @@ struct external_core {
     };
 
     [[nodiscard]] auto capacity_fast() const noexcept -> uint32_t {
-        // Assert(internal_core<Char>(*this).is_internal != 0, "the external must be external");
+        Assert(not check_if_internal(*this), "the external must be external");
         if (size_shift.flag == kIsShift) {
             return 8U << size_shift.shift;
         }
@@ -190,8 +188,8 @@ struct external_core {
     }
 
     [[nodiscard]] auto size_fast() const noexcept -> uint32_t {
-        // Assert(internal_core<Char>(*this).is_internal != 0, "the external must be external");
-        if (delta_flag.flag == 3U) [[unlikely]] {
+        Assert(not check_if_internal(*this), "the external must be external");
+        if (delta_flag.flag == kIsDelta) [[unlikely]] {
             return kInvalidSize;
         }
         // if external_size == 0, and the times is 3, the size is 4096
@@ -206,7 +204,7 @@ struct external_core {
 
     // just work for the case that just change the size, do not change the capacity
     auto set_size(uint32_t new_size) noexcept -> void {
-        Assert(internal_core<Char>(*this).is_internal != 0, "the external must be external");
+        Assert(not check_if_internal(*this), "the external must be external");
         if (delta_flag.flag != 3U) [[likely]] {
             // just set the external_size or the times
             Assert(new_size <= capacity_fast(), "the new_size is must be less or equal to the 4k");
@@ -223,7 +221,7 @@ struct external_core {
     }
 
     auto increase_size(uint32_t delta) -> void {
-        // Assert(internal_core<Char>(*this).is_internal != 0, "the external must be external");
+        Assert(not check_if_internal(*this), "the external must be external");
         if (delta_flag.flag != 3U) [[likely]] {
             Assert(size_times.external_size + delta <= capacity_fast(), "the new_size is must be less or equal to the capacity_fast()");
             size_times.external_size += delta; // handle the 4096 overflow is OK
@@ -231,6 +229,7 @@ struct external_core {
                 // just increase the times to 3U while the overflow occurs in this increase_size function calling.
                 size_times.times = 3U;
             }
+            return;
         }
         // by now the string is a large string, the size was stored in the buffer head
         auto* size_ptr = (uint32_t*)c_str_ptr - 1;
@@ -246,12 +245,13 @@ struct external_core {
         auto new_delta = *(size_ptr - 1) - new_size;
         // set the delta to the external
         delta_flag.delta = new_delta < kDeltaMax ? new_delta : kDeltaMax;
+        return;
     }
 
     // capcity - size in fast way
     [[nodiscard]] auto idle_capacity_fast() const noexcept -> uint32_t {
+        Assert(not check_if_internal(*this), "the external must be external");
         // capacity() - size() will be a little bit slower.
-        Assert(((internal_core<Char>*)(this))->is_internal != 0, "the external must be external");
         if (delta_flag.flag == kIsDelta) [[unlikely]] {
             return delta_flag.delta; // if the delta is kDeltaMax, the real delta is >= kDeltaMax
         }
@@ -277,7 +277,7 @@ struct external_core {
     }
 
     [[gnu::always_inline]] void deallocate() noexcept {
-        // Assert(internal_core<Char>(*this).is_internal != 0, "the external must be external");
+        Assert(not check_if_internal(*this), "the external must be external");
         // check the ptr is pointed to a buffer or the after pos of the buffer head
         if (delta_flag.flag != 3U) [[likely]] {
             // is not the large buffer
@@ -289,7 +289,7 @@ struct external_core {
     }
 
     [[gnu::always_inline, nodiscard]] auto c_str() const noexcept -> Char* {
-        // Assert(internal_core<Char>(*this).is_internal != 0, "the external must be external");
+        Assert(not check_if_internal(*this), "the external must be external");
         return (Char*)(c_str_ptr);
     }
 };
@@ -328,7 +328,7 @@ auto allocate_new_external_buffer(uint32_t new_buffer_size, uint32_t old_str_siz
 
 template <typename Char>
 [[nodiscard, gnu::always_inline]] auto check_if_internal(const external_core<Char>& old_external) noexcept -> bool {
-    return ((internal_core<Char>&)(old_external)).is_internal == 0;
+    return ((internal_core<Char>&)old_external).is_internal == 0;
 }
 
 template <typename Char>
@@ -340,8 +340,8 @@ template <typename Char>
 // this funciion will not change the size, but the capacity or delta
 template<typename Char>
 auto allocate_new_external_buffer_if_need_from_delta(external_core<Char>& old_external, uint32_t new_append_size) noexcept -> void {
-    // uint32_t old_delta = old_external.cap_size.shift_or_times == 0? ((internal_core<Char>&)old_external).idle_capacity() : old_external.idle_capacity_fast();
-    uint32_t old_delta_fast = ((internal_core<Char>&)old_external).is_internal != 0? old_external.idle_capacity_fast() : ((internal_core<Char>&)old_external).idle_capacity();
+    uint32_t old_delta_fast = check_if_internal(old_external) ? ((internal_core<Char>&)old_external).idle_capacity()
+                                                              : old_external.idle_capacity_fast();
     // if no need, do nothing, just update the size or delta
     if (old_delta_fast >= new_append_size) {
         // just return and do nothing
@@ -359,17 +359,20 @@ auto allocate_new_external_buffer_if_need_from_delta(external_core<Char>& old_ex
         }
     }
     // by now, the old delta is not enough, have to allocate a new buffer, to save the new_append_size
-    // have to allocate a new buffer, to save the new_append_size
-    auto new_buffer_size = calculate_new_buffer_size(old_external.size() + new_append_size);
-    auto new_external = allocate_new_external_buffer<Char>(new_buffer_size, old_external.size());
+    // check if the old_external is internal
     if (check_if_internal(old_external)) {
         auto old_internal = (internal_core<Char>&)old_external;
+        auto new_buffer_size = calculate_new_buffer_size(old_internal.size() + new_append_size);
+        auto new_external = allocate_new_external_buffer<Char>(new_buffer_size, old_internal.size());
         // copy the old data to the new buffer
         std::memcpy(new_external.c_str(), old_internal.data, old_internal.size());
         old_external = new_external;
         return;
     }
+    // else is external
     // copy the old data to the new buffer
+    auto new_buffer_size = calculate_new_buffer_size(old_external.size() + new_append_size);
+    auto new_external = allocate_new_external_buffer<Char>(new_buffer_size, old_external.size());
     std::memcpy(new_external.c_str(), old_external.c_str(), old_external.size());
     // replace the old external with the new one
     old_external.deallocate();
