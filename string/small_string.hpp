@@ -11,7 +11,6 @@
 #include <cstring>
 #include <limits>
 #include "align/align.hpp"
-#include "fmt/core.h"
 
 namespace stdb::memory {
 
@@ -84,11 +83,11 @@ constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capaci
 
 template <typename Char>
 struct internal_core {
-    Char data[7];
     // 0000
     uint8_t is_internal: 4;
     // 0~7
     uint8_t internal_size : 4;
+    Char data[7];
     [[nodiscard, gnu::always_inline]] static constexpr auto capacity() noexcept -> uint32_t {
         return sizeof(data);
     }
@@ -111,8 +110,6 @@ static_assert(sizeof(internal_core<char>) == 8);
 
 template <typename Char>
 struct external_core {
-    // little endian, make the ptr align to 8 bytes
-    int64_t c_str_ptr: 48; // the pointer to c_str
     // 0000 : 7
     // 0001 : 16
     // 0010 : 32
@@ -142,6 +139,8 @@ struct external_core {
         cap_and_size cap_size;
         flag_and_delta flag_delta;
     };
+    // TODO(leo): move the c_str_ptr to begining of 
+    int64_t c_str_ptr: 48; // the pointer to c_str
 
     [[nodiscard]] auto capacity_fast() const noexcept -> uint32_t {
         if (cap_size.shift_or_times <= 8U) [[likely]] {
@@ -269,15 +268,15 @@ auto allocate_new_external_buffer(uint32_t new_buffer_size, uint32_t old_str_siz
     if (new_buffer_size <= kMaxSmallStringSize) [[likely]] {
         Assert(is_power_of_2(new_buffer_size), "new_buffer_size should be a power of 2");
         // the shift_or_times_or_delta is the (bit_width of the new_buffer_size) - 4
-        return {.c_str_ptr = reinterpret_cast<int64_t>(std::malloc(new_buffer_size)),
-                .cap_size = {
-                  .shift_or_times = static_cast<uint8_t>(static_cast<uint8_t>(std::bit_width(new_buffer_size)) - 4U),
-                  .external_size = static_cast<uint16_t>(old_str_size)}};
+        return {.cap_size = {.shift_or_times =
+                               static_cast<uint8_t>(static_cast<uint8_t>(std::bit_width(new_buffer_size)) - 4U),
+                             .external_size = static_cast<uint16_t>(old_str_size)},
+                .c_str_ptr = reinterpret_cast<int64_t>(std::malloc(new_buffer_size))};
     } else if (new_buffer_size <= kMaxMediumStringSize) [[likely]] {
         Assert((new_buffer_size & kMaxMediumStringSize) == 0, "the medium new_buffer_size is not aligned to 1024");
-        return {.c_str_ptr = reinterpret_cast<int64_t>(std::malloc(new_buffer_size)),
-                .cap_size = {.shift_or_times = static_cast<uint8_t>(8U & ((new_buffer_size >> 10U) - 2U)),
-                             .external_size = static_cast<uint16_t>(old_str_size)}};
+        return {.cap_size = {.shift_or_times = static_cast<uint8_t>(8U & ((new_buffer_size >> 10U) - 2U)),
+                             .external_size = static_cast<uint16_t>(old_str_size)},
+                .c_str_ptr = reinterpret_cast<int64_t>(std::malloc(new_buffer_size))};
     }
     // the large buffer
     uint16_t delta = std::min<uint32_t>(new_buffer_size - old_str_size, kDeltaMax);
@@ -286,7 +285,7 @@ auto allocate_new_external_buffer(uint32_t new_buffer_size, uint32_t old_str_siz
     *head = new_buffer_size;
     *(head + 1) = old_str_size;
     // the ptr point to the 8 bytes after the head
-    return {.c_str_ptr = reinterpret_cast<int64_t>(head + 2), .flag_delta = {.flag = 3U, .delta = delta}};
+    return {.flag_delta = {.flag = 3U, .delta = delta}, .c_str_ptr = reinterpret_cast<int64_t>(head + 2)};
 }
 
 template <typename Char>
