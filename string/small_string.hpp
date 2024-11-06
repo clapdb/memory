@@ -89,11 +89,11 @@ constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capaci
 
 template <typename Char>
 struct internal_core {
-    Char data[7];
+    Char data[7] = {};
     // 0~7
-    uint8_t internal_size : 4;
+    uint8_t internal_size : 4 = 0; 
     // 0000 , ths higher 4 bits is 0, means is_internal is 0
-    uint8_t is_internal: 4;
+    uint8_t is_internal: 4 = 0;
     [[nodiscard, gnu::always_inline]] static constexpr auto capacity() noexcept -> uint32_t {
         return sizeof(data);
     }
