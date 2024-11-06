@@ -27,7 +27,7 @@ constexpr static inline uint64_t kLargeStringSizeMask = (1ULL << 32ULL) - 2 * si
 // if the delta is kDeltaMax, the real delta is >= kDeltaMax
 constexpr static inline uint32_t kDeltaMax = (1U << 14U) - 1U;
 constexpr static inline uint8_t kIsShift = 0;
-constexpr static inline uint8_t kIsTimes = 1;
+constexpr static inline uint8_t kIsTimes = 2;
 constexpr static inline uint8_t kIsDelta = 3;
 
 [[nodiscard, gnu::always_inline]] constexpr inline auto next_power_of_2(uint16_t size) noexcept -> uint32_t {
@@ -74,6 +74,8 @@ constexpr static inline auto next_large_size(uint32_t size) noexcept -> uint32_t
 // Calculate the new buffer size, the buffer size is the capacity + the size of the head
 // the head is [capacity:4B, size:4B] for large buffer, [capacity:2B] for small buffer
 constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capacity) noexcept -> uint32_t {
+    // make sure at least will return 16
+    least_new_capacity = std::max(least_new_capacity, 9U);
     if (least_new_capacity <= kMaxSmallStringSize) [[likely]] {
         return next_power_of_2(least_new_capacity);
     } else if (least_new_capacity <= kMaxMediumStringSize) [[likely]] {
@@ -171,7 +173,7 @@ struct external_core {
             return 8U << size_shift.shift;
         }
         // or this branch is for times
-        if (size_times.times != 3U and size_times.times < 3U) {
+        if (size_times.times != 3U) {
             return ((size_times.times + 2U) << 10U);
         }
         if (delta_flag.flag == kIsDelta) {
@@ -195,14 +197,15 @@ struct external_core {
         }
         // if external_size == 0, and the times is 3, the size is 4096
         // assert if the flag is IsTimes and the times is 3U, then the external_size must be 0
-        // Assert(not (size_times.flag == kIsTimes and size_times.times == 3U and size_times.external_size != 0U), "if the flag is IsTimes and the times is 3U, then the external_size must be 0");
-        if (size_times.flag == kIsTimes and size_times.times == 3U) [[unlikely]] {
-            if (size_times.external_size != 0U) [[unlikely]] {
-                fmt::println("the flag is IsTimes and the times is 3U, and the external_size is {}", size_times.external_size);
-                Assert(false, "the flag is IsTimes and the times is 3U, then the external_size must be 0");
-            }
-        }
-        return size_times.external_size + uint32_t(bool(size_times.times == 3U)) * 4096;
+        Assert(not (size_times.flag == kIsTimes and size_times.times == 3U and size_times.external_size != 0U), "if the flag is IsTimes and the times is 3U, then the external_size must be 0");
+
+        // if (size_times.flag == kIsTimes and size_times.times == 3U) [[unlikely]] {
+        //     if (size_times.external_size != 0U) [[unlikely]] {
+        //         fmt::println("the flag is IsTimes and the times is 3U, and the external_size is {}", size_times.external_size);
+        //         Assert(false, "the flag is IsTimes and the times is 3U, then the external_size must be 0");
+        //     }
+        // }
+        return size_times.external_size + (uint32_t)(size_times.flag == kIsTimes and size_times.times == 3U) * 4096;
     }
 
     [[nodiscard]] auto size() const noexcept -> uint32_t {
@@ -211,18 +214,20 @@ struct external_core {
     }
 
 
-    // just work for the case that just change the size, do not change the capacity
+    // set size will be some slow, do not call it frequently
     auto set_size(uint32_t new_size) noexcept -> void {
+        // fmt::print("set_size: new_size: {}, old_size: {}, capacity: {}\n", new_size, size(), capacity());
         Assert(not check_if_internal(*this), "the external must be external");
-        if (delta_flag.flag != 3U) [[likely]] {
+        if (delta_flag.flag != kIsDelta) [[likely]] {
             // just set the external_size or the times
             Assert(new_size <= capacity_fast(), "the new_size is must be less or equal to the 4k");
-            // if the times is 3, the external_size is 0
-            Assert(new_size < 4096 or size_times.times >= 2U, "the new_size is must be less or equal to the");
             size_times.external_size = new_size; // 4096 will overflow, it's nice
             if (new_size == 4096) [[unlikely]] { // little probability
                 size_times.times = 3U;
-            }   
+            } else if (size_times.times == 3U) [[unlikely]] {
+                // the new_size is not 4k, so the times should be 2U
+                size_times.times = 2U;
+            }
         }
         // set the header of buffer the size
         auto* ptr = (uint32_t*)c_str_ptr - 1;
@@ -233,8 +238,9 @@ struct external_core {
     }
 
     auto increase_size(uint32_t delta) -> void {
+        // fmt::print("increase_size: delta: {}, old_size: {}, capacity: {}\n", delta, size(), capacity());
         Assert(not check_if_internal(*this), "the external must be external");
-        if (delta_flag.flag != 3U) [[likely]] {
+        if (delta_flag.flag != kIsDelta) [[likely]] {
             Assert(size_times.external_size + delta <= capacity_fast(), "the new_size is must be less or equal to the capacity_fast()");
             size_times.external_size += delta; // handle the 4096 overflow is OK
             if (delta > 0 and size_times.external_size == 0U) [[unlikely]] {
@@ -264,7 +270,7 @@ struct external_core {
         // do not check in release mode, because the caller
         Assert(delta <= size(), "the delta is must be less or equal to the size");
         Assert(not check_if_internal(*this), "the external must be external");
-        if (delta_flag.flag != 3U) [[likely]] {
+        if (delta_flag.flag != kIsDelta) [[likely]] {
             size_times.external_size -= delta; // handle the 4096 overflow is OK
             return;
         }
@@ -287,13 +293,15 @@ struct external_core {
         if (delta_flag.flag == kIsDelta) [[unlikely]] {
             return delta_flag.delta; // if the delta is kDeltaMax, the real delta is >= kDeltaMax
         }
-        if (size_times.flag == kIsShift) [[unlikely]] {
-            return (8U << size_shift.shift) - size_shift.external_size;
+        if (size_times.flag == kIsTimes) [[unlikely]] {
+            if (size_times.times < 3U) [[likely]] {
+                return ((size_times.times + 2U) << 10U) - size_times.external_size;
+            }
+            return 0; // the cap and size both are 4096 
         }
-        if (size_times.times < 3U) [[likely]] {
-            return ((size_times.times + 2U) << 10U) - size_times.external_size;
-        }
-        return 0; // the cap and size both are 4096
+        // by now, the flag is kIsShift
+        Assert(size_shift.flag == kIsShift, "the flag is must be kIsShift");
+        return (8U << size_shift.shift) - size_shift.external_size;
     }
 
     // capacity - size
@@ -311,7 +319,7 @@ struct external_core {
     [[gnu::always_inline]] void deallocate() noexcept {
         Assert(not check_if_internal(*this), "the external must be external");
         // check the ptr is pointed to a buffer or the after pos of the buffer head
-        if (delta_flag.flag != 3U) [[likely]] {
+        if (delta_flag.flag != kIsDelta) [[likely]] {
             // is not the large buffer
             std::free((Char*)(c_str_ptr));
         } else {
@@ -328,7 +336,7 @@ struct external_core {
 
 // set the buf_size and str_size to the right place
 template <typename Char>
-auto allocate_new_external_buffer(uint32_t new_buffer_size, uint32_t old_str_size) noexcept -> external_core<Char> {
+auto allocate_new_external_buffer_impl(uint32_t new_buffer_size, uint32_t old_str_size) noexcept -> external_core<Char> {
     static_assert(sizeof(Char) == 1);
     Assert(old_str_size <= new_buffer_size, "new_str_size should be less than new_buffer_size");
     Assert(new_buffer_size > 8, "new_buffer_size should be greater than 7, or it should not be an external buffer");
@@ -358,6 +366,13 @@ auto allocate_new_external_buffer(uint32_t new_buffer_size, uint32_t old_str_siz
     return {.c_str_ptr = reinterpret_cast<int64_t>(head + 2), .delta_flag = {.delta = delta, .flag = kIsDelta}};
 }
 
+template<typename Char>
+[[nodiscard, gnu::always_inline]] auto allocate_new_external_buffer(uint32_t new_buffer_size, uint32_t old_str_size) noexcept -> external_core<Char> {
+    auto ex = allocate_new_external_buffer_impl<Char>(new_buffer_size, old_str_size);
+    // print_detail_of_external(ex);
+    return ex;
+}
+
 template <typename Char>
 [[nodiscard, gnu::always_inline]] auto check_if_internal(const external_core<Char>& old_external) noexcept -> bool {
     return ((internal_core<Char>&)old_external).is_internal == 0;
@@ -368,12 +383,31 @@ template <typename Char>
     return old_internal.is_internal == 0;
 }
 
+inline auto print_detail_of_external(const external_core<char>& external) -> void {
+    if (check_if_internal(external)) {
+        fmt::print("detail: is a internal ---- internal: size: {}, capacity: {}\n", ((internal_core<char>&)external).size(),
+                   ((const internal_core<char>&)external).capacity());
+        return;
+    } 
+    if (external.size_shift.flag == kIsShift) {
+        fmt::print("detail: is a shift external ---- external: size: {}, capacity: {}, shift: {}\n", external.size_shift.external_size,
+                   external.capacity_fast(), external.size_shift.shift);
+    }
+    if (external.size_times.flag == kIsTimes) {
+        fmt::print("detail: is a times external ---- external: size: {}, capacity: {}, times: {}\n", external.size_times.external_size,
+                   external.capacity_fast(), external.size_times.times);
+    }
+    fmt::print("detail: is a delta external ---- external: size: {}, capacity: {}, delta: {}\n", external.size(), external.capacity(),
+               external.delta_flag.delta);
+}
+
 // this function handle append / push_back / operator +='s internal reallocation
 // this funciion will not change the size, but the capacity or delta
 template<typename Char>
 auto allocate_new_external_buffer_if_need_from_delta(external_core<Char>& old_external, uint32_t new_append_size) noexcept -> void {
     uint32_t old_delta_fast = check_if_internal(old_external) ? ((internal_core<Char>&)old_external).idle_capacity()
                                                               : old_external.idle_capacity_fast();
+    // print_detail_of_external(old_external);
     // if no need, do nothing, just update the size or delta
     if (old_delta_fast >= new_append_size) {
         // just return and do nothing
@@ -399,12 +433,14 @@ auto allocate_new_external_buffer_if_need_from_delta(external_core<Char>& old_ex
         // copy the old data to the new buffer
         std::memcpy(new_external.c_str(), old_internal.data, old_internal.size());
         old_external = new_external;
+        // print_detail_of_external(old_external);
         return;
     }
     // else is external
     // copy the old data to the new buffer
     auto new_buffer_size = calculate_new_buffer_size(old_external.size() + new_append_size);
     auto new_external = allocate_new_external_buffer<Char>(new_buffer_size, old_external.size());
+    // print_detail_of_external(new_external);
     std::memcpy(new_external.c_str(), old_external.c_str(), old_external.size());
     // replace the old external with the new one
     old_external.deallocate();
@@ -911,11 +947,29 @@ class basic_small_string {
     }
 
     // modifiers
+    /*
+    * clear the string, do not erase the memory, just set the size to 0
+    * @detail : do not use set_size(0), it will be a do some job for some other sizes.
+    */
     auto clear() noexcept -> void {
         // do not erase the memory, just set the size to 0
         if (is_external()) [[likely]] {
-            external.set_size(0);
             // if you want to reduce the capacity, use shrink_to_fit()
+            if (external.delta_flag.flag != kIsDelta) [[likely]] {
+                // is shift or times
+                external.size_shift.external_size = 0;
+                // if the original size is 4k, then the times is 3U, now set it to 2U
+                if (external.size_times.times == 3U) [[unlikely]] {
+                    external.size_times.times = 2U;
+                }
+            } else {
+                // is delta
+                auto* size_ptr = reinterpret_cast<uint32_t*>(external.c_str_ptr) - 1;
+                *size_ptr = 0;
+                // set the delta
+                external.delta_flag.delta = std::min(*(size_ptr - 1), kDeltaMax);
+            }
+
         } else {
             internal.internal_size = 0;
         }

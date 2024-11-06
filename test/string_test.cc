@@ -3421,7 +3421,7 @@ TEST_CASE("small_string::testAllClauses") {
 #define TEST_CLAUSE_SMALL(x) l(#x, clause11_##x<std::string>, clause11_##x<small_string>);
 
     TEST_CLAUSE_SMALL(21_4_2_a);
-    // TEST_CLAUSE_SMALL(21_4_2_b);
+    TEST_CLAUSE_SMALL(21_4_2_b);
     // TEST_CLAUSE_SMALL(21_4_2_c);
     // TEST_CLAUSE_SMALL(21_4_2_d);
     // TEST_CLAUSE_SMALL(21_4_2_e);
