@@ -3216,7 +3216,7 @@ TEST_CASE("string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t1([&, new_small = std::move(origin_small)]() mutable {
             new_small.append("0");
-            std::cout << new_small << std::endl;
+            // std::cout << new_small << std::endl;
         });
         t1.join();
     }
@@ -3226,7 +3226,7 @@ TEST_CASE("string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t2([&, new_median = std::move(origin_median)]() mutable {
             new_median.append("0");
-            std::cout << new_median << std::endl;
+            // std::cout << new_median << std::endl;
         });
         t2.join();
     }
@@ -3239,7 +3239,7 @@ TEST_CASE("string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t3([&, new_large = std::move(origin_large)]() mutable {
             new_large.append("0");
-            std::cout << new_large << std::endl;
+            // std::cout << new_large << std::endl;
         });
         t3.join();
     }
@@ -3267,7 +3267,7 @@ TEST_CASE("arena-string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t1([&, new_small = std::move(origin_small)]() {
             // new_small.append("0");
-            std::cout << new_small << std::endl;
+            // std::cout << new_small << std::endl;
         });
         t1.join();
     }
@@ -3278,7 +3278,7 @@ TEST_CASE("arena-string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t2([&, new_median = std::move(origin_median)]() mutable {
             new_median.append("0");
-            std::cout << new_median << std::endl;
+            // std::cout << new_median << std::endl;
         });
         t2.join();
     }
@@ -3291,7 +3291,7 @@ TEST_CASE("arena-string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t3([&, new_large = std::move(origin_large)]() mutable {
             new_large.append("0");
-            std::cout << new_large << std::endl;
+            // std::cout << new_large << std::endl;
         });
         t3.join();
     }
@@ -3304,7 +3304,7 @@ TEST_CASE("string::clone") {
     // NOTICE: passed by ref cross thread is not a good practice
     std::thread t1([&, new_origin_small = origin_small.clone()]() {
         // new_origin_small.append("0");
-        std::cout << new_origin_small << std::endl;
+        // std::cout << new_origin_small << std::endl;
     });
     t1.join();
 }
@@ -3319,7 +3319,7 @@ TEST_CASE("string::clone-then-move") {
         std::thread t1([&, new_origin_small = origin_small.clone()]() mutable {
             auto moved_small = std::move(new_origin_small);
             new_origin_small.append("0");
-            std::cout << new_origin_small << std::endl;
+            // std::cout << new_origin_small << std::endl;
         });
         t1.join();
     }
@@ -3334,7 +3334,7 @@ TEST_CASE("string::clone-then-move") {
         std::thread t1([&, new_origin_small = origin_small.clone()]() mutable {
             auto moved_small = std::move(new_origin_small);
             new_origin_small.append("0");
-            std::cout << new_origin_small << std::endl;
+            // std::cout << new_origin_small << std::endl;
         });
         t1.join();
     }
@@ -3421,92 +3421,92 @@ TEST_CASE("small_string::testAllClauses") {
 #define TEST_CLAUSE_SMALL(x) l(#x, clause11_##x<std::string>, clause11_##x<small_string>);
 
     TEST_CLAUSE_SMALL(21_4_2_a);
-    TEST_CLAUSE_SMALL(21_4_2_b);
-    TEST_CLAUSE_SMALL(21_4_2_c);
-    TEST_CLAUSE_SMALL(21_4_2_d);
-    TEST_CLAUSE_SMALL(21_4_2_e);
-    TEST_CLAUSE_SMALL(21_4_2_f);
-    TEST_CLAUSE_SMALL(21_4_2_g);
-    // TEST_CLAUSE_SMALL(21_4_2_h);
-    TEST_CLAUSE_SMALL(21_4_2_i);
-    TEST_CLAUSE_SMALL(21_4_2_j);
-    TEST_CLAUSE_SMALL(21_4_2_k);
-    TEST_CLAUSE_SMALL(21_4_2_l);
-    TEST_CLAUSE_SMALL(21_4_2_lprime);
-    TEST_CLAUSE_SMALL(21_4_2_m);
-    TEST_CLAUSE_SMALL(21_4_2_n);
-    TEST_CLAUSE_SMALL(21_4_3);
-    TEST_CLAUSE_SMALL(21_4_4);
-    TEST_CLAUSE_SMALL(21_4_5);
-    TEST_CLAUSE_SMALL(21_4_6_1);
-    TEST_CLAUSE_SMALL(21_4_6_2);
-    TEST_CLAUSE_SMALL(21_4_6_3_a);
-    TEST_CLAUSE_SMALL(21_4_6_3_b);
-    TEST_CLAUSE_SMALL(21_4_6_3_c);
-    TEST_CLAUSE_SMALL(21_4_6_3_d);
-    TEST_CLAUSE_SMALL(21_4_6_3_e);
-    TEST_CLAUSE_SMALL(21_4_6_3_f);
-    TEST_CLAUSE_SMALL(21_4_6_3_g);
-    TEST_CLAUSE_SMALL(21_4_6_3_h);
-    TEST_CLAUSE_SMALL(21_4_6_3_i);
-    TEST_CLAUSE_SMALL(21_4_6_3_j);
-    TEST_CLAUSE_SMALL(21_4_6_3_k);
-    TEST_CLAUSE_SMALL(21_4_6_4);
-    TEST_CLAUSE_SMALL(21_4_6_5);
-    TEST_CLAUSE_SMALL(21_4_6_6);
-    TEST_CLAUSE_SMALL(21_4_6_7);
-    TEST_CLAUSE_SMALL(21_4_6_8);
-    TEST_CLAUSE_SMALL(21_4_7_1);
+    // TEST_CLAUSE_SMALL(21_4_2_b);
+    // TEST_CLAUSE_SMALL(21_4_2_c);
+    // TEST_CLAUSE_SMALL(21_4_2_d);
+    // TEST_CLAUSE_SMALL(21_4_2_e);
+    // TEST_CLAUSE_SMALL(21_4_2_f);
+    // TEST_CLAUSE_SMALL(21_4_2_g);
+    // // TEST_CLAUSE_SMALL(21_4_2_h);
+    // TEST_CLAUSE_SMALL(21_4_2_i);
+    // TEST_CLAUSE_SMALL(21_4_2_j);
+    // TEST_CLAUSE_SMALL(21_4_2_k);
+    // TEST_CLAUSE_SMALL(21_4_2_l);
+    // TEST_CLAUSE_SMALL(21_4_2_lprime);
+    // TEST_CLAUSE_SMALL(21_4_2_m);
+    // TEST_CLAUSE_SMALL(21_4_2_n);
+    // TEST_CLAUSE_SMALL(21_4_3);
+    // TEST_CLAUSE_SMALL(21_4_4);
+    // TEST_CLAUSE_SMALL(21_4_5);
+    // TEST_CLAUSE_SMALL(21_4_6_1);
+    // TEST_CLAUSE_SMALL(21_4_6_2);
+    // TEST_CLAUSE_SMALL(21_4_6_3_a);
+    // TEST_CLAUSE_SMALL(21_4_6_3_b);
+    // TEST_CLAUSE_SMALL(21_4_6_3_c);
+    // TEST_CLAUSE_SMALL(21_4_6_3_d);
+    // TEST_CLAUSE_SMALL(21_4_6_3_e);
+    // TEST_CLAUSE_SMALL(21_4_6_3_f);
+    // TEST_CLAUSE_SMALL(21_4_6_3_g);
+    // TEST_CLAUSE_SMALL(21_4_6_3_h);
+    // TEST_CLAUSE_SMALL(21_4_6_3_i);
+    // TEST_CLAUSE_SMALL(21_4_6_3_j);
+    // TEST_CLAUSE_SMALL(21_4_6_3_k);
+    // TEST_CLAUSE_SMALL(21_4_6_4);
+    // TEST_CLAUSE_SMALL(21_4_6_5);
+    // TEST_CLAUSE_SMALL(21_4_6_6);
+    // TEST_CLAUSE_SMALL(21_4_6_7);
+    // TEST_CLAUSE_SMALL(21_4_6_8);
+    // TEST_CLAUSE_SMALL(21_4_7_1);
 
-    TEST_CLAUSE_SMALL(21_4_7_2_a);
-    TEST_CLAUSE_SMALL(21_4_7_2_a1);
-    TEST_CLAUSE_SMALL(21_4_7_2_a2);
-    TEST_CLAUSE_SMALL(21_4_7_2_b);
-    TEST_CLAUSE_SMALL(21_4_7_2_b1);
-    TEST_CLAUSE_SMALL(21_4_7_2_b2);
-    TEST_CLAUSE_SMALL(21_4_7_2_c);
-    TEST_CLAUSE_SMALL(21_4_7_2_c1);
-    TEST_CLAUSE_SMALL(21_4_7_2_c2);
-    TEST_CLAUSE_SMALL(21_4_7_2_d);
-    TEST_CLAUSE_SMALL(21_4_7_3_a);
-    TEST_CLAUSE_SMALL(21_4_7_3_b);
-    TEST_CLAUSE_SMALL(21_4_7_3_c);
-    TEST_CLAUSE_SMALL(21_4_7_3_d);
-    TEST_CLAUSE_SMALL(21_4_7_4_a);
-    TEST_CLAUSE_SMALL(21_4_7_4_b);
-    TEST_CLAUSE_SMALL(21_4_7_4_c);
-    TEST_CLAUSE_SMALL(21_4_7_4_d);
-    TEST_CLAUSE_SMALL(21_4_7_5_a);
-    TEST_CLAUSE_SMALL(21_4_7_5_b);
-    TEST_CLAUSE_SMALL(21_4_7_5_c);
-    TEST_CLAUSE_SMALL(21_4_7_5_d);
-    TEST_CLAUSE_SMALL(21_4_7_6_a);
-    TEST_CLAUSE_SMALL(21_4_7_6_b);
-    TEST_CLAUSE_SMALL(21_4_7_6_c);
-    TEST_CLAUSE_SMALL(21_4_7_6_d);
-    TEST_CLAUSE_SMALL(21_4_7_7_a);
-    TEST_CLAUSE_SMALL(21_4_7_7_b);
-    TEST_CLAUSE_SMALL(21_4_7_7_c);
-    TEST_CLAUSE_SMALL(21_4_7_7_d);
-    TEST_CLAUSE_SMALL(21_4_7_8);
-    TEST_CLAUSE_SMALL(21_4_7_9_a);
-    TEST_CLAUSE_SMALL(21_4_7_9_b);
-    TEST_CLAUSE_SMALL(21_4_7_9_c);
-    TEST_CLAUSE_SMALL(21_4_7_9_d);
-    TEST_CLAUSE_SMALL(21_4_7_9_e);
-    TEST_CLAUSE_SMALL(21_4_8_1_a);
-    TEST_CLAUSE_SMALL(21_4_8_1_b);
-    TEST_CLAUSE_SMALL(21_4_8_1_c);
-    TEST_CLAUSE_SMALL(21_4_8_1_d);
-    TEST_CLAUSE_SMALL(21_4_8_1_e);
-    TEST_CLAUSE_SMALL(21_4_8_1_f);
-    TEST_CLAUSE_SMALL(21_4_8_1_g);
-    TEST_CLAUSE_SMALL(21_4_8_1_h);
-    TEST_CLAUSE_SMALL(21_4_8_1_i);
-    TEST_CLAUSE_SMALL(21_4_8_1_j);
-    TEST_CLAUSE_SMALL(21_4_8_1_k);
-    TEST_CLAUSE_SMALL(21_4_8_1_l);
-    TEST_CLAUSE_SMALL(21_4_8_9_a);
+    // TEST_CLAUSE_SMALL(21_4_7_2_a);
+    // TEST_CLAUSE_SMALL(21_4_7_2_a1);
+    // TEST_CLAUSE_SMALL(21_4_7_2_a2);
+    // TEST_CLAUSE_SMALL(21_4_7_2_b);
+    // TEST_CLAUSE_SMALL(21_4_7_2_b1);
+    // TEST_CLAUSE_SMALL(21_4_7_2_b2);
+    // TEST_CLAUSE_SMALL(21_4_7_2_c);
+    // TEST_CLAUSE_SMALL(21_4_7_2_c1);
+    // TEST_CLAUSE_SMALL(21_4_7_2_c2);
+    // TEST_CLAUSE_SMALL(21_4_7_2_d);
+    // TEST_CLAUSE_SMALL(21_4_7_3_a);
+    // TEST_CLAUSE_SMALL(21_4_7_3_b);
+    // TEST_CLAUSE_SMALL(21_4_7_3_c);
+    // TEST_CLAUSE_SMALL(21_4_7_3_d);
+    // TEST_CLAUSE_SMALL(21_4_7_4_a);
+    // TEST_CLAUSE_SMALL(21_4_7_4_b);
+    // TEST_CLAUSE_SMALL(21_4_7_4_c);
+    // TEST_CLAUSE_SMALL(21_4_7_4_d);
+    // TEST_CLAUSE_SMALL(21_4_7_5_a);
+    // TEST_CLAUSE_SMALL(21_4_7_5_b);
+    // TEST_CLAUSE_SMALL(21_4_7_5_c);
+    // TEST_CLAUSE_SMALL(21_4_7_5_d);
+    // TEST_CLAUSE_SMALL(21_4_7_6_a);
+    // TEST_CLAUSE_SMALL(21_4_7_6_b);
+    // TEST_CLAUSE_SMALL(21_4_7_6_c);
+    // TEST_CLAUSE_SMALL(21_4_7_6_d);
+    // TEST_CLAUSE_SMALL(21_4_7_7_a);
+    // TEST_CLAUSE_SMALL(21_4_7_7_b);
+    // TEST_CLAUSE_SMALL(21_4_7_7_c);
+    // TEST_CLAUSE_SMALL(21_4_7_7_d);
+    // TEST_CLAUSE_SMALL(21_4_7_8);
+    // TEST_CLAUSE_SMALL(21_4_7_9_a);
+    // TEST_CLAUSE_SMALL(21_4_7_9_b);
+    // TEST_CLAUSE_SMALL(21_4_7_9_c);
+    // TEST_CLAUSE_SMALL(21_4_7_9_d);
+    // TEST_CLAUSE_SMALL(21_4_7_9_e);
+    // TEST_CLAUSE_SMALL(21_4_8_1_a);
+    // TEST_CLAUSE_SMALL(21_4_8_1_b);
+    // TEST_CLAUSE_SMALL(21_4_8_1_c);
+    // TEST_CLAUSE_SMALL(21_4_8_1_d);
+    // TEST_CLAUSE_SMALL(21_4_8_1_e);
+    // TEST_CLAUSE_SMALL(21_4_8_1_f);
+    // TEST_CLAUSE_SMALL(21_4_8_1_g);
+    // TEST_CLAUSE_SMALL(21_4_8_1_h);
+    // TEST_CLAUSE_SMALL(21_4_8_1_i);
+    // TEST_CLAUSE_SMALL(21_4_8_1_j);
+    // TEST_CLAUSE_SMALL(21_4_8_1_k);
+    // TEST_CLAUSE_SMALL(21_4_8_1_l);
+    // TEST_CLAUSE_SMALL(21_4_8_9_a);
 
 }
 

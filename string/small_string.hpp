@@ -13,6 +13,7 @@
 #include <cstring>
 #include <limits>
 #include "align/align.hpp"
+#include <fmt/core.h>
 
 namespace stdb::memory {
 
@@ -193,7 +194,15 @@ struct external_core {
             return kInvalidSize;
         }
         // if external_size == 0, and the times is 3, the size is 4096
-        return size_times.external_size + size_times.times == 3U ? 4096 : 0;
+        // assert if the flag is IsTimes and the times is 3U, then the external_size must be 0
+        // Assert(not (size_times.flag == kIsTimes and size_times.times == 3U and size_times.external_size != 0U), "if the flag is IsTimes and the times is 3U, then the external_size must be 0");
+        if (size_times.flag == kIsTimes and size_times.times == 3U) [[unlikely]] {
+            if (size_times.external_size != 0U) [[unlikely]] {
+                fmt::println("the flag is IsTimes and the times is 3U, and the external_size is {}", size_times.external_size);
+                Assert(false, "the flag is IsTimes and the times is 3U, then the external_size must be 0");
+            }
+        }
+        return size_times.external_size + uint32_t(bool(size_times.times == 3U)) * 4096;
     }
 
     [[nodiscard]] auto size() const noexcept -> uint32_t {
@@ -961,9 +970,9 @@ class basic_small_string {
         }
         // by now, the capacity is enough
         // memmove the data to the new position
-        std::memmove(pos + count, pos, end() - pos); // end() - pos is faster than size() - (pos - begin())
+        std::memmove(const_cast<Char*>(pos) + count, pos, end() - pos); // end() - pos is faster than size() - (pos - begin())
         // set the new data
-        std::memset(pos, ch, count);
+        std::memset(const_cast<Char*>(pos), ch, count);
         return const_cast<iterator>(pos);
     }
 
@@ -1144,7 +1153,8 @@ class basic_small_string {
     
     template<bool Safe = true>
     auto operator+=(Char ch) -> basic_small_string& {
-        return push_back<Safe>(ch);
+        push_back<Safe>(ch);
+        return *this;
     }
 
     template<bool Safe = true>

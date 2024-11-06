@@ -187,16 +187,16 @@ TEST_CASE("optparser::complex") {
     CHECK_EQ(options.get<bool>("test"), std::nullopt);
 
     auto help_msg = parser.format_help();
-    fmt::print("{}", help_msg);
+    // fmt::print("{}", help_msg);
     CHECK_EQ(help_msg.empty(), false);
 
     const char* usage_args[] = {"memory_test", "-u"};
     auto usage_options = parser.parse_args(2, usage_args);
     CHECK_EQ(usage_options.get<bool>("usage"), true);
-    fmt::print("============\n");
-    fmt::print("{}", parser.format_usage());
-    fmt::print("------------\n");
-    fmt::print("{}", parser.format_help());
+    // fmt::print("============\n");
+    // fmt::print("{}", parser.format_usage());
+    // fmt::print("------------\n");
+    // fmt::print("{}", parser.format_help());
 
     const char* args2[] = {"memory_test", "-f=test.txt", "--duration=2.0", "-r =1", "100"};
     auto options2 = parser.parse_args(5, args2);

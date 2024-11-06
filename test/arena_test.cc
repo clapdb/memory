@@ -1362,9 +1362,9 @@ TEST_CASE_TEMPLATE("arena::pmr", T, TYPES) {
     vec.emplace_back();
 
     // access the vector to check alignment
-    for (const auto val : vec) {
-        fmt::print("=== val : {}\n", sizeof(val));
-    }
+    // for (const auto val : vec) {
+    //     fmt::print("=== val : {}\n", sizeof(val));
+    // }
 }
 
 }  // namespace stdb::memory
