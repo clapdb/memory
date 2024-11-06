@@ -635,9 +635,7 @@ class basic_small_string {
 
     auto operator=(std::nullptr_t) -> basic_small_string& = delete;
 
-
     // assign
-
     auto assign(size_type count, Char ch) -> basic_small_string& {
         clear();
         append(count, ch);
@@ -1724,7 +1722,97 @@ class basic_small_string {
         resize(real_count);
         return std::move(*this);
     }
-};
+};  // class basic_small_string
+
+// operator +
+// 1
+template<typename C, class T, class A>
+inline auto operator+(const basic_small_string<C, T, A>& lhs, const basic_small_string<C, T, A>& rhs) -> basic_small_string<C, T, A> {
+    auto result = lhs;
+    result.append(rhs);
+    return result;
+}
+
+// 2
+template<typename C, class T, class A>
+inline auto operator+(const basic_small_string<C, T, A>& lhs, const C* rhs) -> basic_small_string<C, T, A> {
+    auto result = lhs;
+    result.append(rhs);
+    return result;
+}
+
+// 3
+template<typename C, class T, class A>
+inline auto operator+(const basic_small_string<C, T, A>& lhs, C rhs) -> basic_small_string<C, T, A> {
+    auto result = lhs;
+    result.push_back(rhs);
+    return result;
+}
+
+// 5
+template<typename C, class T, class A>
+inline auto operator+(const C* lhs, const basic_small_string<C, T, A>& rhs) -> basic_small_string<C, T, A> {
+    return basic_small_string<C, T, A>(1, lhs) + rhs;
+}
+
+// 6
+template<typename C, class T, class A>
+inline auto operator+(C lhs, const basic_small_string<C, T, A>& rhs) -> basic_small_string<C, T, A> {
+    return basic_small_string<C, T, A>(1, lhs) + rhs;
+}
+
+// 8
+template<typename C, class T, class A>
+inline auto operator+(basic_small_string<C, T, A>&& lhs, basic_small_string<C, T, A>&& rhs) -> basic_small_string<C, T, A> {
+    basic_small_string<C, T, A> result(std::move(lhs));
+    result.append(std::move(rhs));
+    return result;
+}
+
+// 9
+template<typename C, class T, class A>
+inline auto operator+(basic_small_string<C, T, A>&& lhs, const basic_small_string<C, T, A>& rhs) -> basic_small_string<C, T, A> {
+    auto result = std::move(lhs);
+    result.append(rhs);
+    return result;
+}
+
+// 10
+template<typename C, class T, class A>
+inline auto operator+(basic_small_string<C, T, A>&& lhs, const C* rhs) -> basic_small_string<C, T, A> {
+    auto result = std::move(lhs);
+    result.append(rhs);
+    return result;
+}
+
+// 11
+template<typename C, class T, class A>
+inline auto operator+(basic_small_string<C, T, A>&& lhs, C rhs) -> basic_small_string<C, T, A> {
+    auto result = std::move(lhs);
+    result.push_back(rhs);
+    return result;
+}
+
+// 13
+template<typename C, class T, class A>
+inline auto operator+(const basic_small_string<C, T, A>& lhs, basic_small_string<C, T, A>&& rhs) -> basic_small_string<C, T, A> {
+    auto result = lhs;
+    result.append(std::move(rhs));
+    return result;
+}
+
+// 14
+template<typename C, class T, class A>
+inline auto operator+(const C* lhs, basic_small_string<C, T, A>&& rhs) -> basic_small_string<C, T, A> {
+    return basic_small_string<C, T, A>(lhs) + std::move(rhs);
+}
+
+// 15
+template<typename C, class T, class A>
+inline auto operator+(C lhs, basic_small_string<C, T, A>&& rhs) -> basic_small_string<C, T, A> {
+    return basic_small_string<C, T, A>(1, lhs) + std::move(rhs);
+}
+
 // comparison operators
 template <typename C, class T, class A>
 inline auto operator <=>(const basic_small_string<C, T, A>& lhs, const basic_small_string<C, T, A>& rhs) noexcept -> std::strong_ordering {
