@@ -1724,6 +1724,17 @@ class basic_small_string {
     }
 };  // class basic_small_string
 
+// input/output
+template<typename C, class T, class A>
+inline auto operator<<(std::basic_ostream<C, T>& os, const basic_small_string<C, T, A>& str) -> std::basic_ostream<C, T>& {
+    return os.write(str.data(), str.size());
+}
+
+template<typename C, class T, class A>
+inline auto operator>>(std::basic_istream<C, T>& is, basic_small_string<C, T, A>& str) -> std::basic_istream<C, T>& {
+    return is >> std::basic_string_view<C, T>(str.data(), str.size());
+}
+
 // operator +
 // 1
 template<typename C, class T, class A>
