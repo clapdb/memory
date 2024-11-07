@@ -228,6 +228,7 @@ struct external_core {
                 // the new_size is not 4k, so the times should be 2U
                 size_times.times = 2U;
             }
+            return;
         }
         // set the header of buffer the size
         auto* ptr = (uint32_t*)c_str_ptr - 1;
@@ -235,6 +236,7 @@ struct external_core {
         // set the delta to delta_flag.delta
         auto new_delta = *(ptr - 1) - new_size;
         delta_flag.delta = std::min(new_delta, kDeltaMax);
+        return;
     }
 
     auto increase_size(uint32_t delta) -> void {
@@ -667,7 +669,7 @@ class basic_small_string {
 
     auto operator=(std::initializer_list<Char> ilist) -> basic_small_string& {
         clear();
-        append(ilist);
+        append(ilist.begin(), ilist.size());
         return *this;
     }
 
@@ -1179,7 +1181,7 @@ class basic_small_string {
 
     template<bool Safe = true>
     constexpr auto append(std::initializer_list<Char> ilist) -> basic_small_string& {
-        return append<Safe>(ilist.begin(), ilist.end());
+        return append<Safe>(ilist.data(), ilist.size());
     }
 
     template <class StringViewLike, bool Safe = true>
@@ -1424,9 +1426,22 @@ class basic_small_string {
         return count;
     }
 
-    auto resize(size_type count, Char ch = Char{}) -> void {
+    auto resize(size_type count) -> void {
+        if (count <= size()) {
+            set_size(count);
+            return;
+        }
+        if (count > capacity()) {
+            reserve(count);
+        }
+        std::memset(get_buffer() + size(), '\0', count - size());
+        set_size(count);
+        return;
+    }
+
+    auto resize(size_type count, Char ch) -> void {
         // if the count is less than the size, just set the size
-        if (count < size()) {
+        if (count <= size()) {
             set_size(count);
             return;
         }

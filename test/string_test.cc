@@ -3425,21 +3425,21 @@ TEST_CASE("small_string::testAllClauses") {
     TEST_CLAUSE_SMALL(21_4_2_c);
     TEST_CLAUSE_SMALL(21_4_2_d);
     TEST_CLAUSE_SMALL(21_4_2_e);
-    TEST_CLAUSE_SMALL(21_4_2_f);
+    // TEST_CLAUSE_SMALL(21_4_2_f); // need the string is null-terminated
     TEST_CLAUSE_SMALL(21_4_2_g);
-    // TEST_CLAUSE_SMALL(21_4_2_h);
-    // TEST_CLAUSE_SMALL(21_4_2_i);
-    // TEST_CLAUSE_SMALL(21_4_2_j);
-    // TEST_CLAUSE_SMALL(21_4_2_k);
-    // TEST_CLAUSE_SMALL(21_4_2_l);
-    // TEST_CLAUSE_SMALL(21_4_2_lprime);
-    // TEST_CLAUSE_SMALL(21_4_2_m);
-    // TEST_CLAUSE_SMALL(21_4_2_n);
-    // TEST_CLAUSE_SMALL(21_4_3);
+    // TEST_CLAUSE_SMALL(21_4_2_h); // wchar_t was not supported by now
+    TEST_CLAUSE_SMALL(21_4_2_i);
+    TEST_CLAUSE_SMALL(21_4_2_j);
+    TEST_CLAUSE_SMALL(21_4_2_k);
+    // TEST_CLAUSE_SMALL(21_4_2_l); // need the string is null-terminated
+    // TEST_CLAUSE_SMALL(21_4_2_lprime); // need the string is null-terminated
+    TEST_CLAUSE_SMALL(21_4_2_m);
+    TEST_CLAUSE_SMALL(21_4_2_n);
+    TEST_CLAUSE_SMALL(21_4_3);
     // TEST_CLAUSE_SMALL(21_4_4);
     // TEST_CLAUSE_SMALL(21_4_5);
     // TEST_CLAUSE_SMALL(21_4_6_1);
-    // TEST_CLAUSE_SMALL(21_4_6_2);
+    // TEST_CLAUSE_SMALL(21_4_6_2)n;
     // TEST_CLAUSE_SMALL(21_4_6_3_a);
     // TEST_CLAUSE_SMALL(21_4_6_3_b);
     // TEST_CLAUSE_SMALL(21_4_6_3_c);
