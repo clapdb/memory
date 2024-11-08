@@ -458,8 +458,11 @@ class basic_small_string {
              Assert(old_str_size <= new_buffer_size,
                     "if not NullTerminated,  new_str_size should be not greater than new_buffer_size");
          } else {
-             Assert(old_str_size < new_buffer_size,
-                    "if NullTerminated str,  new_str_size should be less than new_buffer_size");
+            if (old_str_size >= new_buffer_size) {
+                fmt::print("old_str_size: {}, new_buffer_size: {}\n", old_str_size, new_buffer_size);
+            }
+            Assert(old_str_size < new_buffer_size,
+                   "if NullTerminated str,  new_str_size should be less than new_buffer_size");
          }
          Assert(new_buffer_size != kInvalidSize, "new_buffer_size should not be kInvalidSize");
          if (new_buffer_size <= kMaxSmallStringSize) [[likely]] {
@@ -1199,14 +1202,15 @@ class basic_small_string {
                       "the value type of the input iterator is not the same as the char type");
         // calculate the count
         size_type count = std::distance(first, last);
+        size_type index = pos - begin();
         if constexpr (Safe) {
             allocate_new_external_buffer_if_need_from_delta(external, count);
         }
         // by now, the capacity is enough
         // move the data to the new position
-        std::memmove((char*)pos + count, pos, static_cast<size_type>(end() - pos));
+        std::memmove(data()+ index + count, data() + index, static_cast<size_type>(size() - index));
         // copy the new data
-        std::copy(first, last, (iterator)pos);
+        std::copy(first, last, data() + index);
         increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
@@ -1233,26 +1237,25 @@ class basic_small_string {
     // erase the data from the index to the end
     // NOTICE: the erase function will never change the capacity of the string or the external flag
     auto erase(size_type index = 0, size_type count = npos) -> basic_small_string& {
-        auto size = this->size();
-        // check if the count is out of range
-        if (index + count > size) [[unlikely]] {
-            // if count is zero, do nothing
-            // so index even is end() is ok
-            throw std::out_of_range("count is out of range");
+        auto old_size = this->size();
+        if (index > old_size) [[unlikely]] {
+            throw std::out_of_range("erase: index is out of range");
         }
         // calc the real count
-        size_type real_count = std::min(count, size - index);
+        size_type real_count = std::min(count, old_size - index);
         // memmove the data to the new position
-        std::memmove(data() + index, c_str() + index + real_count, size - index - real_count);
+        std::memmove(data() + index, c_str() + index + real_count, old_size - index - real_count);
         // set the new size
         if (is_external()) [[likely]] {
-            external.set_size(size - real_count);
+            external.set_size(old_size - real_count);
+            if constexpr (NullTerminated) {
+                *(external.c_str() + old_size - real_count) = '\0';
+            }
         } else {
             internal.internal_size -= real_count;
-        }
-        // set the null-terminated
-        if constexpr (NullTerminated) {
-            data()[size()] = '\0';
+            if constexpr (NullTerminated) {
+                internal.data[internal.internal_size] = '\0';
+            }
         }
         return *this;
     }
