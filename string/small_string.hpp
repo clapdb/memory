@@ -1114,7 +1114,20 @@ class basic_small_string {
 
     template<bool Safe = true>
     constexpr auto insert(size_type index, size_type count, Char ch) -> basic_small_string& {
-        return insert<Safe>(index, count, ch);
+        if (index > size()) [[unlikely]] {
+            throw std::out_of_range("index is out of range");
+        }
+        if constexpr (Safe) {
+            allocate_new_external_buffer_if_need_from_delta(external, count);
+        }
+        auto old_size = size();
+        std::memmove(data() + index + count, c_str() + index, old_size - index);
+        std::memset(data()+ index, ch, count);
+        increase_size(count);
+        if constexpr (NullTerminated) {
+            data()[old_size + count] = '\0';
+        }
+        return *this;
     }
 
     // just support zero-terminated input string, if you want to insert a string without zero-terminated, use
