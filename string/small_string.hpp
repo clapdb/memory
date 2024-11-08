@@ -826,15 +826,17 @@ class basic_small_string {
     }
 
     auto assign(const basic_small_string& str) -> basic_small_string& {
+        if (this == &str) [[unlikely]] {
+            return *this;
+        }
         clear();
         append(str);
         return *this;
     }
 
     auto assign(const basic_small_string& str, size_type pos, size_type count = npos) -> basic_small_string& {
-        clear();
-        append(str, pos, count);
-        return *this;
+        auto sub_str = str.substr(pos, count);
+        return assign(std::move(sub_str));
     }
 
     auto assign(basic_small_string&& gone) noexcept -> basic_small_string& {
