@@ -1099,26 +1099,16 @@ class basic_small_string {
     * @detail : do not use set_size(0), it will be a do some job for some other sizes.
     */
     auto clear() noexcept -> void {
-        // do not erase the memory, just set the size to 0
-        if (is_external()) [[likely]] {
-            // if you want to reduce the capacity, use shrink_to_fit()
-            if (external.idle_flag.flag != kIsDelta) [[likely]] {
-                // is shift or times
-                external.size_shift.external_size = 0;
-                // if the original size is 4k, then the times is 3U, now set it to 2U
-                if (external.size_times.times == 3U) [[unlikely]] {
-                    external.size_times.times = 2U;
-                }
-            } else {
-                // is delta
-                auto* size_ptr = reinterpret_cast<size_type*>(external.c_str_ptr) - 1;
-                *size_ptr = 0;
-                // set the delta
-                external.idle_flag.idle = std::min(*(size_ptr - 1), kDeltaMax);
+        if (is_external()) {
+            external.set_size(0);
+            if constexpr (NullTerminated) {
+                *((Char*)external.c_str_ptr) = '\0';
             }
-
         } else {
-            internal.internal_size = 0;
+            internal.set_size(0);
+            if constexpr (NullTerminated) {
+                internal.data[0] = '\0';
+            }
         }
     }
 
