@@ -648,9 +648,7 @@ class basic_small_string {
         }
     }
 
-    [[nodiscard, gnu::always_inline]] auto get_buffer() noexcept -> Char* {
-        return is_external() ? reinterpret_cast<Char*>(external.c_str_ptr) : internal.data;
-    }
+    
 
    
     public:
@@ -687,9 +685,9 @@ class basic_small_string {
         // by now, need external buffer, allocate a new buffer
         external = allocate_new_external_buffer(calculate_new_buffer_size(other_size), other_size);
         // copy the data from the other
-        std::memcpy(get_buffer(), other.c_str(), other_size);
+        std::memcpy(data(), other.c_str(), other_size);
         if constexpr (NullTerminated) {
-            get_buffer()[other_size] = '\0';
+            data()[other_size] = '\0';
         }
     }
 
@@ -903,7 +901,7 @@ class basic_small_string {
                 throw std::out_of_range("pos is out of range");
             }
         }
-        return *(get_buffer() + pos);
+        return *(data() + pos);
     }
 
     template<bool Safe = true>
@@ -923,7 +921,7 @@ class basic_small_string {
                 throw std::out_of_range("pos is out of range");
             }
         }
-        return *(get_buffer() + pos);
+        return *(data() + pos);
     }
 
     template<bool Safe = true>
@@ -937,7 +935,7 @@ class basic_small_string {
     }
 
     auto front() noexcept -> reference {
-        return *(Char*)get_buffer();
+        return *(Char*)data();
     }
 
     auto front() const noexcept -> const_reference {
@@ -970,9 +968,13 @@ class basic_small_string {
         return c_str();
     }
 
+    [[nodiscard, gnu::always_inline]] auto data() noexcept -> Char* {
+        return is_external() ? reinterpret_cast<Char*>(external.c_str_ptr) : internal.data;
+    }
+
     // Iterators
     auto begin() noexcept -> iterator {
-        return get_buffer();
+        return data();
     }
 
     auto begin() const noexcept -> const_iterator {
@@ -1139,11 +1141,11 @@ class basic_small_string {
         // by now, the capacity is enough
         // memmove the data to the new position
         auto old_size = size();
-        std::memmove(get_buffer() + index + count, c_str() + index, old_size - index);
+        std::memmove(data() + index + count, c_str() + index, old_size - index);
         // set the new data
-        std::memcpy(get_buffer() + index, str, count);
+        std::memcpy(data() + index, str, count);
         if constexpr (NullTerminated) {
-            get_buffer()[old_size + count] = '\0';
+            data()[old_size + count] = '\0';
         }
         return *this;
     }
@@ -1223,7 +1225,7 @@ class basic_small_string {
         // calc the real count
         size_type real_count = std::min(count, size - index);
         // memmove the data to the new position
-        std::memmove(get_buffer() + index, c_str() + index + real_count, size - index - real_count);
+        std::memmove(data() + index, c_str() + index + real_count, size - index - real_count);
         // set the new size
         if (is_external()) [[likely]] {
             external.set_size(size - real_count);
@@ -1263,10 +1265,10 @@ class basic_small_string {
             allocate_new_external_buffer_if_need_from_delta(external, count);
         }
         // by now, the capacity is enough
-        std::memset(get_buffer() + size(), c, count);
+        std::memset(data() + size(), c, count);
         increase_size(count);
         if constexpr (NullTerminated) {
-            get_buffer()[size()] = '\0';
+            data()[size()] = '\0';
         }
         return *this;
     }
@@ -1282,7 +1284,7 @@ class basic_small_string {
         std::memcpy(end(), other.c_str(), other_size);
         increase_size(other_size);
         if constexpr (NullTerminated) {
-            get_buffer()[size()] = '\0';
+            data()[size()] = '\0';
         }  
         return *this;
     }
@@ -1301,10 +1303,10 @@ class basic_small_string {
             allocate_new_external_buffer_if_need_from_delta(external, count);
         }
         
-        std::memcpy(get_buffer() + size(), s, count);
+        std::memcpy(data() + size(), s, count);
         increase_size(count);
         if constexpr (NullTerminated) {
-            get_buffer()[size()] = '\0';
+            data()[size()] = '\0';
         }
         return *this;
     }
@@ -1326,10 +1328,10 @@ class basic_small_string {
         if constexpr (Safe) {
             allocate_new_external_buffer_if_need_from_delta(external, count);
         }
-        std::copy(first, last, get_buffer() + size());
+        std::copy(first, last, data() + size());
         increase_size(count);
         if constexpr (NullTerminated) {
-            get_buffer()[size()] = '\0';
+            data()[size()] = '\0';
         }
         return *this;
     }
@@ -1402,10 +1404,10 @@ class basic_small_string {
                 reserve(new_size);
             }
             // by now, the capacity is enough
-            std::memset(get_buffer() + pos, ch, count2);
+            std::memset(data() + pos, ch, count2);
             set_size(new_size);
             if constexpr (NullTerminated) {
-                get_buffer()[new_size] = '\0';
+                data()[new_size] = '\0';
             }
             return *this;
         }
@@ -1424,13 +1426,13 @@ class basic_small_string {
             // move the right part to the new position, and the size will not be zero
             
             // the memmove will handle the overlap automatically
-            std::memmove(get_buffer() + pos + count, c_str() + pos + count2, size() - pos - count);
+            std::memmove(data() + pos + count, c_str() + pos + count2, size() - pos - count);
         }
         // by now, the buffer is ready
-        std::memset(get_buffer() + pos, ch, count2);
+        std::memset(data() + pos, ch, count2);
         set_size(new_size);
         if constexpr (NullTerminated) {
-            get_buffer()[new_size] = '\0';
+            data()[new_size] = '\0';
         }
         return *this;
     }
@@ -1452,10 +1454,10 @@ class basic_small_string {
                 reserve(new_size);
             }
             // by now, the capacity is enough
-            std::memcpy(get_buffer() + pos, cstr, count2);
+            std::memcpy(data() + pos, cstr, count2);
             set_size(new_size);
             if constexpr (NullTerminated) {
-                get_buffer()[new_size] = '\0';
+                data()[new_size] = '\0';
             }
             return *this;
         }
@@ -1473,14 +1475,14 @@ class basic_small_string {
         if (count != count2) {
             // move the right part to the new position, and the size will not be zero
             
-            std::memmove(get_buffer() + pos + count, c_str() + pos + count2, size() - pos - count);
+            std::memmove(data() + pos + count, c_str() + pos + count2, size() - pos - count);
             // the memmove will handle the overlap automatically
         }
         // by now, the buffer is ready
-        std::memcpy(get_buffer() + pos, cstr, count2);
+        std::memcpy(data() + pos, cstr, count2);
         set_size(new_size);
         if constexpr (NullTerminated) {
-            get_buffer()[new_size] = '\0';
+            data()[new_size] = '\0';
         }
         return *this;
     }
@@ -1540,7 +1542,7 @@ class basic_small_string {
             std::copy(first2, last2, first);
             set_size(new_size);
             if constexpr (NullTerminated) {
-                get_buffer()[new_size] = '\0';
+                data()[new_size] = '\0';
             }
             return *this;
         }
@@ -1565,7 +1567,7 @@ class basic_small_string {
         std::copy(first2, last2, first);
         set_size(new_size);
         if constexpr (NullTerminated) {
-            get_buffer()[new_size] = '\0';
+            data()[new_size] = '\0';
         }
         return *this;
     }
@@ -1603,17 +1605,17 @@ class basic_small_string {
         if (count <= size()) {
             set_size(count);
             if constexpr (NullTerminated) {
-                get_buffer()[count] = '\0';
+                data()[count] = '\0';
             }
             return;
         }
         if (count > capacity()) {
             reserve(count);
         }
-        std::memset(get_buffer() + size(), '\0', count - size());
+        std::memset(data() + size(), '\0', count - size());
         set_size(count);
         if constexpr (NullTerminated) {
-            get_buffer()[count] = '\0';
+            data()[count] = '\0';
         }
         return;
     }
@@ -1623,7 +1625,7 @@ class basic_small_string {
         if (count <= size()) {
             set_size(count);
             if constexpr (NullTerminated) {
-                get_buffer()[count] = '\0';
+                data()[count] = '\0';
             }
             return;
         }
@@ -1632,10 +1634,10 @@ class basic_small_string {
             reserve(count);
         }
         // by now, the capacity is enough
-        std::memset(get_buffer() + size(), ch, count - size());
+        std::memset(data() + size(), ch, count - size());
         set_size(count);
         if constexpr (NullTerminated) {
-            get_buffer()[count] = '\0';
+            data()[count] = '\0';
         }
         return;
     }
@@ -1963,11 +1965,12 @@ class basic_small_string {
     }
 
     constexpr auto substr(size_type pos = 0, size_type count = npos) const& -> basic_small_string {
-        if (pos > size()) [[unlikely]] {
+        auto size = this->size();
+        if (pos > size) [[unlikely]] {
             throw std::out_of_range("pos is out of range");
         }
         
-        return basic_small_string(c_str() + pos, count == npos ? size() - pos : count);
+        return basic_small_string(c_str() + pos, count == npos ? size - pos : count);
     }
 
     constexpr auto substr(size_type pos = 0, size_type count = npos) && -> basic_small_string {
@@ -1982,7 +1985,7 @@ class basic_small_string {
         }
         auto real_count = count == npos ? size() - pos : count;
         // do replace first
-        std::memmove(get_buffer(), c_str() + pos, real_count);
+        std::memmove(data(), c_str() + pos, real_count);
         resize(real_count);
         return std::move(*this);
     }
