@@ -1114,14 +1114,14 @@ class basic_small_string {
 
     template<bool Safe = true>
     constexpr auto insert(size_type index, size_type count, Char ch) -> basic_small_string& {
-        return insert<Safe>(begin() + index, count, ch);
+        return insert<Safe>(index, count, ch);
     }
 
     // just support zero-terminated input string, if you want to insert a string without zero-terminated, use
     // insert(size_type index, const Char* str, size_type count)
     template<bool Safe = true>
     constexpr auto insert(size_type index, const Char* str) -> basic_small_string& {
-        return insert<Safe>(begin() + index, str, std::strlen(str));
+        return insert<Safe>(index, str, std::strlen(str));
     }
 
     template<bool Safe = true>
@@ -1144,12 +1144,12 @@ class basic_small_string {
 
     template<bool Safe = true>
     constexpr auto insert(size_type index, const basic_small_string& other) -> basic_small_string& {
-        return insert<Safe>(begin() + index, other.data(), other.size());
+        return insert<Safe>(index, other.data(), other.size());
     }
 
     template<bool Safe = true>
     constexpr auto insert(size_type index, const basic_small_string& str, size_type other_index, size_type count = npos) -> basic_small_string& {
-        return insert<Safe>(begin() + index, str.substr(other_index, count));
+        return insert<Safe>(index, str.substr(other_index, count));
     }
 
     template<bool Safe = true>
@@ -1163,9 +1163,12 @@ class basic_small_string {
         if constexpr (Safe) {
             allocate_new_external_buffer_if_need_from_delta(external, count);
         }
+        if (pos > end()) [[unlikely]] {
+            throw std::out_of_range("pos is out of range");
+        }
         // by now, the capacity is enough
         // memmove the data to the new position
-        std::memmove(const_cast<Char*>(pos) + count, pos, end() - pos); // end() - pos is faster than size() - (pos - begin())
+        std::memmove(const_cast<Char*>(pos) + count, pos, static_cast<size_type>(end() - pos)); // end() - pos is faster than size() - (pos - begin())
         // set the new data
         std::memset(const_cast<Char*>(pos), ch, count);
         return const_cast<iterator>(pos);
@@ -1185,7 +1188,7 @@ class basic_small_string {
         // move the data to the new position
         std::memmove((char*)pos + count, pos, static_cast<size_type>(end() - pos));
         // copy the new data
-        std::copy(first, last, pos);
+        std::copy(first, last, (iterator)pos);
         return const_cast<iterator>(pos);
     }
 
