@@ -1970,7 +1970,7 @@ class basic_small_string {
             throw std::out_of_range("pos is out of range");
         }
         
-        return basic_small_string(c_str() + pos, count == npos ? size - pos : count);
+        return basic_small_string(c_str() + pos, (count == npos || count + pos >= size) ? size - pos : count);
     }
 
     constexpr auto substr(size_type pos = 0, size_type count = npos) && -> basic_small_string {
@@ -1983,7 +1983,7 @@ class basic_small_string {
             resize(count);
             return std::move(*this);
         }
-        auto real_count = count == npos ? size() - pos : count;
+        auto real_count = (count == npos || count + pos >= size()) ? size() - pos : count;
         // do replace first
         std::memmove(data(), c_str() + pos, real_count);
         resize(real_count);
