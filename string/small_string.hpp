@@ -1139,6 +1139,9 @@ class basic_small_string {
 
     template<bool Safe = true>
     constexpr auto insert(size_type index, const Char* str, size_type count) -> basic_small_string& {
+        if (index > size()) [[unlikely]] {
+            throw std::out_of_range("index is out of range");
+        }
         // check if the capacity is enough
         if constexpr (Safe) {
             allocate_new_external_buffer_if_need_from_delta(external, count);
@@ -1149,6 +1152,7 @@ class basic_small_string {
         std::memmove(data() + index + count, c_str() + index, old_size - index);
         // set the new data
         std::memcpy(data() + index, str, count);
+        increase_size(count);
         if constexpr (NullTerminated) {
             data()[old_size + count] = '\0';
         }
@@ -1176,14 +1180,15 @@ class basic_small_string {
         if constexpr (Safe) {
             allocate_new_external_buffer_if_need_from_delta(external, count);
         }
-        if (pos > end()) [[unlikely]] {
-            throw std::out_of_range("pos is out of range");
-        }
         // by now, the capacity is enough
         // memmove the data to the new position
         std::memmove(const_cast<Char*>(pos) + count, pos, static_cast<size_type>(end() - pos)); // end() - pos is faster than size() - (pos - begin())
         // set the new data
         std::memset(const_cast<Char*>(pos), ch, count);
+        increase_size(count);
+        if constexpr (NullTerminated) {
+            data()[size()] = '\0';
+        }
         return const_cast<iterator>(pos);
     }
 
@@ -1202,12 +1207,17 @@ class basic_small_string {
         std::memmove((char*)pos + count, pos, static_cast<size_type>(end() - pos));
         // copy the new data
         std::copy(first, last, (iterator)pos);
+        increase_size(count);
+        if constexpr (NullTerminated) {
+            data()[size()] = '\0';
+        }
         return const_cast<iterator>(pos);
     }
 
     template<bool Safe = true>
     constexpr auto insert(const_iterator pos, std::initializer_list<Char> ilist) -> iterator {
-        return insert<Safe>(pos, ilist.begin(), ilist.end());
+        // the template function do not support partial specialization, so use the decltype to get the type of the ilist.begin()
+        return insert<decltype(ilist.begin()), Safe>(pos, ilist.begin(), ilist.end());
     }
 
     template<class StringViewLike, bool Safe = true>
@@ -1240,6 +1250,10 @@ class basic_small_string {
         } else {
             internal.internal_size -= real_count;
         }
+        // set the null-terminated
+        if constexpr (NullTerminated) {
+            data()[size()] = '\0';
+        }
         return *this;
     }
 
@@ -1261,9 +1275,13 @@ class basic_small_string {
 
     void pop_back() {
         if (is_external()) [[likely]] {
-            external.size--;
+            // the size maybe was stored in the head of the external buffer
+            external.decrease_size(1);
         } else {
-            internal.size--;
+            internal.internal_size--;
+        }
+        if constexpr (NullTerminated) {
+            data()[size()] = '\0';
         }
     }
     template<bool Safe = true>
