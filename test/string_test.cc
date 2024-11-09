@@ -943,7 +943,7 @@ void clause11_21_4_6_5(String& test) {
     }
     if (!test.empty()) {
         // Can't test pop_back with std::string, doesn't support it yet.
-        // test.pop_back();
+        test.pop_back();
     }
 }
 

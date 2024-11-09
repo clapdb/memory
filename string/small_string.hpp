@@ -451,7 +451,7 @@ class basic_small_string {
      };
 
      // set the buf_size and str_size to the right place
-     inline static auto allocate_new_external_buffer_impl(size_type new_buffer_size,
+     inline static auto allocate_new_external_buffer(size_type new_buffer_size,
                                                           size_type old_str_size) noexcept -> external_core {
          static_assert(sizeof(Char) == 1);
          if constexpr (not NullTerminated) {
@@ -501,13 +501,6 @@ class basic_small_string {
          *(head + 1) = old_str_size;
          // the ptr point to the 8 bytes after the head
          return {.c_str_ptr = reinterpret_cast<int64_t>(head + 2), .idle_flag = {.idle = idle, .flag = kIsDelta}};
-     }
-
-     [[nodiscard, gnu::always_inline]] static inline auto allocate_new_external_buffer(
-       size_type new_buffer_size, size_type old_str_size) noexcept -> external_core {
-         auto ex = allocate_new_external_buffer_impl(new_buffer_size, old_str_size);
-         // print_detail_of_external(ex);
-         return ex;
      }
 
      [[nodiscard, gnu::always_inline]] static inline auto check_if_internal(const external_core& old_external) noexcept
@@ -1098,9 +1091,10 @@ class basic_small_string {
 
     // modifiers
     /*
-    * clear the string, do not erase the memory, just set the size to 0
-    * @detail : do not use set_size(0), it will be a do some job for some other sizes.
-    */
+     * clear the string, do not erase the memory, just set the size to 0, and set the first char to '\0' if
+     * NullTerminated is true
+     * @detail : do not use set_size(0), it will be a do some job for some other sizes.
+     */
     auto clear() noexcept -> void {
         if (is_external()) {
             external.set_size(0);
