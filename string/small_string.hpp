@@ -660,16 +660,25 @@ class basic_small_string {
     }
 
     // copy constructor
-    basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) : external{other.external} {
-        if (not is_external()) {
+    basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
+        if (not other.is_external()) {
             // is a internal string, just copy the internal part
+            internal = other.internal;
             return;
         }
         // is a external string, check if the size is larger than the internal capacity
         auto other_size = other.size();
-        if (other_size <= internal_core::capacity()) {
+        if (other_size >= internal_core::capacity()) [[likely]] {
+            // by now, need external buffer, allocate a new buffer
+            auto new_buffer_size = calculate_new_buffer_size(other_size);
+            external = allocate_new_external_buffer(new_buffer_size, other_size);
+            // copy the data from the other
+            std::memcpy(external.c_str(), other.c_str(), other_size);
+            if constexpr (NullTerminated) {
+                external.c_str()[other_size] = '\0';
+            }
+        } else {
             // the size is smaller than the internal capacity, do not need to allocate a new buffer
-
             // set the size first
             internal.set_size(other_size);
             // copy the data from the other
@@ -677,13 +686,6 @@ class basic_small_string {
             if constexpr (NullTerminated) {
                 internal.data[other_size] = '\0';
             }
-        }
-        // by now, need external buffer, allocate a new buffer
-        external = allocate_new_external_buffer(calculate_new_buffer_size(other_size), other_size);
-        // copy the data from the other
-        std::memcpy(data(), other.c_str(), other_size);
-        if constexpr (NullTerminated) {
-            data()[other_size] = '\0';
         }
     }
 
@@ -1473,7 +1475,8 @@ class basic_small_string {
             if (new_size > max_size()) [[unlikely]] {
                 throw std::length_error("the new capacity is too large");
             }
-            if (new_size > capacity()) {
+            auto old_cap = capacity();
+            if (new_size > old_cap) {
                 reserve(new_size);
             }
             // by now, the capacity is enough

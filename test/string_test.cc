@@ -3391,6 +3391,12 @@ TEST_CASE("string::small_string") {
     CHECK_NE(str.c_str(), (char*)&str);
 }
 
+TEST_CASE("small_string::calculate_the_buffer_size") {
+    uint32_t old_str_size = 5287U;
+    auto new_buffer_size = calculate_new_buffer_size(old_str_size);
+    CHECK_EQ(new_buffer_size, 5296);
+}
+
 
 // small_string section
 TEST_CASE("small_string::testAllClauses") {
@@ -3454,16 +3460,16 @@ TEST_CASE("small_string::testAllClauses") {
     TEST_CLAUSE_SMALL(21_4_6_4);
     TEST_CLAUSE_SMALL(21_4_6_5);
     TEST_CLAUSE_SMALL(21_4_6_6);
-    // TEST_CLAUSE_SMALL(21_4_6_7);
-    // TEST_CLAUSE_SMALL(21_4_6_8);
-    // TEST_CLAUSE_SMALL(21_4_7_1);
+    TEST_CLAUSE_SMALL(21_4_6_7);
+    TEST_CLAUSE_SMALL(21_4_6_8);
+    TEST_CLAUSE_SMALL(21_4_7_1);
 
-    // TEST_CLAUSE_SMALL(21_4_7_2_a);
-    // TEST_CLAUSE_SMALL(21_4_7_2_a1);
-    // TEST_CLAUSE_SMALL(21_4_7_2_a2);
-    // TEST_CLAUSE_SMALL(21_4_7_2_b);
-    // TEST_CLAUSE_SMALL(21_4_7_2_b1);
-    // TEST_CLAUSE_SMALL(21_4_7_2_b2);
+    TEST_CLAUSE_SMALL(21_4_7_2_a);
+    TEST_CLAUSE_SMALL(21_4_7_2_a1);
+    TEST_CLAUSE_SMALL(21_4_7_2_a2);
+    TEST_CLAUSE_SMALL(21_4_7_2_b);
+    TEST_CLAUSE_SMALL(21_4_7_2_b1);
+    TEST_CLAUSE_SMALL(21_4_7_2_b2);
     // TEST_CLAUSE_SMALL(21_4_7_2_c);
     // TEST_CLAUSE_SMALL(21_4_7_2_c1);
     // TEST_CLAUSE_SMALL(21_4_7_2_c2);
