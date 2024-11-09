@@ -3395,6 +3395,14 @@ TEST_CASE("small_string::calculate_the_buffer_size") {
     uint32_t old_str_size = 5287U;
     auto new_buffer_size = calculate_new_buffer_size(old_str_size);
     CHECK_EQ(new_buffer_size, 5296);
+
+    uint32_t old_str_size1 = 4U;
+    auto new_buffer_size1 = calculate_new_buffer_size(old_str_size1);
+    CHECK_EQ(new_buffer_size1, 16);
+}
+
+TEST_CASE("small_string::capacity") {
+
 }
 
 
@@ -3470,7 +3478,7 @@ TEST_CASE("small_string::testAllClauses") {
     TEST_CLAUSE_SMALL(21_4_7_2_b);
     TEST_CLAUSE_SMALL(21_4_7_2_b1);
     TEST_CLAUSE_SMALL(21_4_7_2_b2);
-    // TEST_CLAUSE_SMALL(21_4_7_2_c);
+    TEST_CLAUSE_SMALL(21_4_7_2_c);
     // TEST_CLAUSE_SMALL(21_4_7_2_c1);
     // TEST_CLAUSE_SMALL(21_4_7_2_c2);
     // TEST_CLAUSE_SMALL(21_4_7_2_d);

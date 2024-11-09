@@ -102,6 +102,8 @@ constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capaci
 
 
 
+
+
 // if NullTerminated is true, the string will be null terminated, and the size will be the length of the string
 // if NullTerminated is false, the string will not be null terminated, and the size will still be the length of the string
 template <typename Char, class Traits = std::char_traits<Char>, class Allocator = std::allocator<Char>, bool NullTerminated = true>
@@ -224,23 +226,16 @@ class basic_small_string {
                  }
              }
              // or this branch is for times
-             if (size_times.times != 3U) {
+             if (size_times.flag == kIsTimes) {
                  if constexpr (not NullTerminated) {
-                     return ((size_times.times + 1U) << 10U);
+                     return size_times.times < 3U ? ((size_times.times + 2U) << 10U) : 4096;
                  } else {
-                     return ((size_times.times + 2U) << 10U) - 1;
+                     return size_times.times < 3U ? ((size_times.times + 2U) << 10U) - 1 : 4095;
                  }
              }
-             if (idle_flag.flag == kIsDelta) {
-                 // means don't know the capacity, because the size_or_mask is overflow
-                 return kInvalidSize;
-             }
-             // in this case, the capacity and size both are 4096
-             if constexpr (not NullTerminated) {
-                 return 4096;
-             } else {
-                 return 4095;
-             }
+             Assert(idle_flag.flag == kIsDelta, "the flag is must be kIsDelta");
+             // means don't know the capacity, because the size_or_mask is overflow
+             return kInvalidSize;
          }
 
          [[nodiscard]] auto capacity() const noexcept -> size_type {
@@ -453,7 +448,7 @@ class basic_small_string {
      // set the buf_size and str_size to the right place
      inline static auto allocate_new_external_buffer(size_type new_buffer_size,
                                                           size_type old_str_size) noexcept -> external_core {
-         static_assert(sizeof(Char) == 1);
+        // make sure the old_str_size <= new_buffer_size
          if constexpr (not NullTerminated) {
              Assert(old_str_size <= new_buffer_size,
                     "if not NullTerminated,  new_str_size should be not greater than new_buffer_size");
@@ -644,9 +639,13 @@ class basic_small_string {
         }
     }
 
-    
+    constexpr static inline auto calc_new_buf_size_from_any_size(uint32_t size) noexcept -> uint32_t {
+        if (size < internal_core::capacity()) {
+            return internal_core::capacity();
+        }
+        return calculate_new_buffer_size(size);
+    }
 
-   
     public:
     // Member functions
     // no new or malloc needed, just noexcept
@@ -1073,7 +1072,6 @@ class basic_small_string {
             // replace the old external with the new one
             external = new_external;
         }
-        // else is internal, then do nothing
     }
 
     // it was a just exported function, should not be called frequently, it was a little bit slow in some case.
@@ -1084,10 +1082,10 @@ class basic_small_string {
     auto shrink_to_fit() -> void {
         auto [cap, size] = get_capacity_and_size();
         Assert(cap >= size, "cap should always be greater or equal to size");
-        auto best_cap = calculate_new_buffer_size(size);
-        if (cap > best_cap) {
+        auto best_cap = calc_new_buf_size_from_any_size(size);
+        if (cap > best_cap) {  // the cap is larger than the best cap, so need to shrink
             auto new_str(*this);
-            *this = std::move(new_str);
+            swap(new_str);
         }
     }
 
@@ -1465,11 +1463,12 @@ class basic_small_string {
     // replace [pos, pos+count] with the range [cstr, cstr + count2]
     auto replace(size_type pos, size_type count, const Char* cstr, size_type count2) -> basic_small_string& {
         // check the pos is not out of range
-        if (pos > size()) [[unlikely]] {
+        auto old_size = size();
+        if (pos > old_size) [[unlikely]] {
             throw std::out_of_range("pos is out of range");
         }
 
-        if (pos + count >= size()) {
+        if (pos + count >= old_size) {
             // no right part to move
             uint64_t new_size = pos + count2; // to avoid overflow from size_type
             if (new_size > max_size()) [[unlikely]] {
@@ -1489,11 +1488,12 @@ class basic_small_string {
         }
         // else, there is right part, maybe need to move
         // check the size, if the pos + count is greater than the cap, we need to reserve
-        uint64_t new_size = size() - count + count2; // to avoid overflow from size_type
+        uint64_t new_size = old_size - count + count2; // to avoid overflow from size_type
         if (new_size > max_size()) [[unlikely]] {
             throw std::length_error("the new capacity is too large");
         }
-        if (new_size > capacity()) {
+        auto cap = capacity();
+        if (new_size > cap) {
             reserve(new_size);
         }
         // by now, the capacity is enough
@@ -1501,7 +1501,7 @@ class basic_small_string {
         if (count != count2) {
             // move the right part to the new position, and the size will not be zero
             
-            std::memmove(data() + pos + count, c_str() + pos + count2, size() - pos - count);
+            std::memmove(data() + pos + count, c_str() + pos + count2, old_size - pos - count);
             // the memmove will handle the overlap automatically
         }
         // by now, the buffer is ready
