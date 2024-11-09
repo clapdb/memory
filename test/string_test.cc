@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "string/string.hpp"
+
 #include <cxxabi.h>     // for __forced_unwind
 #include <fmt/core.h>   // for format
 #include <sys/types.h>  // for uint
@@ -33,7 +35,6 @@
 #include "arena/arena.hpp"    // for size_t, Arena, Arena::Options
 #include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK
 #include "string/arena_string.hpp"
-#include "string/string.hpp"
 #include "string/small_string.hpp"
 
 namespace stdb::memory {
@@ -3452,7 +3453,6 @@ TEST_CASE("small_string::capacity") {
     CHECK_EQ(long2.size(), 4100);
 }
 
-
 // small_string section
 TEST_CASE("small_string::testAllClauses") {
     std::cout << "Starting with seed: " << seed << std::endl;
@@ -3486,14 +3486,14 @@ TEST_CASE("small_string::testAllClauses") {
     TEST_CLAUSE_SMALL(21_4_2_c);
     TEST_CLAUSE_SMALL(21_4_2_d);
     TEST_CLAUSE_SMALL(21_4_2_e);
-    TEST_CLAUSE_SMALL(21_4_2_f); // need the string is null-terminated
+    TEST_CLAUSE_SMALL(21_4_2_f);  // need the string is null-terminated
     TEST_CLAUSE_SMALL(21_4_2_g);
     // TEST_CLAUSE_SMALL(21_4_2_h); // wchar_t was not supported by now
     TEST_CLAUSE_SMALL(21_4_2_i);
     TEST_CLAUSE_SMALL(21_4_2_j);
     TEST_CLAUSE_SMALL(21_4_2_k);
-    TEST_CLAUSE_SMALL(21_4_2_l); // need the string is null-terminated
-    TEST_CLAUSE_SMALL(21_4_2_lprime); // need the string is null-terminated
+    TEST_CLAUSE_SMALL(21_4_2_l);       // need the string is null-terminated
+    TEST_CLAUSE_SMALL(21_4_2_lprime);  // need the string is null-terminated
     TEST_CLAUSE_SMALL(21_4_2_m);
     TEST_CLAUSE_SMALL(21_4_2_n);
     TEST_CLAUSE_SMALL(21_4_3);
@@ -3526,13 +3526,13 @@ TEST_CASE("small_string::testAllClauses") {
     TEST_CLAUSE_SMALL(21_4_7_2_b1);
     TEST_CLAUSE_SMALL(21_4_7_2_b2);
     TEST_CLAUSE_SMALL(21_4_7_2_c);
-    // TEST_CLAUSE_SMALL(21_4_7_2_c1);
-    // TEST_CLAUSE_SMALL(21_4_7_2_c2);
-    // TEST_CLAUSE_SMALL(21_4_7_2_d);
-    // TEST_CLAUSE_SMALL(21_4_7_3_a);
-    // TEST_CLAUSE_SMALL(21_4_7_3_b);
-    // TEST_CLAUSE_SMALL(21_4_7_3_c);
-    // TEST_CLAUSE_SMALL(21_4_7_3_d);
+    TEST_CLAUSE_SMALL(21_4_7_2_c1);
+    TEST_CLAUSE_SMALL(21_4_7_2_c2);
+    TEST_CLAUSE_SMALL(21_4_7_2_d);
+    TEST_CLAUSE_SMALL(21_4_7_3_a);
+    TEST_CLAUSE_SMALL(21_4_7_3_b);
+    TEST_CLAUSE_SMALL(21_4_7_3_c);
+    TEST_CLAUSE_SMALL(21_4_7_3_d);
     // TEST_CLAUSE_SMALL(21_4_7_4_a);
     // TEST_CLAUSE_SMALL(21_4_7_4_b);
     // TEST_CLAUSE_SMALL(21_4_7_4_c);
@@ -3568,8 +3568,6 @@ TEST_CASE("small_string::testAllClauses") {
     // TEST_CLAUSE_SMALL(21_4_8_1_k);
     // TEST_CLAUSE_SMALL(21_4_8_1_l);
     // TEST_CLAUSE_SMALL(21_4_8_9_a);
-
 }
 
 }  // namespace stdb::memory
-

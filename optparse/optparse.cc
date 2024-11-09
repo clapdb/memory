@@ -312,8 +312,8 @@ auto parse_value(string val, Type typ, const Option* option = nullptr) -> std::o
     return val;
 }
 
-auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse::ValueStore& store, string str_val)
-  -> bool {
+auto OptionParser::process_opt(const stdb::optparse::Option& opt, stdb::optparse::ValueStore& store,
+                               string str_val) -> bool {
     auto dest = opt.dest();
     auto type = opt.type();
     switch (opt.action()) {

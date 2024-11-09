@@ -960,7 +960,7 @@ class stdb_vector : public core<T>
     }
 
     template <Safety safety = Safety::Safe, typename... Args>
-    auto emplace_back(Args&&... args) -> reference{
+    auto emplace_back(Args&&... args) -> reference {
         if constexpr (safety == Safety::Safe) {
             if (!this->full()) [[likely]] {
                 this->construct_at(this->_finish++, std::forward<Args>(args)...);

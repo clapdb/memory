@@ -1452,12 +1452,12 @@ class non_movable
     int* ptr;
 
    public:
-    non_movable() : ptr(new int(0)) { 
-        // std::cout << "non_movable constructor default" << std::endl; 
-        }
+    non_movable() : ptr(new int(0)) {
+        // std::cout << "non_movable constructor default" << std::endl;
+    }
     non_movable(int i) : ptr(new int(i)) {
-        // std::cout << "non_movable constructor with : " << i << std::endl; 
-        }
+        // std::cout << "non_movable constructor with : " << i << std::endl;
+    }
     non_movable(const non_movable& rhs) : ptr(new int(*rhs.ptr)) {
         // std::cout << "copy non_movable with : " << *ptr << std::endl;
     }
@@ -1466,9 +1466,9 @@ class non_movable
     non_movable& operator=(non_movable&&) = delete;
     auto operator==(const int rhs) const -> bool { return *ptr == rhs; }
     auto operator==(const non_movable& rhs) const -> bool { return *ptr == *rhs.ptr; }
-    void print() const { 
-        // std::cout << *ptr << std::endl; 
-        }
+    void print() const {
+        // std::cout << *ptr << std::endl;
+    }
     ~non_movable() {
         // std::cout << "non_movable destructor with : " << *ptr << std::endl;
         delete ptr;
@@ -1483,8 +1483,8 @@ class non_copyable
 
    public:
     non_copyable() : ptr(new int(0)), size(0) {
-        // std::cout << "non_copyable constructor default" << std::endl; 
-        }
+        // std::cout << "non_copyable constructor default" << std::endl;
+    }
     non_copyable(int i) : ptr(new int(i)), size(0) {
         // std::cout << "non_copyable constructor with : " << i << std::endl;
     }
@@ -1500,8 +1500,8 @@ class non_copyable
     non_copyable& operator=(non_copyable&&) = delete;
     auto operator==(const int rhs) const -> bool { return *ptr == rhs; }
     void print() const {
-        // std::cout << *ptr << std::endl; 
-        }
+        // std::cout << *ptr << std::endl;
+    }
     ~non_copyable() {
         if (ptr) {
             // std::cout << "non_copyable destructor with : " << *ptr << std::endl;
@@ -1667,7 +1667,7 @@ class normal_class
     [[maybe_unused]] int* ptr;
 
    public:
-    normal_class() : x(0), ptr(new int(5)) { 
+    normal_class() : x(0), ptr(new int(5)) {
         // std::cout << "normal_class constructor default" << std::endl;
     }
     normal_class(const normal_class&) = delete;
@@ -1684,7 +1684,7 @@ class normal_class_with_traits
     [[maybe_unused]] int* ptr;
 
    public:
-    normal_class_with_traits() : x(0), ptr(new int(5)) { 
+    normal_class_with_traits() : x(0), ptr(new int(5)) {
         // std::cout << "normal_class constructor default" << std::endl;
     }
     normal_class_with_traits(const normal_class&) = delete;
