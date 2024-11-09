@@ -74,27 +74,16 @@ constexpr static inline auto next_large_size(uint32_t size) noexcept -> uint32_t
 // the head is [capacity:4B, size:4B] for large buffer, [capacity:2B] for small buffer
 template<bool NullTerminated = true>
 constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capacity) noexcept -> uint32_t {
+    if constexpr (NullTerminated) {
+        // if the string is null terminated, the capacity should need 1 more.
+        ++least_new_capacity;
+    }
     if (least_new_capacity <= kMaxSmallStringSize) [[likely]] {
-        if constexpr (not NullTerminated) {
-            return next_power_of_2(least_new_capacity);
-        } else {
-            // if the string is null terminated, the capacity should need 1 more.
-            return next_power_of_2(least_new_capacity + 1);
-        }
+        return next_power_of_2(least_new_capacity);
     } else if (least_new_capacity <= kMaxMediumStringSize) [[likely]] {
-        if constexpr (not NullTerminated) {
-            return next_medium_size(least_new_capacity);
-        } else {
-            // if the string is null terminated, the capacity should need 1 more.
-            return next_medium_size(least_new_capacity + 1);
-        }
+        return next_medium_size(least_new_capacity);
     } else if (least_new_capacity <= kInvalidSize - 2 * sizeof(uint32_t)) [[likely]] { // the size_or_mask is not overflow
-        if constexpr (not NullTerminated) {
-            return next_large_size(least_new_capacity + 2 * sizeof(uint32_t));
-        } else {
-            // if the string is null terminated, the capacity should need 1 more.
-            return next_large_size(least_new_capacity + 2 * sizeof(uint32_t) + 1);
-        }
+        return next_large_size(least_new_capacity + 2 * sizeof(uint32_t));
     }
     // the next_large_size always was aligned to 16 bytes, so kInvalidSize means overflow is OK
     return kInvalidSize;

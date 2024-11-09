@@ -3402,7 +3402,54 @@ TEST_CASE("small_string::calculate_the_buffer_size") {
 }
 
 TEST_CASE("small_string::capacity") {
+    using smstring = basic_small_string<char>;
+    smstring str1_empty;
+    CHECK_EQ(str1_empty.capacity(), 6);
 
+    smstring str1_short("123456");
+    CHECK_EQ(str1_short.capacity(), 6);
+
+    smstring str1_external("1234567890");
+    CHECK_EQ(str1_external.capacity(), 15);
+
+    smstring str1_long("12345678901234567");
+    CHECK_EQ(str1_long.capacity(), 31);
+
+    smstring str1_long1("123456789012345678901234567890");
+    CHECK_EQ(str1_long1.capacity(), 31);
+    str1_long1.append("12");
+    CHECK_EQ(str1_long1.capacity(), 63);
+
+    str1_long1.append("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+    CHECK_EQ(str1_long1.capacity(), 127);
+
+    smstring long2;
+    for (int i = 0; i < 1000; ++i) {
+        long2.push_back('x');
+    }
+    CHECK_EQ(long2.capacity(), 1023);
+
+    for (int i = 0; i < 1000; ++i) {
+        long2.push_back('z');
+    }
+    CHECK_EQ(long2.capacity(), 2047);
+
+    for (int i = 0; i < 1000; ++i) {
+        long2.push_back('!');
+    }
+    CHECK_EQ(long2.capacity(), 3071);
+
+    for (int i = 0; i < 1000; ++i) {
+        long2.push_back('a');
+    }
+    CHECK_EQ(long2.capacity(), 4095);
+
+    for (int i = 0; i < 100; ++i) {
+        long2.push_back('b');
+    }
+
+    CHECK_EQ(long2.capacity(), 4103);
+    CHECK_EQ(long2.size(), 4100);
 }
 
 
