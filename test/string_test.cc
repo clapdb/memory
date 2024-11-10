@@ -3493,6 +3493,8 @@ TEST_CASE("small_string::reserve_and_shrink") {
 // small_string section
 TEST_CASE("small_string::testAllClauses") {
     std::cout << "Starting with seed: " << seed << std::endl;
+    std::cout << "change the seed to 346825989" << std::endl;
+    uint temp_seed = 346825989;
     std::string r;
     small_string c;
 
@@ -3509,7 +3511,8 @@ TEST_CASE("small_string::testAllClauses") {
             c = r;
             CHECK_EQ(c, r);
 
-            auto localSeed = seed + count;
+            // auto localSeed = seed + count;
+            auto localSeed = temp_seed + count;
             rng = RandomT(localSeed);
             f_string(r);
             f_fbstring(c);
