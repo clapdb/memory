@@ -23,6 +23,7 @@
 #include <atomic>     // for atomic, __atomic_base
 #include <chrono>     // for duration, system_clock, system_clock::t...
 #include <cstddef>    // for size_t
+#include <cstdlib>
 #include <iostream>   // for cout
 #include <iterator>   // for move_iterator, make_move_iterator, oper...
 #include <list>       // for list, operator==, _List_iterator, _List...
@@ -1621,9 +1622,6 @@ template <class String>
 void clause11_21_4_7_9_b(String& test) {
     String s;
     randomString(&s, maxString);
-    // fmt::print("s'size = {}, s' content = {}\n", s.size(), s);
-    // fmt::print("test'size = {}, test' content = {}\n", test.size(), test);
-    // TODO(leo): crash in sometimes, to figure out why
     int tristate = test.compare(random(0, test.size()), random(0, test.size()), s);
     if (tristate > 0) {
         tristate = 1;
@@ -3455,6 +3453,43 @@ TEST_CASE("small_string::capacity") {
     CHECK_EQ(long2.size(), 4100);
 }
 
+template<typename S>
+void reserve_and_shrink_test(S& origin) {
+    auto str = origin;
+    str.reserve(3 * str.capacity());
+    str.shrink_to_fit();
+    CHECK_EQ(origin, str);
+}
+
+TEST_CASE("small_string::reserve_and_shrink") {
+    basic_small_string<char> empty_str;
+    reserve_and_shrink_test(empty_str);
+    std::vector<basic_small_string<char>> inputs = {"", "1", "22", "333", "4444", "55555", "666666", "7777777", "88888888", "999999999"};
+    for (auto& input : inputs) {
+        reserve_and_shrink_test(input);
+    }
+    basic_small_string<char> median_str_1(15U, 'c');
+    reserve_and_shrink_test(median_str_1);
+    basic_small_string<char> median_str_2(31U, 'c');
+    reserve_and_shrink_test(median_str_2);
+    basic_small_string<char> median_str_3(63U, 'c');
+    reserve_and_shrink_test(median_str_3);
+    basic_small_string<char> median_str_4(127U, 'c');
+    reserve_and_shrink_test(median_str_4);
+    basic_small_string<char> median_str_5(255U, 'c');
+    reserve_and_shrink_test(median_str_5);
+    basic_small_string<char> median_str_6(511U, 'c');
+    reserve_and_shrink_test(median_str_6);
+    basic_small_string<char> median_str_7(1023U, 'c');
+    reserve_and_shrink_test(median_str_7);
+    basic_small_string<char> median_str_8(2047U, 'c');
+    reserve_and_shrink_test(median_str_8);
+    basic_small_string<char> median_str_9(4000U, 'c');
+    reserve_and_shrink_test(median_str_9);
+    basic_small_string<char> median_str_10(8191U, 'c');
+    reserve_and_shrink_test(median_str_10);
+}
+
 // small_string section
 TEST_CASE("small_string::testAllClauses") {
     std::cout << "Starting with seed: " << seed << std::endl;
@@ -3557,19 +3592,19 @@ TEST_CASE("small_string::testAllClauses") {
     TEST_CLAUSE_SMALL(21_4_7_9_c);
     TEST_CLAUSE_SMALL(21_4_7_9_d);
     TEST_CLAUSE_SMALL(21_4_7_9_e);
-    // TEST_CLAUSE_SMALL(21_4_8_1_a);
-    // TEST_CLAUSE_SMALL(21_4_8_1_b);
-    // TEST_CLAUSE_SMALL(21_4_8_1_c);
-    // TEST_CLAUSE_SMALL(21_4_8_1_d);
-    // TEST_CLAUSE_SMALL(21_4_8_1_e);
-    // TEST_CLAUSE_SMALL(21_4_8_1_f);
-    // TEST_CLAUSE_SMALL(21_4_8_1_g);
-    // TEST_CLAUSE_SMALL(21_4_8_1_h);
-    // TEST_CLAUSE_SMALL(21_4_8_1_i);
-    // TEST_CLAUSE_SMALL(21_4_8_1_j);
-    // TEST_CLAUSE_SMALL(21_4_8_1_k);
-    // TEST_CLAUSE_SMALL(21_4_8_1_l);
-    // TEST_CLAUSE_SMALL(21_4_8_9_a);
+    TEST_CLAUSE_SMALL(21_4_8_1_a);
+    TEST_CLAUSE_SMALL(21_4_8_1_b);
+    TEST_CLAUSE_SMALL(21_4_8_1_c);
+    TEST_CLAUSE_SMALL(21_4_8_1_d);
+    TEST_CLAUSE_SMALL(21_4_8_1_e);
+    TEST_CLAUSE_SMALL(21_4_8_1_f);
+    TEST_CLAUSE_SMALL(21_4_8_1_g);
+    TEST_CLAUSE_SMALL(21_4_8_1_h);
+    TEST_CLAUSE_SMALL(21_4_8_1_i);
+    TEST_CLAUSE_SMALL(21_4_8_1_j);
+    TEST_CLAUSE_SMALL(21_4_8_1_k);
+    TEST_CLAUSE_SMALL(21_4_8_1_l);
+    TEST_CLAUSE_SMALL(21_4_8_9_a);
 }
 
 }  // namespace stdb::memory

@@ -432,9 +432,6 @@ class basic_small_string
             Assert(old_str_size <= new_buffer_size,
                    "if not NullTerminated,  new_str_size should be not greater than new_buffer_size");
         } else {
-            if (old_str_size >= new_buffer_size) {
-                fmt::print("old_str_size: {}, new_buffer_size: {}\n", old_str_size, new_buffer_size);
-            }
             Assert(old_str_size < new_buffer_size,
                    "if NullTerminated str,  new_str_size should be less than new_buffer_size");
         }
@@ -633,10 +630,26 @@ class basic_small_string
 
     constexpr explicit basic_small_string([[maybe_unused]] const Allocator& /*unused*/) noexcept : internal{} {}
 
-    constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
-        : internal{} {
-        // the best way to initialize the string is to append the char count times
-        append(count, ch);
+    constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
+        if (count > internal_core::capacity()) [[likely]] {
+            // by now, need external buffer, allocate a new buffer
+            external = this->allocate_new_external_buffer(calculate_new_buffer_size(count), count);
+            // fill the buffer with the ch
+            std::fill_n(external.c_str(), count, ch);
+            if constexpr (NullTerminated) {
+                external.c_str()[count] = '\0';
+            }
+        } else {
+            // the size is smaller than the internal capacity, do not need to allocate a new buffer
+            // set the size first
+            internal = {};
+            internal.set_size(count);
+            // fill the buffer with the ch
+            std::fill_n(internal.data, count, ch);
+            if constexpr (NullTerminated) {
+                internal.data[count] = '\0';
+            }
+        }
     }
 
     // copy constructor
@@ -1760,7 +1773,8 @@ class basic_small_string
 
     constexpr auto rfind(Char ch, size_type pos = npos) const -> size_type {
         auto current_size = size();
-        if (current_size == 0) [[unlikely]] return npos;
+        if (current_size == 0) [[unlikely]]
+            return npos;
         pos = std::min(pos, current_size - 1);
         while (pos > 0) {
             if (traits_type::eq(at(pos), ch)) {
@@ -2001,179 +2015,211 @@ class basic_small_string
 };  // class basic_small_string
 
 // input/output
-template <typename C, class T, class A>
+template <typename C, class T, class A, bool N>
 inline auto operator<<(std::basic_ostream<C, T>& os,
-                       const basic_small_string<C, T, A>& str) -> std::basic_ostream<C, T>& {
-    return os.write(str.data(), str.size());
+                       const basic_small_string<C, T, A, N>& str) -> std::basic_ostream<C, T>& {
+    return std::__ostream_insert(os, str.data(), int32_t(str.size()));
 }
 
-template <typename C, class T, class A>
-inline auto operator>>(std::basic_istream<C, T>& is, basic_small_string<C, T, A>& str) -> std::basic_istream<C, T>& {
-    return is >> std::basic_string_view<C, T>(str.data(), str.size());
+template <typename C, class T, class A, bool N>
+inline auto operator>>(std::basic_istream<C, T>& is, basic_small_string<C, T, A, N>& str) -> std::basic_istream<C, T>& {
+    using _istream_type = std::basic_istream<typename basic_small_string<C, T, A, N>::value_type,
+                                             typename basic_small_string<C, T, A, N>::traits_type>;
+    typename _istream_type::sentry sentry(is);
+    size_t extracted = 0;
+    typename _istream_type::iostate err = _istream_type::goodbit;
+    if (sentry) {
+        int64_t n = is.width();
+        if (n <= 0) {
+            n = int64_t(str.max_size());
+        }
+        str.erase();
+        for (auto got = is.rdbuf()->sgetc(); extracted != static_cast<size_t>(n); ++extracted) {
+            if (got == T::eof()) {
+                err |= _istream_type::eofbit;
+                is.width(0);
+                break;
+            }
+            if (isspace(got)) {
+                break;
+            }
+            str.push_back(got);
+            got = is.rdbuf()->snextc();
+        }
+    }
+    if (!extracted) {
+        err |= _istream_type::failbit;
+    }
+    if (err) {
+        is.setstate(err);
+    }
+    return is;
 }
 
 // operator +
 // 1
-template <typename C, class T, class A>
-inline auto operator+(const basic_small_string<C, T, A>& lhs,
-                      const basic_small_string<C, T, A>& rhs) -> basic_small_string<C, T, A> {
+template <typename C, class T, class A, bool N>
+inline auto operator+(const basic_small_string<C, T, A, N>& lhs,
+                      const basic_small_string<C, T, A, N>& rhs) -> basic_small_string<C, T, A, N> {
     auto result = lhs;
     result.append(rhs);
     return result;
 }
 
 // 2
-template <typename C, class T, class A>
-inline auto operator+(const basic_small_string<C, T, A>& lhs, const C* rhs) -> basic_small_string<C, T, A> {
+template <typename C, class T, class A, bool N>
+inline auto operator+(const basic_small_string<C, T, A, N>& lhs, const C* rhs) -> basic_small_string<C, T, A, N> {
     auto result = lhs;
     result.append(rhs);
     return result;
 }
 
 // 3
-template <typename C, class T, class A>
-inline auto operator+(const basic_small_string<C, T, A>& lhs, C rhs) -> basic_small_string<C, T, A> {
+template <typename C, class T, class A, bool N>
+inline auto operator+(const basic_small_string<C, T, A, N>& lhs, C rhs) -> basic_small_string<C, T, A, N> {
     auto result = lhs;
     result.push_back(rhs);
     return result;
 }
 
 // 5
-template <typename C, class T, class A>
-inline auto operator+(const C* lhs, const basic_small_string<C, T, A>& rhs) -> basic_small_string<C, T, A> {
-    return basic_small_string<C, T, A>(1, lhs) + rhs;
+template <typename C, class T, class A, bool N>
+inline auto operator+(const C* lhs, const basic_small_string<C, T, A, N>& rhs) -> basic_small_string<C, T, A, N> {
+    return basic_small_string<C, T, A, N>(lhs) + rhs;
 }
 
 // 6
-template <typename C, class T, class A>
-inline auto operator+(C lhs, const basic_small_string<C, T, A>& rhs) -> basic_small_string<C, T, A> {
-    return basic_small_string<C, T, A>(1, lhs) + rhs;
+template <typename C, class T, class A, bool N>
+inline auto operator+(C lhs, const basic_small_string<C, T, A, N>& rhs) -> basic_small_string<C, T, A, N> {
+    return basic_small_string<C, T, A, N>(1, lhs) + rhs;
 }
 
 // 8
-template <typename C, class T, class A>
-inline auto operator+(basic_small_string<C, T, A>&& lhs,
-                      basic_small_string<C, T, A>&& rhs) -> basic_small_string<C, T, A> {
-    basic_small_string<C, T, A> result(std::move(lhs));
+template <typename C, class T, class A, bool N>
+inline auto operator+(basic_small_string<C, T, A, N>&& lhs,
+                      basic_small_string<C, T, A, N>&& rhs) -> basic_small_string<C, T, A, N> {
+    basic_small_string<C, T, A, N> result(std::move(lhs));
     result.append(std::move(rhs));
     return result;
 }
 
 // 9
-template <typename C, class T, class A>
-inline auto operator+(basic_small_string<C, T, A>&& lhs,
-                      const basic_small_string<C, T, A>& rhs) -> basic_small_string<C, T, A> {
+template <typename C, class T, class A, bool N>
+inline auto operator+(basic_small_string<C, T, A, N>&& lhs,
+                      const basic_small_string<C, T, A, N>& rhs) -> basic_small_string<C, T, A, N> {
     auto result = std::move(lhs);
     result.append(rhs);
     return result;
 }
 
 // 10
-template <typename C, class T, class A>
-inline auto operator+(basic_small_string<C, T, A>&& lhs, const C* rhs) -> basic_small_string<C, T, A> {
+template <typename C, class T, class A, bool N>
+inline auto operator+(basic_small_string<C, T, A, N>&& lhs, const C* rhs) -> basic_small_string<C, T, A, N> {
     auto result = std::move(lhs);
     result.append(rhs);
     return result;
 }
 
 // 11
-template <typename C, class T, class A>
-inline auto operator+(basic_small_string<C, T, A>&& lhs, C rhs) -> basic_small_string<C, T, A> {
+template <typename C, class T, class A, bool N>
+inline auto operator+(basic_small_string<C, T, A, N>&& lhs, C rhs) -> basic_small_string<C, T, A, N> {
     auto result = std::move(lhs);
     result.push_back(rhs);
     return result;
 }
 
 // 13
-template <typename C, class T, class A>
-inline auto operator+(const basic_small_string<C, T, A>& lhs,
-                      basic_small_string<C, T, A>&& rhs) -> basic_small_string<C, T, A> {
+template <typename C, class T, class A, bool N>
+inline auto operator+(const basic_small_string<C, T, A, N>& lhs,
+                      basic_small_string<C, T, A, N>&& rhs) -> basic_small_string<C, T, A, N> {
     auto result = lhs;
     result.append(std::move(rhs));
     return result;
 }
 
 // 14
-template <typename C, class T, class A>
-inline auto operator+(const C* lhs, basic_small_string<C, T, A>&& rhs) -> basic_small_string<C, T, A> {
-    return basic_small_string<C, T, A>(lhs) + std::move(rhs);
+template <typename C, class T, class A, bool N>
+inline auto operator+(const C* lhs, basic_small_string<C, T, A, N>&& rhs) -> basic_small_string<C, T, A, N> {
+    return basic_small_string<C, T, A, N>(lhs) + std::move(rhs);
 }
 
 // 15
-template <typename C, class T, class A>
-inline auto operator+(C lhs, basic_small_string<C, T, A>&& rhs) -> basic_small_string<C, T, A> {
-    return basic_small_string<C, T, A>(1, lhs) + std::move(rhs);
+template <typename C, class T, class A, bool N>
+inline auto operator+(C lhs, basic_small_string<C, T, A, N>&& rhs) -> basic_small_string<C, T, A, N> {
+    return basic_small_string<C, T, A, N>(1, lhs) + std::move(rhs);
 }
 
 // comparison operators
-template <typename C, class T, class A>
-inline auto operator<=>(const basic_small_string<C, T, A>& lhs,
-                        const basic_small_string<C, T, A>& rhs) noexcept -> std::strong_ordering {
+template <typename C, class T, class A, bool N>
+inline auto operator<=>(const basic_small_string<C, T, A, N>& lhs,
+                        const basic_small_string<C, T, A, N>& rhs) noexcept -> std::strong_ordering {
     return lhs.compare(rhs) <=> 0;
 }
 
-template <typename C, class T, class A>
-inline auto operator==(const basic_small_string<C, T, A>& lhs,
-                       const basic_small_string<C, T, A>& rhs) noexcept -> bool {
+template <typename C, class T, class A, bool N>
+inline auto operator==(const basic_small_string<C, T, A, N>& lhs,
+                       const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
     return lhs.size() == rhs.size() and lhs.compare(rhs) == 0;
 }
 
-template <typename C, class T, class A>
-inline auto operator!=(const basic_small_string<C, T, A>& lhs,
-                       const basic_small_string<C, T, A>& rhs) noexcept -> bool {
+template <typename C, class T, class A, bool N>
+inline auto operator!=(const basic_small_string<C, T, A, N>& lhs,
+                       const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
     return not(lhs == rhs);
 }
 
-template <typename C, class T, class A>
-inline auto operator>(const basic_small_string<C, T, A>& lhs, const basic_small_string<C, T, A>& rhs) noexcept -> bool {
+template <typename C, class T, class A, bool N>
+inline auto operator>(const basic_small_string<C, T, A, N>& lhs,
+                      const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
     return lhs.compare(rhs) > 0;
 }
 
-template <typename C, class T, class A>
-inline auto operator<(const basic_small_string<C, T, A>& lhs, const basic_small_string<C, T, A>& rhs) noexcept -> bool {
+template <typename C, class T, class A, bool N>
+inline auto operator<(const basic_small_string<C, T, A, N>& lhs,
+                      const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
     return lhs.compare(rhs) < 0;
 }
 
-template <typename C, class T, class A>
-inline auto operator>=(const basic_small_string<C, T, A>& lhs,
-                       const basic_small_string<C, T, A>& rhs) noexcept -> bool {
+template <typename C, class T, class A, bool N>
+inline auto operator>=(const basic_small_string<C, T, A, N>& lhs,
+                       const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
     return not(lhs < rhs);
 }
 
-template <typename C, class T, class A>
-inline auto operator<=(const basic_small_string<C, T, A>& lhs,
-                       const basic_small_string<C, T, A>& rhs) noexcept -> bool {
+template <typename C, class T, class A, bool N>
+inline auto operator<=(const basic_small_string<C, T, A, N>& lhs,
+                       const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
     return not(lhs > rhs);
 }
 
 // basic_string compatibility routines
-template <typename E, class T, class A, class S, class A2>
-inline auto operator<=>(const basic_small_string<E, T, A>& lhs,
+template <typename E, class T, class A, bool N, class S, class A2>
+inline auto operator<=>(const basic_small_string<E, T, A, N>& lhs,
                         const std::basic_string<E, T, A2>& rhs) noexcept -> std::strong_ordering {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) <=> 0;
 }
 
 // swap the lhs and rhs
-template <typename C, class T, class A, class S, class A2>
+template <typename C, class T, class A, bool N, class S, class A2>
 inline auto operator<=>(const std::basic_string<C, T, A2>& lhs,
-                        const basic_small_string<C, T, A>& rhs) noexcept -> std::strong_ordering {
+                        const basic_small_string<C, T, A, N>& rhs) noexcept -> std::strong_ordering {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) <=> 0;
 }
 
-template <typename C, class T, class A, class A2>
-inline auto operator==(const basic_small_string<C, T, A>& lhs,
+template <typename C, class T, bool N, class A, class A2>
+inline auto operator==(const basic_small_string<C, T, A, N>& lhs,
                        const std::basic_string<C, T, A2>& rhs) noexcept -> bool {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) == 0;
 }
 
-template <typename E, class T, class A, class S, class A2>
+template <typename E, class T, class A, bool N, class S, class A2>
 inline auto operator==(const std::basic_string<E, T, A2>& lhs,
-                       const basic_small_string<E, T, A>& rhs) noexcept -> bool {
+                       const basic_small_string<E, T, A, N>& rhs) noexcept -> bool {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) == 0;
 }
 
-template <typename E, class T, class A, class S, class A2>
-inline auto operator!=(const basic_small_string<E, T, A>& lhs,
+template <typename E, class T, class A, bool N, class S, class A2>
+inline auto operator!=(const basic_small_string<E, T, A, N>& lhs,
                        const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return !(lhs == rhs);
 }
@@ -2230,15 +2276,13 @@ inline auto operator>=(const std::basic_string<E, T, A2>& lhs,
 
 using small_string = basic_small_string<char>;
 
-
-
 }  // namespace stdb::memory
 
 // decl the formatter of small_string
 namespace fmt {
 
 template <typename C, typename T, typename A, bool N>
-struct formatter<stdb::memory::basic_small_string<C, T, A , N>> : formatter<string_view>
+struct formatter<stdb::memory::basic_small_string<C, T, A, N>> : formatter<string_view>
 {
     using formatter<fmt::string_view>::parse;
 
@@ -2247,4 +2291,4 @@ struct formatter<stdb::memory::basic_small_string<C, T, A , N>> : formatter<stri
         return formatter<string_view>::format({str.data(), str.size()}, ctx);
     }
 };
-} // namespace fmt
+}  // namespace fmt
