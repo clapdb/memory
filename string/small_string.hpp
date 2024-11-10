@@ -1883,47 +1883,66 @@ class basic_small_string
 
     // Operations
     constexpr auto compare(const basic_small_string& other) const noexcept -> int {
-        return traits_type::compare(c_str(), other.c_str(), std::min(size(), other.size()));
+        auto this_size = size();
+        auto other_size = other.size();
+        auto r = traits_type::compare(c_str(), other.c_str(), std::min(this_size, other_size));
+        return r != 0 ? r : this_size > other_size ? 1 : this_size < other_size ? -1 : 0;
     }
-    constexpr auto compare(size_type pos, size_type count, const basic_small_string& other) const noexcept -> int {
-        return traits_type::compare(c_str() + pos, other.c_str(), std::min(count, other.size()));
+    constexpr auto compare(size_type pos, size_type count, const basic_small_string& other) const -> int {
+        return compare(pos, count, other.c_str(), other.size());
     }
-    constexpr auto compare(size_type pos1, size_type count1, const basic_small_string& str, size_type pos2,
-                           size_type count2 = npos) const noexcept -> int {
-        return traits_type::compare(c_str() + pos1, str.c_str() + pos2,
-                                    std::min(count1, count2 == npos ? str.size() - pos2 : count2));
+    constexpr auto compare(size_type pos1, size_type count1, const basic_small_string& other, size_type pos2,
+                           size_type count2 = npos) const -> int {
+        if (pos2 > other.size()) [[unlikely]] {
+            throw std::out_of_range("compare: pos2 is out of range");
+        }
+        count2 = std::min(count2, other.size() - pos2);
+        return compare(pos1, count1, other.c_str() + pos2, count2);
     }
     constexpr auto compare(const Char* str) const noexcept -> int {
-        return traits_type::compare(c_str(), str, std::min<size_type>(size(), traits_type::length(str)));
+        return compare(0, size(), str, traits_type::length(str));
     }
-    constexpr auto compare(size_type pos, size_type count, const Char* str) const noexcept -> int {
-        return traits_type::compare(c_str() + pos, str, std::min<size_type>(count, traits_type::length(str)));
+    constexpr auto compare(size_type pos, size_type count, const Char* str) const -> int {
+        return compare(pos, count, str, traits_type::length(str));
     }
-    constexpr auto compare(size_type pos1, size_type count1, const Char* str, size_type count2) const noexcept -> int {
-        return traits_type::compare(c_str() + pos1, str, std::min<size_type>(count1, count2));
+    constexpr auto compare(size_type pos1, size_type count1, const Char* str, size_type count2) const -> int {
+        // make sure the pos1 is valid
+        if (pos1 > size()) [[unlikely]] {
+            throw std::out_of_range("compare: pos1 is out of range");
+        }
+        // make sure the count1 is valid, if count1 > size() - pos1, set count1 = size() - pos1
+        count1 = std::min(count1, size() - pos1);
+        auto r = traits_type::compare(c_str() + pos1, str, std::min(count1, count2));
+        return r != 0 ? r : count1 > count2 ? 1 : count1 < count2 ? -1 : 0;
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
     constexpr auto compare(const StringViewLike& view) const noexcept -> int {
-        return traits_type::compare(c_str(), view.data(), std::min(size(), view.size()));
+        auto this_size = size();
+        auto view_size = view.size();
+        auto r = traits_type::compare(c_str(), view.data(), std::min(this_size, view_size));
+        return r != 0 ? r : this_size > view_size ? 1 : this_size < view_size ? -1 : 0;
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto compare(size_type pos, size_type count, const StringViewLike& view) const noexcept -> int {
-        return traits_type::compare(c_str() + pos, view.data(), std::min(count, view.size()));
+    constexpr auto compare(size_type pos, size_type count, const StringViewLike& view) const -> int {
+        return compare(pos, count, view.data(), view.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
     constexpr auto compare(size_type pos1, size_type count1, const StringViewLike& view, size_type pos2,
-                           size_type count2 = npos) const noexcept -> int {
-        return traits_type::compare(c_str() + pos1, view.data() + pos2,
-                                    std::min(count1, count2 == npos ? view.size() - pos2 : count2));
+                           size_type count2 = npos) const -> int {
+        if (pos2 > view.size()) [[unlikely]] {
+            throw std::out_of_range("compare: pos2 is out of range");
+        }
+        count2 = std::min(count2, view.size() - pos2);
+        return compare(pos1, count1, view.data() + pos2, count2);
     }
 
     constexpr auto starts_with(std::basic_string_view<Char> view) const noexcept -> bool {
@@ -2211,4 +2230,21 @@ inline auto operator>=(const std::basic_string<E, T, A2>& lhs,
 
 using small_string = basic_small_string<char>;
 
+
+
 }  // namespace stdb::memory
+
+// decl the formatter of small_string
+namespace fmt {
+
+template <typename C, typename T, typename A, bool N>
+struct formatter<stdb::memory::basic_small_string<C, T, A , N>> : formatter<string_view>
+{
+    using formatter<fmt::string_view>::parse;
+
+    template <typename Context>
+    auto format(const stdb::memory::basic_small_string<C, T, A, N>& str, Context& ctx) const noexcept {
+        return formatter<string_view>::format({str.data(), str.size()}, ctx);
+    }
+};
+} // namespace fmt

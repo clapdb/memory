@@ -1621,6 +1621,9 @@ template <class String>
 void clause11_21_4_7_9_b(String& test) {
     String s;
     randomString(&s, maxString);
+    // fmt::print("s'size = {}, s' content = {}\n", s.size(), s);
+    // fmt::print("test'size = {}, test' content = {}\n", test.size(), test);
+    // TODO(leo): crash in sometimes, to figure out why
     int tristate = test.compare(random(0, test.size()), random(0, test.size()), s);
     if (tristate > 0) {
         tristate = 1;
@@ -3542,18 +3545,18 @@ TEST_CASE("small_string::testAllClauses") {
     TEST_CLAUSE_SMALL(21_4_7_5_d);
     TEST_CLAUSE_SMALL(21_4_7_6_a);
     TEST_CLAUSE_SMALL(21_4_7_6_b);
-    // TEST_CLAUSE_SMALL(21_4_7_6_c);
-    // TEST_CLAUSE_SMALL(21_4_7_6_d);
-    // TEST_CLAUSE_SMALL(21_4_7_7_a);
-    // TEST_CLAUSE_SMALL(21_4_7_7_b);
-    // TEST_CLAUSE_SMALL(21_4_7_7_c);
-    // TEST_CLAUSE_SMALL(21_4_7_7_d);
-    // TEST_CLAUSE_SMALL(21_4_7_8);
-    // TEST_CLAUSE_SMALL(21_4_7_9_a);
-    // TEST_CLAUSE_SMALL(21_4_7_9_b);
-    // TEST_CLAUSE_SMALL(21_4_7_9_c);
-    // TEST_CLAUSE_SMALL(21_4_7_9_d);
-    // TEST_CLAUSE_SMALL(21_4_7_9_e);
+    TEST_CLAUSE_SMALL(21_4_7_6_c);
+    TEST_CLAUSE_SMALL(21_4_7_6_d);
+    TEST_CLAUSE_SMALL(21_4_7_7_a);
+    TEST_CLAUSE_SMALL(21_4_7_7_b);
+    TEST_CLAUSE_SMALL(21_4_7_7_c);
+    TEST_CLAUSE_SMALL(21_4_7_7_d);
+    TEST_CLAUSE_SMALL(21_4_7_8);
+    TEST_CLAUSE_SMALL(21_4_7_9_a);
+    TEST_CLAUSE_SMALL(21_4_7_9_b);
+    TEST_CLAUSE_SMALL(21_4_7_9_c);
+    TEST_CLAUSE_SMALL(21_4_7_9_d);
+    TEST_CLAUSE_SMALL(21_4_7_9_e);
     // TEST_CLAUSE_SMALL(21_4_8_1_a);
     // TEST_CLAUSE_SMALL(21_4_8_1_b);
     // TEST_CLAUSE_SMALL(21_4_8_1_c);
