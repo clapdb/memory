@@ -460,6 +460,7 @@ void clause11_21_4_4(String& test) {
     auto copy = test;
     copy.reserve(copy.capacity() * 3);
     copy.shrink_to_fit();
+    // TODO(leo): maybe crash. to figure out why
     CHECK_EQ(copy, test);
 
     // exercise empty
@@ -933,7 +934,6 @@ void clause11_21_4_6_5(String& test) {
         test.erase(random(0, test.size()), random(0, maxString));
     }
     if (!test.empty()) {
-        // TODO(longqimin): is erase(end()) allowed?
         test.erase(test.begin() + int(random(0, test.size() - 1)));  // NOLINT
     }
     if (!test.empty()) {
@@ -955,7 +955,6 @@ void arena_clause11_21_4_6_5(String& test) {
         test.erase(random(0, test.size()), random(0, maxString));
     }
     if (!test.empty()) {
-        // TODO(longqimin): is erase(end()) allowed?
         test.erase(test.begin() + int(random(0, test.size() - 1)));  // NOLINT
     }
     if (!test.empty()) {
@@ -3533,16 +3532,16 @@ TEST_CASE("small_string::testAllClauses") {
     TEST_CLAUSE_SMALL(21_4_7_3_b);
     TEST_CLAUSE_SMALL(21_4_7_3_c);
     TEST_CLAUSE_SMALL(21_4_7_3_d);
-    // TEST_CLAUSE_SMALL(21_4_7_4_a);
-    // TEST_CLAUSE_SMALL(21_4_7_4_b);
-    // TEST_CLAUSE_SMALL(21_4_7_4_c);
-    // TEST_CLAUSE_SMALL(21_4_7_4_d);
-    // TEST_CLAUSE_SMALL(21_4_7_5_a);
-    // TEST_CLAUSE_SMALL(21_4_7_5_b);
-    // TEST_CLAUSE_SMALL(21_4_7_5_c);
-    // TEST_CLAUSE_SMALL(21_4_7_5_d);
-    // TEST_CLAUSE_SMALL(21_4_7_6_a);
-    // TEST_CLAUSE_SMALL(21_4_7_6_b);
+    TEST_CLAUSE_SMALL(21_4_7_4_a);
+    TEST_CLAUSE_SMALL(21_4_7_4_b);
+    TEST_CLAUSE_SMALL(21_4_7_4_c);
+    TEST_CLAUSE_SMALL(21_4_7_4_d);
+    TEST_CLAUSE_SMALL(21_4_7_5_a);
+    TEST_CLAUSE_SMALL(21_4_7_5_b);
+    TEST_CLAUSE_SMALL(21_4_7_5_c);
+    TEST_CLAUSE_SMALL(21_4_7_5_d);
+    TEST_CLAUSE_SMALL(21_4_7_6_a);
+    TEST_CLAUSE_SMALL(21_4_7_6_b);
     // TEST_CLAUSE_SMALL(21_4_7_6_c);
     // TEST_CLAUSE_SMALL(21_4_7_6_d);
     // TEST_CLAUSE_SMALL(21_4_7_7_a);

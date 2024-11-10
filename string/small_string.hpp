@@ -894,7 +894,6 @@ class basic_small_string
     constexpr auto at(size_type pos) noexcept(not Safe) -> reference {
         if constexpr (Safe) {
             if (pos >= size()) [[unlikely]] {
-                Assert(false, "at: pos is out of range");
                 throw std::out_of_range("at: pos is out of range");
             }
         }
@@ -905,7 +904,6 @@ class basic_small_string
     constexpr auto at(size_type pos) const noexcept(not Safe) -> const_reference {
         if constexpr (Safe) {
             if (pos >= size()) [[unlikely]] {
-                Assert(false, "at: pos is out of range");
                 throw std::out_of_range("at: pos is out of range");
             }
         }
@@ -1761,15 +1759,17 @@ class basic_small_string
     }
 
     constexpr auto rfind(Char ch, size_type pos = npos) const -> size_type {
-        pos = pos == npos ? size() - 1 : pos;
-        while (pos >= 0) {
+        auto current_size = size();
+        if (current_size == 0) [[unlikely]] return npos;
+        pos = std::min(pos, current_size - 1);
+        while (pos > 0) {
             if (traits_type::eq(at(pos), ch)) {
                 return pos;
             }
             --pos;
         }
-        // not found
-        return npos;
+        // pos == 0
+        return traits_type::eq(at(0), ch) ? 0 : npos;
     }
 
     constexpr auto find_first_of(const Char* str, size_type pos, size_type count) const -> size_type {
