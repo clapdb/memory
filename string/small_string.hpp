@@ -414,7 +414,7 @@ class basic_small_string
                 std::free((Char*)(c_str_ptr));
             } else {
                 // the ptr is pointed to the after pos of the buffer head
-                std::free((Char*)(c_str_ptr)-2 * sizeof(size_type));
+                std::free((Char*)(c_str_ptr) - 2 * sizeof(size_type));
             }
         }
 
@@ -482,24 +482,6 @@ class basic_small_string
     [[nodiscard, gnu::always_inline]] static inline auto check_if_internal(const internal_core& old_internal) noexcept
       -> bool {
         return old_internal.is_internal == 0;
-    }
-
-    static inline auto print_detail_of_external(const external_core& external) -> void {
-        if (check_if_internal(external)) {
-            fmt::print("detail: is a internal ---- internal: size: {}, capacity: {}\n",
-                       ((internal_core&)external).size(), ((const internal_core&)external).capacity());
-            return;
-        }
-        if (external.size_shift.flag == kIsShift) {
-            fmt::print("detail: is a shift external ---- external: size: {}, capacity: {}, shift: {}\n",
-                       external.size_shift.external_size, external.capacity_fast(), external.size_shift.shift);
-        }
-        if (external.size_times.flag == kIsTimes) {
-            fmt::print("detail: is a times external ---- external: size: {}, capacity: {}, times: {}\n",
-                       external.size_times.external_size, external.capacity_fast(), external.size_times.times);
-        }
-        fmt::print("detail: is a delta external ---- external: size: {}, capacity: {}, delta: {}\n", external.size(),
-                   external.capacity(), external.delta_flag.idle);
     }
 
     // this function handle append / push_back / operator +='s internal reallocation
@@ -774,11 +756,8 @@ class basic_small_string
         if (this == &other) [[unlikely]] {
             return *this;
         }
-        if (is_external()) {
-            external.deallocate();
-        }
-        // call the copy constructor
-        new (this) basic_small_string(other);
+        // assign the other to this
+        assign(other.data(), other.size());
         return *this;
     }
 
@@ -1655,8 +1634,10 @@ class basic_small_string
     }
 
     void swap(basic_small_string& other) noexcept {
-        // union, just swap the memory
-        std::swap(internal, other.internal);
+        // just a temp variable to avoid self-assignment, std::swap will do the same thing, maybe faster?
+        const auto temp = internal;
+        internal = other.internal;
+        other.internal = temp;
     }
 
     // search

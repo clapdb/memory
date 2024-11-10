@@ -3506,7 +3506,6 @@ TEST_CASE("small_string::reserve_and_shrink") {
 // small_string section
 TEST_CASE("small_string::testAllClauses") {
     std::cout << "Starting with seed: " << seed << std::endl;
-    // uint temp_seed = 346825989;
     std::string r;
     small_string c;
 
