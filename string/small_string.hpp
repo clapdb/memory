@@ -1988,28 +1988,22 @@ class basic_small_string
     constexpr auto contains(const Char* str) const noexcept -> bool { return find(str) != npos; }
 
     constexpr auto substr(size_type pos = 0, size_type count = npos) const& -> basic_small_string {
-        auto size = this->size();
-        if (pos > size) [[unlikely]] {
+        auto current_size = this->size();
+        if (pos > current_size) [[unlikely]] {
             throw std::out_of_range("substr: pos is out of range");
         }
 
-        return basic_small_string(c_str() + pos, (count == npos || count + pos >= size) ? size - pos : count);
+        return basic_small_string{data() + pos, std::min(count, current_size - pos)};
     }
 
     constexpr auto substr(size_type pos = 0, size_type count = npos) && -> basic_small_string {
         if (pos > size()) [[unlikely]] {
             throw std::out_of_range("substr: pos is out of range");
         }
-
-        if (pos == 0) {
-            // no need to generate a new string
+        erase(0, pos);
+        if (count < size()) {
             resize(count);
-            return std::move(*this);
         }
-        auto real_count = (count == npos || count + pos >= size()) ? size() - pos : count;
-        // do replace first
-        std::memmove(data(), c_str() + pos, real_count);
-        resize(real_count);
         return std::move(*this);
     }
 };  // class basic_small_string

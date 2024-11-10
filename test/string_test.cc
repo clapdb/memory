@@ -3390,6 +3390,11 @@ TEST_CASE("string::small_string") {
 
     basic_small_string<char> str("1234567890");
     CHECK_NE(str.c_str(), (char*)&str);
+
+    const char* input = "1234567890";
+    basic_small_string<char> str2(input, 0);
+    CHECK_EQ(str2.size(), 0);
+    CHECK_EQ(str2.capacity(), 6);
 }
 
 TEST_CASE("small_string::calculate_the_buffer_size") {
@@ -3453,6 +3458,14 @@ TEST_CASE("small_string::capacity") {
     CHECK_EQ(long2.size(), 4100);
 }
 
+TEST_CASE("small_string::substr") {
+    const char* input = "1234567890";
+    basic_small_string<char> str(input);
+    auto substr = str.substr(0, 0);
+    CHECK_EQ(substr.size(), 0);
+    CHECK_EQ(substr, basic_small_string<char>{});
+}
+
 template<typename S>
 void reserve_and_shrink_test(S& origin) {
     auto str = origin;
@@ -3493,8 +3506,7 @@ TEST_CASE("small_string::reserve_and_shrink") {
 // small_string section
 TEST_CASE("small_string::testAllClauses") {
     std::cout << "Starting with seed: " << seed << std::endl;
-    std::cout << "change the seed to 346825989" << std::endl;
-    uint temp_seed = 346825989;
+    // uint temp_seed = 346825989;
     std::string r;
     small_string c;
 
@@ -3511,8 +3523,8 @@ TEST_CASE("small_string::testAllClauses") {
             c = r;
             CHECK_EQ(c, r);
 
-            // auto localSeed = seed + count;
-            auto localSeed = temp_seed + count;
+            auto localSeed = seed + count;
+            // auto localSeed = temp_seed + count;
             rng = RandomT(localSeed);
             f_string(r);
             f_fbstring(c);
