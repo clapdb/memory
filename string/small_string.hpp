@@ -90,6 +90,14 @@ constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capaci
     return kInvalidSize;
 }
 
+
+template <typename Char, class Traits = std::char_traits<Char>, class Allocator = std::allocator<Char>,
+          bool NullTerminated = true>
+class small_buffer {
+
+}; // class small_buffer
+
+
 // if NDEBUG is not defined, the zero_init will be 0, so the check is useless
 #define INSANE_INIT_CHECK() Assert(zero_init == 0, "the zero_init is not 0");
 
