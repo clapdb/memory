@@ -497,10 +497,9 @@ class basic_small_string
 
     // this function handle append / push_back / operator +='s internal reallocation
     // this funciion will not change the size, but the capacity or delta
-    static inline auto allocate_new_external_buffer_if_need_from_delta(external_core& old_external,
-                                                                       size_type new_append_size) noexcept -> void {
-        size_type old_delta_fast = check_if_internal(old_external) ? ((internal_core&)old_external).idle_capacity()
-                                                                   : old_external.idle_capacity_fast();
+    void allocate_more(size_type new_append_size) noexcept {
+        size_type old_delta_fast = check_if_internal(external) ? ((internal_core&)external).idle_capacity()
+                                                                   : external.idle_capacity_fast();
         // print_detail_of_external(old_external);
         // if no need, do nothing, just update the size or delta
         if (old_delta_fast >= new_append_size) {
@@ -512,8 +511,8 @@ class basic_small_string
         if (old_delta_fast == kDeltaMax)
           [[unlikely]] {  // small_string was designed for small string, so large string is not optimized
             // the delta is overflow, re-calc the delta
-            auto* cap = (size_type*)(old_external.c_str_ptr) - 2;
-            auto* size = (size_type*)(old_external.c_str_ptr) - 1;
+            auto* cap = (size_type*)(external.c_str_ptr) - 2;
+            auto* size = (size_type*)(external.c_str_ptr) - 1;
             if constexpr (not NullTerminated) {
                 // cap - size - size of head
                 if ((*cap - *size - 2 * sizeof(size_type)) > new_append_size) {
@@ -529,8 +528,8 @@ class basic_small_string
         }
         // by now, the old delta is not enough, have to allocate a new buffer, to save the new_append_size
         // check if the old_external is internal
-        if (check_if_internal(old_external)) {
-            auto old_internal = (internal_core&)old_external;
+        if (check_if_internal(external)) {
+            auto old_internal = (internal_core&)external;
             auto new_buffer_size = calculate_new_buffer_size(old_internal.size() + new_append_size);
             auto new_external = allocate_new_external_buffer(new_buffer_size, old_internal.size());
             // copy the old data to the new buffer
@@ -538,22 +537,21 @@ class basic_small_string
             if constexpr (NullTerminated) {
                 new_external.c_str()[old_internal.size()] = '\0';
             }
-            old_external = new_external;
-            // print_detail_of_external(old_external);
+            external = new_external;
             return;
         }
         // else is external
         // copy the old data to the new buffer
-        auto new_buffer_size = calculate_new_buffer_size(old_external.size() + new_append_size);
-        auto new_external = allocate_new_external_buffer(new_buffer_size, old_external.size());
+        auto new_buffer_size = calculate_new_buffer_size(external.size() + new_append_size);
+        auto new_external = allocate_new_external_buffer(new_buffer_size, external.size());
         // print_detail_of_external(new_external);
-        std::memcpy(new_external.c_str(), old_external.c_str(), old_external.size());
+        std::memcpy(new_external.c_str(), external.c_str(), external.size());
         if constexpr (NullTerminated) {
-            new_external.c_str()[old_external.size()] = '\0';
+            new_external.c_str()[external.size()] = '\0';
         }
         // replace the old external with the new one
-        old_external.deallocate();
-        old_external = new_external;
+        external.deallocate();
+        external = new_external;
         return;
     }
 
@@ -1036,7 +1034,7 @@ class basic_small_string
             throw std::out_of_range("index is out of range");
         }
         if constexpr (Safe) {
-            allocate_new_external_buffer_if_need_from_delta(external, count);
+            allocate_more(count);
         }
         auto old_size = size();
         std::memmove(data() + index + count, c_str() + index, old_size - index);
@@ -1062,7 +1060,7 @@ class basic_small_string
         }
         // check if the capacity is enough
         if constexpr (Safe) {
-            allocate_new_external_buffer_if_need_from_delta(external, count);
+            allocate_more(count);
         }
         // by now, the capacity is enough
         // memmove the data to the new position
@@ -1097,7 +1095,7 @@ class basic_small_string
     constexpr auto insert(const_iterator pos, size_type count, Char ch) -> iterator {
         // check if the capacity is enough
         if constexpr (Safe) {
-            allocate_new_external_buffer_if_need_from_delta(external, count);
+            allocate_more(count);
         }
         // by now, the capacity is enough
         // memmove the data to the new position
@@ -1121,7 +1119,7 @@ class basic_small_string
         size_type count = std::distance(first, last);
         size_type index = pos - begin();
         if constexpr (Safe) {
-            allocate_new_external_buffer_if_need_from_delta(external, count);
+            allocate_more(count);
         }
         // by now, the capacity is enough
         // move the data to the new position
@@ -1210,7 +1208,7 @@ class basic_small_string
     constexpr auto append(size_type count, Char c) -> basic_small_string& {
         if constexpr (Safe) {
             // allocate a new external buffer if need
-            allocate_new_external_buffer_if_need_from_delta(external, count);
+            allocate_more(count);
         }
         // by now, the capacity is enough
         std::memset(data() + size(), c, count);
@@ -1224,7 +1222,7 @@ class basic_small_string
     template <bool Safe = true>
     constexpr auto append(const basic_small_string& other) -> basic_small_string& {
         if constexpr (Safe) {
-            allocate_new_external_buffer_if_need_from_delta(external, other.size());
+            allocate_more(other.size());
         }
         // by now, the capacity is enough
         // size() function maybe slower than while the size is larger than 4k, so store it.
@@ -1249,7 +1247,7 @@ class basic_small_string
     template <bool Safe = true>
     constexpr auto append(const Char* s, size_type count) -> basic_small_string& {
         if constexpr (Safe) {
-            allocate_new_external_buffer_if_need_from_delta(external, count);
+            allocate_more(count);
         }
 
         std::memcpy(data() + size(), s, count);
@@ -1275,7 +1273,7 @@ class basic_small_string
                       "the value type of the input iterator is not the same as the char type");
         size_type count = std::distance(first, last);
         if constexpr (Safe) {
-            allocate_new_external_buffer_if_need_from_delta(external, count);
+            allocate_more(count);
         }
         std::copy(first, last, data() + size());
         increase_size(count);
