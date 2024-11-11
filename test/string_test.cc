@@ -24,11 +24,11 @@
 #include <chrono>     // for duration, system_clock, system_clock::t...
 #include <cstddef>    // for size_t
 #include <cstdlib>
-#include <iostream>   // for cout
-#include <iterator>   // for move_iterator, make_move_iterator, oper...
-#include <list>       // for list, operator==, _List_iterator, _List...
-#include <random>     // for mt19937, uniform_int_distribution
-#include <sstream>    // for operator<<, basic_istream, basic_string...
+#include <iostream>  // for cout
+#include <iterator>  // for move_iterator, make_move_iterator, oper...
+#include <list>      // for list, operator==, _List_iterator, _List...
+#include <random>    // for mt19937, uniform_int_distribution
+#include <sstream>   // for operator<<, basic_istream, basic_string...
 #include <thread>
 #include <type_traits>  // for is_same
 #include <vector>       // for vector
@@ -3466,7 +3466,7 @@ TEST_CASE("small_string::substr") {
     CHECK_EQ(substr, basic_small_string<char>{});
 }
 
-template<typename S>
+template <typename S>
 void reserve_and_shrink_test(S& origin) {
     auto str = origin;
     str.reserve(3 * str.capacity());
@@ -3477,7 +3477,8 @@ void reserve_and_shrink_test(S& origin) {
 TEST_CASE("small_string::reserve_and_shrink") {
     basic_small_string<char> empty_str;
     reserve_and_shrink_test(empty_str);
-    std::vector<basic_small_string<char>> inputs = {"", "1", "22", "333", "4444", "55555", "666666", "7777777", "88888888", "999999999"};
+    std::vector<basic_small_string<char>> inputs = {"",      "1",      "22",      "333",      "4444",
+                                                    "55555", "666666", "7777777", "88888888", "999999999"};
     for (auto& input : inputs) {
         reserve_and_shrink_test(input);
     }

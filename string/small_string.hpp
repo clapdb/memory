@@ -419,7 +419,7 @@ class basic_small_string
                 std::free((Char*)(c_str_ptr));
             } else {
                 // the ptr is pointed to the after pos of the buffer head
-                std::free((Char*)(c_str_ptr) - 2 * sizeof(size_type));
+                std::free((Char*)(c_str_ptr)-2 * sizeof(size_type));
             }
         }
 
@@ -892,11 +892,11 @@ class basic_small_string
         return *this;
     }
 
-    auto get_allocator() const -> Allocator { return Allocator(); }
+    [[nodiscard]] auto get_allocator() const -> Allocator { return Allocator(); }
 
     // element access
     template <bool Safe = true>
-    constexpr auto at(size_type pos) noexcept(not Safe) -> reference {
+    [[nodiscard]] constexpr auto at(size_type pos) noexcept(not Safe) -> reference {
         if constexpr (Safe) {
             if (pos >= size()) [[unlikely]] {
                 throw std::out_of_range("at: pos is out of range");
@@ -906,7 +906,7 @@ class basic_small_string
     }
 
     template <bool Safe = true>
-    constexpr auto at(size_type pos) const noexcept(not Safe) -> const_reference {
+    [[nodiscard]] constexpr auto at(size_type pos) const noexcept(not Safe) -> const_reference {
         if constexpr (Safe) {
             if (pos >= size()) [[unlikely]] {
                 throw std::out_of_range("at: pos is out of range");
@@ -935,11 +935,11 @@ class basic_small_string
         return *(c_str() + pos);
     }
 
-    auto front() noexcept -> reference { return *(Char*)data(); }
+    [[nodiscard]] constexpr auto front() noexcept -> reference { return *(Char*)data(); }
 
-    auto front() const noexcept -> const_reference { return *c_str(); }
+    [[nodiscard]] constexpr auto front() const noexcept -> const_reference { return *c_str(); }
 
-    auto back() noexcept -> reference {
+    [[nodiscard]] constexpr auto back() noexcept -> reference {
         // do not use c_str() and size() to avoid extra if check
         if (is_external()) {
             return *(reinterpret_cast<Char*>(external.c_str_ptr) + external.size() - 1);
@@ -948,7 +948,7 @@ class basic_small_string
         return internal.data[internal.internal_size - 1];
     }
 
-    auto back() const noexcept -> const_reference {
+    [[nodiscard]] constexpr auto back() const noexcept -> const_reference {
         // do not use c_str() and size() to avoid extra if check
         if (is_external()) {
             return *(reinterpret_cast<Char*>(external.c_str_ptr) + external.size() - 1);
@@ -968,59 +968,67 @@ class basic_small_string
     }
 
     // Iterators
-    auto begin() noexcept -> iterator { return data(); }
+    [[nodiscard]] constexpr auto begin() noexcept -> iterator { return data(); }
 
-    auto begin() const noexcept -> const_iterator { return c_str(); }
+    [[nodiscard]] constexpr auto begin() const noexcept -> const_iterator { return c_str(); }
 
-    auto cbegin() const noexcept -> const_iterator { return c_str(); }
+    [[nodiscard]] constexpr auto cbegin() const noexcept -> const_iterator { return c_str(); }
 
-    auto end() noexcept -> iterator {
+    [[nodiscard]] constexpr auto end() noexcept -> iterator {
         if (is_external()) {
             return (Char*)external.c_str_ptr + external.size();
         }
         return internal.data + internal.internal_size;
     }
 
-    auto end() const noexcept -> const_iterator {
+    [[nodiscard]] constexpr auto end() const noexcept -> const_iterator {
         if (is_external()) {
             return external.c_str() + external.size();
         }
         return internal.data + internal.internal_size;
     }
 
-    auto cend() const noexcept -> const_iterator {
+    [[nodiscard]] constexpr auto cend() const noexcept -> const_iterator {
         if (is_external()) {
             return external.c_str() + external.size();
         }
         return internal.data + internal.internal_size;
     }
 
-    auto rbegin() noexcept -> reverse_iterator { return reverse_iterator(end()); }
+    [[nodiscard]] constexpr auto rbegin() noexcept -> reverse_iterator { return reverse_iterator(end()); }
 
-    auto rbegin() const noexcept -> const_reverse_iterator { return const_reverse_iterator(end()); }
+    [[nodiscard]] constexpr auto rbegin() const noexcept -> const_reverse_iterator {
+        return const_reverse_iterator(end());
+    }
 
-    auto crbegin() const noexcept -> const_reverse_iterator { return const_reverse_iterator(end()); }
+    [[nodiscard]] constexpr auto crbegin() const noexcept -> const_reverse_iterator {
+        return const_reverse_iterator(end());
+    }
 
-    auto rend() noexcept -> reverse_iterator { return reverse_iterator{begin()}; }
+    [[nodiscard]] constexpr auto rend() noexcept -> reverse_iterator { return reverse_iterator{begin()}; }
 
-    auto rend() const noexcept -> const_reverse_iterator { return const_reverse_iterator(begin()); }
+    [[nodiscard]] constexpr auto rend() const noexcept -> const_reverse_iterator {
+        return const_reverse_iterator(begin());
+    }
 
-    auto crend() const noexcept -> const_reverse_iterator { return const_reverse_iterator(begin()); }
+    [[nodiscard]] constexpr auto crend() const noexcept -> const_reverse_iterator {
+        return const_reverse_iterator(begin());
+    }
 
     // capacity
-    [[nodiscard, gnu::always_inline]] auto empty() const noexcept -> bool { return size() == 0; }
+    [[nodiscard, gnu::always_inline]] constexpr auto empty() const noexcept -> bool { return size() == 0; }
 
-    [[nodiscard, gnu::always_inline]] auto size() const noexcept -> size_type {
+    [[nodiscard, gnu::always_inline]] constexpr auto size() const noexcept -> size_type {
         return is_external() ? external.size() : internal.size();
     }
 
-    [[nodiscard, gnu::always_inline]] auto length() const noexcept -> size_type { return size(); }
+    [[nodiscard, gnu::always_inline]] constexpr auto length() const noexcept -> size_type { return size(); }
 
     /**
      * @brief The maximum number of elements that can be stored in the string.
      * the buffer largest size is 1 << 15, the cap occupy 2 bytes, so the max size is 1 << 15 - 2, is 65534
      */
-    [[nodiscard]] constexpr auto max_size() const noexcept -> size_type { return kInvalidSize - 1; }
+    [[nodiscard, gnu::always_inline]] constexpr auto max_size() const noexcept -> size_type { return kInvalidSize - 1; }
 
     constexpr auto reserve(size_type new_cap) -> void {
         // check the new_cap is larger than the internal capacity, and larger than current cap
@@ -1047,11 +1055,11 @@ class basic_small_string
     }
 
     // it was a just exported function, should not be called frequently, it was a little bit slow in some case.
-    [[nodiscard, gnu::always_inline]] auto capacity() const noexcept -> size_type {
+    [[nodiscard, gnu::always_inline]] constexpr auto capacity() const noexcept -> size_type {
         return is_external() ? external.capacity() : internal_core::capacity();
     }
 
-    auto shrink_to_fit() -> void {
+    constexpr auto shrink_to_fit() -> void {
         auto [cap, size] = get_capacity_and_size();
         Assert(cap >= size, "cap should always be greater or equal to size");
         auto best_cap = calc_new_buf_size_from_any_size(size);
@@ -1067,7 +1075,7 @@ class basic_small_string
      * NullTerminated is true
      * @detail : do not use set_size(0), it will be a do some job for some other sizes.
      */
-    auto clear() noexcept -> void {
+    constexpr auto clear() noexcept -> void {
         if (is_external()) {
             external.set_size(0);
             if constexpr (NullTerminated) {
@@ -1710,27 +1718,27 @@ class basic_small_string
         return npos;
     }
 
-    constexpr auto find(const Char* needle, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find(const Char* needle, size_type pos = 0) const -> size_type {
         return find(needle, pos, traits_type::length(needle));
     }
 
-    constexpr auto find(const basic_small_string& other, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find(const basic_small_string& other, size_type pos = 0) const -> size_type {
         return find(other.c_str(), pos, other.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto find(const StringViewLike& view, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find(const StringViewLike& view, size_type pos = 0) const -> size_type {
         return find(view.data(), pos, view.size());
     }
 
-    constexpr auto find(Char ch, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find(Char ch, size_type pos = 0) const -> size_type {
         auto* found = traits_type::find(c_str() + pos, size() - pos, ch);
         return found == nullptr ? npos : size_type(found - c_str());
     }
 
-    constexpr auto rfind(const Char* needle, size_type pos, size_type other_size) const -> size_type {
+    [[nodiscard]] constexpr auto rfind(const Char* needle, size_type pos, size_type other_size) const -> size_type {
         if (other_size > size()) [[unlikely]] {
             return npos;
         }
@@ -1750,22 +1758,22 @@ class basic_small_string
         return npos;
     }
 
-    constexpr auto rfind(const Char* needle, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto rfind(const Char* needle, size_type pos = 0) const -> size_type {
         return rfind(needle, pos, traits_type::length(needle));
     }
 
-    constexpr auto rfind(const basic_small_string& other, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto rfind(const basic_small_string& other, size_type pos = 0) const -> size_type {
         return rfind(other.c_str(), pos, other.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto rfind(const StringViewLike& view, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto rfind(const StringViewLike& view, size_type pos = 0) const -> size_type {
         return rfind(view.data(), pos, view.size());
     }
 
-    constexpr auto rfind(Char ch, size_type pos = npos) const -> size_type {
+    [[nodiscard]] constexpr auto rfind(Char ch, size_type pos = npos) const -> size_type {
         auto current_size = size();
         if (current_size == 0) [[unlikely]]
             return npos;
@@ -1780,28 +1788,28 @@ class basic_small_string
         return traits_type::eq(at(0), ch) ? 0 : npos;
     }
 
-    constexpr auto find_first_of(const Char* str, size_type pos, size_type count) const -> size_type {
+    [[nodiscard]] constexpr auto find_first_of(const Char* str, size_type pos, size_type count) const -> size_type {
         return find(str, pos, count);
     }
 
-    constexpr auto find_first_of(const Char* str, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find_first_of(const Char* str, size_type pos = 0) const -> size_type {
         return find(str, pos, traits_type::length(str));
     }
 
-    constexpr auto find_first_of(const basic_small_string& other, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find_first_of(const basic_small_string& other, size_type pos = 0) const -> size_type {
         return find(other.c_str(), pos, other.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto find_first_of(const StringViewLike& view, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find_first_of(const StringViewLike& view, size_type pos = 0) const -> size_type {
         return find(view.data(), pos, view.size());
     }
 
-    constexpr auto find_first_of(Char ch, size_type pos = 0) const -> size_type { return find(ch, pos); }
+    [[nodiscard]] constexpr auto find_first_of(Char ch, size_type pos = 0) const -> size_type { return find(ch, pos); }
 
-    constexpr auto find_first_not_of(const Char* str, size_type pos, size_type count) const -> size_type {
+    [[nodiscard]] constexpr auto find_first_not_of(const Char* str, size_type pos, size_type count) const -> size_type {
         if (pos < size()) {
             const_iterator i(begin() + pos);
             const_iterator finish(end());
@@ -1814,47 +1822,47 @@ class basic_small_string
         return npos;
     }
 
-    constexpr auto find_first_not_of(const Char* str, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find_first_not_of(const Char* str, size_type pos = 0) const -> size_type {
         return find_first_not_of(str, pos, traits_type::length(str));
     }
 
-    constexpr auto find_first_not_of(const basic_small_string& other, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find_first_not_of(const basic_small_string& other, size_type pos = 0) const -> size_type {
         return find_first_not_of(other.c_str(), pos, other.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto find_first_not_of(const StringViewLike& view, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find_first_not_of(const StringViewLike& view, size_type pos = 0) const -> size_type {
         return find_first_not_of(view.data(), pos, view.size());
     }
 
-    constexpr auto find_first_not_of(Char ch, size_type pos = 0) const -> size_type {
+    [[nodiscard]] constexpr auto find_first_not_of(Char ch, size_type pos = 0) const -> size_type {
         return find_first_not_of(&ch, pos, 1);
     }
 
-    constexpr auto find_last_of(const Char* str, size_type pos, size_type count) const -> size_type {
+    [[nodiscard]] constexpr auto find_last_of(const Char* str, size_type pos, size_type count) const -> size_type {
         return rfind(str, pos, count);
     }
 
-    constexpr auto find_last_of(const Char* str, size_type pos = npos) const -> size_type {
+    [[nodiscard]] constexpr auto find_last_of(const Char* str, size_type pos = npos) const -> size_type {
         return rfind(str, pos, traits_type::length(str));
     }
 
-    constexpr auto find_last_of(const basic_small_string& other, size_type pos = npos) const -> size_type {
+    [[nodiscard]] constexpr auto find_last_of(const basic_small_string& other, size_type pos = npos) const -> size_type {
         return rfind(other.c_str(), pos, other.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto find_last_of(const StringViewLike& view, size_type pos = npos) const -> size_type {
+    [[nodiscard]] constexpr auto find_last_of(const StringViewLike& view, size_type pos = npos) const -> size_type {
         return rfind(view.data(), pos, view.size());
     }
 
-    constexpr auto find_last_of(Char ch, size_type pos = npos) const -> size_type { return rfind(ch, pos); }
+    [[nodiscard]] constexpr auto find_last_of(Char ch, size_type pos = npos) const -> size_type { return rfind(ch, pos); }
 
-    constexpr auto find_last_not_of(const Char* str, size_type pos, size_type count) const -> size_type {
+    [[nodiscard]] constexpr auto find_last_not_of(const Char* str, size_type pos, size_type count) const -> size_type {
         if (not empty()) [[likely]] {
             pos = std::min(pos, size() - 1);
             const_iterator i(begin() + pos);
@@ -1870,36 +1878,36 @@ class basic_small_string
         return npos;
     }
 
-    constexpr auto find_last_not_of(const Char* str, size_type pos = npos) const -> size_type {
+    [[nodiscard]] constexpr auto find_last_not_of(const Char* str, size_type pos = npos) const -> size_type {
         return find_last_not_of(str, pos, traits_type::length(str));
     }
 
-    constexpr auto find_last_not_of(const basic_small_string& other, size_type pos = npos) const -> size_type {
+    [[nodiscard]] constexpr auto find_last_not_of(const basic_small_string& other, size_type pos = npos) const -> size_type {
         return find_last_not_of(other.c_str(), pos, other.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto find_last_not_of(const StringViewLike& view, size_type pos = npos) const -> size_type {
+    [[nodiscard]] constexpr auto find_last_not_of(const StringViewLike& view, size_type pos = npos) const -> size_type {
         return find_last_not_of(view.data(), pos, view.size());
     }
 
-    constexpr auto find_last_not_of(Char ch, size_type pos = npos) const -> size_type {
+    [[nodiscard]] constexpr auto find_last_not_of(Char ch, size_type pos = npos) const -> size_type {
         return find_last_not_of(&ch, pos, 1);
     }
 
     // Operations
-    constexpr auto compare(const basic_small_string& other) const noexcept -> int {
+    [[nodiscard]] constexpr auto compare(const basic_small_string& other) const noexcept -> int {
         auto this_size = size();
         auto other_size = other.size();
         auto r = traits_type::compare(c_str(), other.c_str(), std::min(this_size, other_size));
         return r != 0 ? r : this_size > other_size ? 1 : this_size < other_size ? -1 : 0;
     }
-    constexpr auto compare(size_type pos, size_type count, const basic_small_string& other) const -> int {
+    [[nodiscard]] constexpr auto compare(size_type pos, size_type count, const basic_small_string& other) const -> int {
         return compare(pos, count, other.c_str(), other.size());
     }
-    constexpr auto compare(size_type pos1, size_type count1, const basic_small_string& other, size_type pos2,
+    [[nodiscard]] constexpr auto compare(size_type pos1, size_type count1, const basic_small_string& other, size_type pos2,
                            size_type count2 = npos) const -> int {
         if (pos2 > other.size()) [[unlikely]] {
             throw std::out_of_range("compare: pos2 is out of range");
@@ -1907,13 +1915,13 @@ class basic_small_string
         count2 = std::min(count2, other.size() - pos2);
         return compare(pos1, count1, other.c_str() + pos2, count2);
     }
-    constexpr auto compare(const Char* str) const noexcept -> int {
+    [[nodiscard]] constexpr auto compare(const Char* str) const noexcept -> int {
         return compare(0, size(), str, traits_type::length(str));
     }
-    constexpr auto compare(size_type pos, size_type count, const Char* str) const -> int {
+    [[nodiscard]] constexpr auto compare(size_type pos, size_type count, const Char* str) const -> int {
         return compare(pos, count, str, traits_type::length(str));
     }
-    constexpr auto compare(size_type pos1, size_type count1, const Char* str, size_type count2) const -> int {
+    [[nodiscard]] constexpr auto compare(size_type pos1, size_type count1, const Char* str, size_type count2) const -> int {
         // make sure the pos1 is valid
         if (pos1 > size()) [[unlikely]] {
             throw std::out_of_range("compare: pos1 is out of range");
@@ -1927,7 +1935,7 @@ class basic_small_string
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto compare(const StringViewLike& view) const noexcept -> int {
+    [[nodiscard]] constexpr auto compare(const StringViewLike& view) const noexcept -> int {
         auto this_size = size();
         auto view_size = view.size();
         auto r = traits_type::compare(c_str(), view.data(), std::min(this_size, view_size));
@@ -1937,14 +1945,14 @@ class basic_small_string
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto compare(size_type pos, size_type count, const StringViewLike& view) const -> int {
+    [[nodiscard]] constexpr auto compare(size_type pos, size_type count, const StringViewLike& view) const -> int {
         return compare(pos, count, view.data(), view.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto compare(size_type pos1, size_type count1, const StringViewLike& view, size_type pos2,
+    [[nodiscard]] constexpr auto compare(size_type pos1, size_type count1, const StringViewLike& view, size_type pos2,
                            size_type count2 = npos) const -> int {
         if (pos2 > view.size()) [[unlikely]] {
             throw std::out_of_range("compare: pos2 is out of range");
@@ -1953,35 +1961,37 @@ class basic_small_string
         return compare(pos1, count1, view.data() + pos2, count2);
     }
 
-    constexpr auto starts_with(std::basic_string_view<Char> view) const noexcept -> bool {
+    [[nodiscard]] constexpr auto starts_with(std::basic_string_view<Char> view) const noexcept -> bool {
         return size() >= view.size() && compare(0, view.size(), view) == 0;
     }
 
-    constexpr auto starts_with(Char ch) const noexcept -> bool { return not empty() && traits_type::eq(front(), ch); }
+    [[nodiscard]] constexpr auto starts_with(Char ch) const noexcept -> bool {
+        return not empty() && traits_type::eq(front(), ch);
+    }
 
-    constexpr auto starts_with(const Char* str) const noexcept -> bool {
+    [[nodiscard]] constexpr auto starts_with(const Char* str) const noexcept -> bool {
         auto len = traits_type::length(str);
         return size() >= len && compare(0, len, str) == 0;
     }
 
-    constexpr auto ends_with(std::basic_string_view<Char> view) const noexcept -> bool {
+    [[nodiscard]] constexpr auto ends_with(std::basic_string_view<Char> view) const noexcept -> bool {
         return size() >= view.size() && compare(size() - view.size(), view.size(), view) == 0;
     }
 
-    constexpr auto ends_with(Char ch) const noexcept -> bool { return not empty() && traits_type::eq(back(), ch); }
+    [[nodiscard]] constexpr auto ends_with(Char ch) const noexcept -> bool { return not empty() && traits_type::eq(back(), ch); }
 
-    constexpr auto ends_with(const Char* str) const noexcept -> bool {
+    [[nodiscard]] constexpr auto ends_with(const Char* str) const noexcept -> bool {
         auto len = traits_type::length(str);
         return size() >= len && compare(size() - len, len, str) == 0;
     }
 
-    constexpr auto contains(std::basic_string_view<Char> view) const noexcept -> bool { return find(view) != npos; }
+    [[nodiscard]] constexpr auto contains(std::basic_string_view<Char> view) const noexcept -> bool { return find(view) != npos; }
 
-    constexpr auto contains(Char ch) const noexcept -> bool { return find(ch) != npos; }
+    [[nodiscard]] constexpr auto contains(Char ch) const noexcept -> bool { return find(ch) != npos; }
 
-    constexpr auto contains(const Char* str) const noexcept -> bool { return find(str) != npos; }
+    [[nodiscard]] constexpr auto contains(const Char* str) const noexcept -> bool { return find(str) != npos; }
 
-    constexpr auto substr(size_type pos = 0, size_type count = npos) const& -> basic_small_string {
+    [[nodiscard]] constexpr auto substr(size_type pos = 0, size_type count = npos) const& -> basic_small_string {
         auto current_size = this->size();
         if (pos > current_size) [[unlikely]] {
             throw std::out_of_range("substr: pos is out of range");
@@ -1990,12 +2000,14 @@ class basic_small_string
         return basic_small_string{data() + pos, std::min(count, current_size - pos)};
     }
 
-    constexpr auto substr(size_type pos = 0, size_type count = npos) && -> basic_small_string {
-        if (pos > size()) [[unlikely]] {
+    [[nodiscard]] constexpr auto substr(size_type pos = 0, size_type count = npos) && -> basic_small_string {
+        auto current_size = this->size();
+        if (pos > current_size) [[unlikely]] {
             throw std::out_of_range("substr: pos is out of range");
         }
+        // fmt::print("erase with pos: {}, current size : {} \n", pos, current_size);
         erase(0, pos);
-        if (count < size()) {
+        if (count < current_size) {
             resize(count);
         }
         return std::move(*this);
@@ -2006,7 +2018,7 @@ class basic_small_string
 template <typename C, class T, class A, bool N>
 inline auto operator<<(std::basic_ostream<C, T>& os,
                        const basic_small_string<C, T, A, N>& str) -> std::basic_ostream<C, T>& {
-    return std::__ostream_insert(os, str.data(), int32_t(str.size()));
+    return os.write(str.data(), str.size());
 }
 
 template <typename C, class T, class A, bool N>
@@ -2263,6 +2275,7 @@ inline auto operator>=(const std::basic_string<E, T, A2>& lhs,
 }
 
 using small_string = basic_small_string<char>;
+static_assert(sizeof(small_string) == 8, "small_string should be same as a pointer");
 
 }  // namespace stdb::memory
 
