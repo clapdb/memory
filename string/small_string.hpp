@@ -90,25 +90,11 @@ constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capaci
     return kInvalidSize;
 }
 
-
 template <typename Char, class Traits = std::char_traits<Char>, class Allocator = std::allocator<Char>,
           bool NullTerminated = true>
-class small_buffer {
+class small_string_buffer {
 
-}; // class small_buffer
-
-
-// if NDEBUG is not defined, the zero_init will be 0, so the check is useless
-#define INSANE_INIT_CHECK() Assert(zero_init == 0, "the zero_init is not 0");
-
-// if NullTerminated is true, the string will be null terminated, and the size will be the length of the string
-// if NullTerminated is false, the string will not be null terminated, and the size will still be the length of the
-// string
-template <typename Char, class Traits = std::char_traits<Char>, class Allocator = std::allocator<Char>,
-          bool NullTerminated = true>
-class basic_small_string
-{
-   public:
+   protected:
     // types
     using value_type = typename Traits::char_type;
     using traits_type = Traits;
@@ -216,7 +202,7 @@ class basic_small_string
             idle_and_flag idle_flag;
         }; // union size_or_mask
 
-
+       public:
         [[nodiscard]] auto capacity_fast() const noexcept -> size_type {
             Assert(not check_if_internal(*this), "the external must be external");
             if (size_shift.flag == kIsShift) {
@@ -265,7 +251,7 @@ class basic_small_string
                    (size_type)(size_times.flag == kIsTimes and size_times.times == 3U) * 4096;
         }
 
-        [[nodiscard]] auto size() const noexcept -> size_type {
+        [[nodiscard]] constexpr auto size() const noexcept -> size_type {
             auto size = size_fast();
             // if size is KInvalidSize, get the true size from the buffer head
             return size != kInvalidSize ? size : *((size_type*)c_str_ptr - 1);
@@ -435,7 +421,7 @@ class basic_small_string
             Assert(not check_if_internal(*this), "the external must be external");
             return (Char*)(c_str_ptr);
         }
-    };
+    }; // struct external_core
 
     inline static auto calculate_buffer_real_capacity(size_type new_buffer_size) noexcept -> size_type {
         auto real_capacity = new_buffer_size - (new_buffer_size > kMaxMediumStringSize ? 2 * sizeof(size_type) : 0) -
@@ -495,6 +481,7 @@ class basic_small_string
         return ((internal_core&)old_external).is_internal == 0;
     }
 
+   protected:
     // this function handle append / push_back / operator +='s internal reallocation
     // this funciion will not change the size, but the capacity or delta
     void allocate_more(size_type new_append_size) noexcept {
@@ -555,15 +542,43 @@ class basic_small_string
         return;
     }
 
+    [[nodiscard, gnu::always_inline]] constexpr auto get_capacity() const noexcept -> size_type {
+        return is_external() ? external.capacity() : internal_core::capacity();
+    }   
+
     static_assert(sizeof(external_core) == 8);
 
+   public:
     union
     {
         int64_t zero_init = 0;
         internal_core internal;
         external_core external;
     };
-
+    constexpr auto reserve(size_type new_cap) -> void {
+        // check the new_cap is larger than the internal capacity, and larger than current cap
+        auto [cap, size] = get_capacity_and_size();
+        if (new_cap > cap) [[likely]] {
+            // still be a small string
+            auto new_buffer_size = calculate_new_buffer_size(new_cap);
+            auto old_size = size;
+            // allocate a new buffer
+            auto new_external = allocate_new_external_buffer(new_buffer_size, old_size);
+            // copy the old data to the new buffer
+            std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
+            if constexpr (NullTerminated) {
+                reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
+            }
+            // copy the old size to tmp
+            if (is_external())
+              [[likely]] {  // we do not wish reserve a internal string to a external str, it will be a little slower.
+                // if the old string is a external string, deallocate the old buffer
+                external.deallocate();
+            }
+            // replace the old external with the new one
+            external = new_external;
+        }
+    }
 
     [[nodiscard]] auto is_external() const noexcept -> bool { return internal.is_internal != 0; }
 
@@ -588,7 +603,7 @@ class basic_small_string
 
     // increase the size, and won't change the capacity, so the internal/exteral'type or ptr will not change
     // you should always call the allocate_new_external_buffer first, then call this function
-    inline void increase_size(size_type delta) noexcept {
+    void increase_size(size_type delta) noexcept {
         if (is_external()) [[likely]] {
             external.increase_size(delta);
         } else {
@@ -596,7 +611,7 @@ class basic_small_string
         }
     }
 
-    inline void set_size(size_type new_size) noexcept {
+    void set_size(size_type new_size) noexcept {
         if (is_external()) [[likely]] {
             external.set_size(new_size);
         } else {
@@ -604,85 +619,165 @@ class basic_small_string
         }
     }
 
-    constexpr static inline auto calc_new_buf_size_from_any_size(uint32_t size) noexcept -> uint32_t {
+    void decrease_size(size_type delta) noexcept {
+        if (is_external()) [[likely]] {
+            external.decrease_size(delta);
+        } else {
+            internal.internal_size -= delta;
+        }
+    }
+
+    constexpr static inline auto calculate_buffer_size(uint32_t size) noexcept -> uint32_t {
         if (size < internal_core::capacity()) [[unlikely]] {
             return internal_core::capacity();
         }
         return calculate_new_buffer_size(size);
     }
 
-   public:
-    // Member functions
-    // no new or malloc needed, just noexcept
-    constexpr basic_small_string() noexcept { INSANE_INIT_CHECK(); }
+    public:
+     // the default constructor
+     constexpr small_string_buffer() noexcept = default;
+     // delete the copy and move constructor
+     constexpr small_string_buffer(const small_string_buffer& other) = delete;
+     constexpr small_string_buffer(small_string_buffer&& other) noexcept = delete;
 
-    constexpr explicit basic_small_string([[maybe_unused]] const Allocator& /*unused*/) noexcept {
-        INSANE_INIT_CHECK();
+
+     constexpr small_string_buffer([[maybe_unused]] const Allocator& /*unused*/) noexcept: small_string_buffer() {}
+     // copy constructor is deleted
+     constexpr small_string_buffer(const small_string_buffer& other, [[maybe_unused]] const Allocator& /*unused*/) noexcept = delete;
+     // move constructor
+     constexpr small_string_buffer(small_string_buffer&& other, [[maybe_unused]] const Allocator& /*unused*/) noexcept
+         : zero_init(other.zero_init) {
+         // set the other's external to 0, to avoid double free
+         other.zero_init = 0;
+     }
+
+    constexpr ~small_string_buffer() noexcept {
+        if (is_external()) [[likely]] {
+            external.deallocate();
+        }
     }
 
-    constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
-        INSANE_INIT_CHECK();
+    constexpr auto swap(small_string_buffer& other) noexcept -> void {
+        auto tmp = other.zero_init;
+        other.zero_init = zero_init;
+        zero_init = tmp;
+    }
+
+    constexpr auto operator=(const small_string_buffer& other) noexcept = delete;
+    constexpr auto operator=(small_string_buffer&& other) noexcept = delete;
+
+    [[nodiscard]] constexpr auto get_buffer() noexcept -> Char* {
+        return is_external() ? external.c_str() : internal.data;
+    }
+
+    [[nodiscard]] constexpr auto get_buffer() const noexcept -> const Char* {
+        return is_external() ? external.c_str() : internal.data;
+    }
+
+    [[nodiscard]] constexpr auto size() const noexcept -> size_type {
+        return is_external() ? external.size() : internal.size();
+    }
+
+    [[nodiscard]] constexpr auto capacity() const noexcept -> size_type {
+        return is_external() ? external.capacity() : internal_core::capacity();
+    }
+
+}; // class small_string_buffer
+
+
+
+// if NullTerminated is true, the string will be null terminated, and the size will be the length of the string
+// if NullTerminated is false, the string will not be null terminated, and the size will still be the length of the
+// string
+template <typename Char, template <typename, class, class, bool> class Buffer = small_string_buffer, class Traits = std::char_traits<Char>, class Allocator = std::allocator<Char>,
+          bool NullTerminated = true>
+class basic_small_string: private Buffer<Char, Traits, Allocator, NullTerminated>
+{
+   public:
+    // types
+    using buffer_type = Buffer<Char, Traits, Allocator, NullTerminated>;
+    using value_type = typename Traits::char_type;
+    using traits_type = Traits;
+    using allocator_type = Allocator;
+    using size_type = std::uint32_t;
+    using difference_type = typename std::allocator_traits<Allocator>::difference_type;
+
+    using reference = typename std::allocator_traits<Allocator>::value_type&;
+    using const_reference = const typename std::allocator_traits<Allocator>::value_type&;
+    using pointer = typename std::allocator_traits<Allocator>::pointer;
+    using const_pointer = const typename std::allocator_traits<Allocator>::const_pointer;
+
+    using iterator = Char*;
+    using const_iterator = const Char*;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    // npos is the largest value of size_type, is the max value of size_type
+    constexpr static size_type npos = std::numeric_limits<size_type>::max();
+
+   public:
+    constexpr explicit basic_small_string([[maybe_unused]] const Allocator& allocator = Allocator()) noexcept
+        : buffer_type(allocator) {}
+
+    constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& allocator = Allocator()) : buffer_type(allocator) {
         append(count, ch);
     }
 
     // copy constructor
-    basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
-        INSANE_INIT_CHECK();
+    basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& allocator = Allocator())
+        : buffer_type(allocator) {
         append(other);
     }
 
     constexpr basic_small_string(const basic_small_string& other, size_type pos,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
-        INSANE_INIT_CHECK();
+                                 [[maybe_unused]] const Allocator& allocator = Allocator())
+        : buffer_type(allocator) {
         append(other, pos);
     }
 
     constexpr basic_small_string(basic_small_string&& other,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) noexcept
-        : zero_init(other.zero_init) {
-        // set the other's external to 0, to avoid double free
-        other.zero_init = 0;
-    }
+                                 [[maybe_unused]] const Allocator& allocator = Allocator()) noexcept
+        : buffer_type(std::move(other), allocator) {}
 
     constexpr basic_small_string(basic_small_string&& other, size_type pos,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
+                                 [[maybe_unused]] const Allocator& allocator = Allocator())
         : basic_small_string{other.substr(pos)} {}
 
     constexpr basic_small_string(const basic_small_string& other, size_type pos, size_type count,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
+                                 [[maybe_unused]] const Allocator& allocator = Allocator())
         : basic_small_string{other.substr(pos, count)} {}
 
     constexpr basic_small_string(basic_small_string&& other, size_type pos, size_type count,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
-        : basic_small_string{other.substr(pos, count)} {}
+                                 [[maybe_unused]] const Allocator& allocator = Allocator())
+        : basic_small_string{other.substr(pos, count), allocator} {}
 
     constexpr basic_small_string(const Char* s, size_type count,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
-        INSANE_INIT_CHECK();
+                                 [[maybe_unused]] const Allocator& allocator = Allocator())
+        : buffer_type(allocator) {
         append(s, count);
     }
 
-    constexpr basic_small_string(const Char* s, [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
-        : basic_small_string(s, std::strlen(s)) {}
+    constexpr basic_small_string(const Char* s, [[maybe_unused]] const Allocator& allocator = Allocator())
+        : basic_small_string(s, std::strlen(s), allocator) {}
 
     template <class InputIt>
     constexpr basic_small_string(InputIt first, InputIt last,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator()){
-        INSANE_INIT_CHECK();
+                                 [[maybe_unused]] const Allocator& allocator = Allocator())
+        : buffer_type(allocator) {
         append(first, last);
     }
 
     constexpr basic_small_string(std::initializer_list<Char> ilist,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
-        INSANE_INIT_CHECK();
+                                 [[maybe_unused]] const Allocator& allocator = Allocator())
+        : buffer_type(allocator) {
         append(ilist.begin(), ilist.end());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> and
                  not std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr basic_small_string(const StringViewLike& s, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
-        INSANE_INIT_CHECK();
+    constexpr basic_small_string(const StringViewLike& s, [[maybe_unused]] const Allocator& allocator = Allocator())
+        : buffer_type(allocator) {
         append(s.begin(), s.end());
     }
 
@@ -690,18 +785,15 @@ class basic_small_string
         requires(std::is_convertible_v<const StringViewLike&, const Char*> and
                  not std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>>)
     constexpr basic_small_string(const StringViewLike& s, size_type pos, size_type n,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
-        INSANE_INIT_CHECK();
+                                 [[maybe_unused]] const Allocator& allocator = Allocator())
+        : buffer_type(allocator) {
         append(s, pos, n);
     }
 
     basic_small_string(std::nullptr_t) = delete;
 
-    ~basic_small_string() noexcept {
-        if (is_external()) {
-            external.deallocate();
-        }
-    }
+    ~basic_small_string() noexcept = default;
+    
 
     // copy assignment
     auto operator=(const basic_small_string& other) -> basic_small_string& {
@@ -718,9 +810,7 @@ class basic_small_string
         if (this == &other) [[unlikely]] {
             return *this;
         }
-        if (is_external()) {
-            external.deallocate();
-        }
+        this->~basic_small_string();
         // call the move constructor
         new (this) basic_small_string(std::move(other));
         return *this;
@@ -780,9 +870,7 @@ class basic_small_string
         if (this == &gone) [[unlikely]] {
             return *this;
         }
-        if (is_external()) {
-            external.deallocate();
-        }
+        this->~basic_small_string();
         // call the move constructor
         new (this) basic_small_string(std::move(gone));
         return *this;
@@ -879,31 +967,24 @@ class basic_small_string
     [[nodiscard]] constexpr auto front() const noexcept -> const_reference { return *c_str(); }
 
     [[nodiscard]] constexpr auto back() noexcept -> reference {
-        // do not use c_str() and size() to avoid extra if check
-        if (is_external()) {
-            return *(reinterpret_cast<Char*>(external.c_str_ptr) + external.size() - 1);
-        }
-        // else is internal
-        return internal.data[internal.internal_size - 1];
+        auto size = buffer_type::size();
+        auto buffer = buffer_type::get_buffer();
+        return buffer[size - 1];
     }
 
     [[nodiscard]] constexpr auto back() const noexcept -> const_reference {
-        // do not use c_str() and size() to avoid extra if check
-        if (is_external()) {
-            return *(reinterpret_cast<Char*>(external.c_str_ptr) + external.size() - 1);
-        }
-        // else is internal
-        return internal.data[internal.size - 1];
+        auto [buffer, size] = buffer_type::get_buffer_and_size();
+        return buffer[size - 1];
     }
 
     [[nodiscard, gnu::always_inline]] auto c_str() const noexcept -> const Char* {
-        return is_external() ? reinterpret_cast<const Char*>(external.c_str_ptr) : internal.data;
+        return buffer_type::get_buffer();
     }
 
     [[nodiscard, gnu::always_inline]] auto data() const noexcept -> const Char* { return c_str(); }
 
     [[nodiscard, gnu::always_inline]] auto data() noexcept -> Char* {
-        return is_external() ? reinterpret_cast<Char*>(external.c_str_ptr) : internal.data;
+        return buffer_type::get_buffer();
     }
 
     // Iterators
@@ -914,24 +995,21 @@ class basic_small_string
     [[nodiscard]] constexpr auto cbegin() const noexcept -> const_iterator { return c_str(); }
 
     [[nodiscard]] constexpr auto end() noexcept -> iterator {
-        if (is_external()) {
-            return (Char*)external.c_str_ptr + external.size();
-        }
-        return internal.data + internal.internal_size;
+        auto* buffer = buffer_type::get_buffer();
+        auto size = buffer_type::size();
+        return buffer + size;
     }
 
     [[nodiscard]] constexpr auto end() const noexcept -> const_iterator {
-        if (is_external()) {
-            return external.c_str() + external.size();
-        }
-        return internal.data + internal.internal_size;
+        auto* buffer = buffer_type::get_buffer();
+        auto size = buffer_type::size();
+        return buffer + size;
     }
 
     [[nodiscard]] constexpr auto cend() const noexcept -> const_iterator {
-        if (is_external()) {
-            return external.c_str() + external.size();
-        }
-        return internal.data + internal.internal_size;
+        auto* buffer = buffer_type::get_buffer();
+        auto size = buffer_type::size();
+        return buffer + size;
     }
 
     [[nodiscard]] constexpr auto rbegin() noexcept -> reverse_iterator { return reverse_iterator(end()); }
@@ -958,10 +1036,10 @@ class basic_small_string
     [[nodiscard, gnu::always_inline]] constexpr auto empty() const noexcept -> bool { return size() == 0; }
 
     [[nodiscard, gnu::always_inline]] constexpr auto size() const noexcept -> size_type {
-        return is_external() ? external.size() : internal.size();
+        return buffer_type::size();
     }
 
-    [[nodiscard, gnu::always_inline]] constexpr auto length() const noexcept -> size_type { return size(); }
+    [[nodiscard, gnu::always_inline]] constexpr auto length() const noexcept -> size_type { return buffer_type::size(); }
 
     /**
      * @brief The maximum number of elements that can be stored in the string.
@@ -970,38 +1048,18 @@ class basic_small_string
     [[nodiscard, gnu::always_inline]] constexpr auto max_size() const noexcept -> size_type { return kInvalidSize - 1; }
 
     constexpr auto reserve(size_type new_cap) -> void {
-        // check the new_cap is larger than the internal capacity, and larger than current cap
-        if (new_cap > capacity()) [[likely]] {
-            // still be a small string
-            auto new_buffer_size = calculate_new_buffer_size(new_cap);
-            auto old_size = size();
-            // allocate a new buffer
-            auto new_external = allocate_new_external_buffer(new_buffer_size, old_size);
-            // copy the old data to the new buffer
-            std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), c_str(), old_size);
-            if constexpr (NullTerminated) {
-                reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
-            }
-            // copy the old size to tmp
-            if (is_external())
-              [[likely]] {  // we do not wish reserve a internal string to a external str, it will be a little slower.
-                // if the old string is a external string, deallocate the old buffer
-                external.deallocate();
-            }
-            // replace the old external with the new one
-            external = new_external;
-        }
+        buffer_type::reserve(new_cap);
     }
 
     // it was a just exported function, should not be called frequently, it was a little bit slow in some case.
     [[nodiscard, gnu::always_inline]] constexpr auto capacity() const noexcept -> size_type {
-        return is_external() ? external.capacity() : internal_core::capacity();
+        return buffer_type::capacity();
     }
 
     constexpr auto shrink_to_fit() -> void {
-        auto [cap, size] = get_capacity_and_size();
+        auto [cap, size] = buffer_type::get_capacity_and_size();
         Assert(cap >= size, "cap should always be greater or equal to size");
-        auto best_cap = calc_new_buf_size_from_any_size(size);
+        auto best_cap = buffer_type::calculate_buffer_size(size);
         if (cap > best_cap) {  // the cap is larger than the best cap, so need to shrink
             auto new_str(*this);
             swap(new_str);
@@ -1015,16 +1073,9 @@ class basic_small_string
      * @detail : do not use set_size(0), it will be a do some job for some other sizes.
      */
     constexpr auto clear() noexcept -> void {
-        if (is_external()) {
-            external.set_size(0);
-            if constexpr (NullTerminated) {
-                *((Char*)external.c_str_ptr) = '\0';
-            }
-        } else {
-            internal.set_size(0);
-            if constexpr (NullTerminated) {
-                internal.data[0] = '\0';
-            }
+        buffer_type::set_size(0);
+        if constexpr (NullTerminated) {
+            data()[0] = '\0';
         }
     }
 
@@ -1034,12 +1085,12 @@ class basic_small_string
             throw std::out_of_range("index is out of range");
         }
         if constexpr (Safe) {
-            allocate_more(count);
+            buffer_type::allocate_more(count);
         }
         auto old_size = size();
         std::memmove(data() + index + count, c_str() + index, old_size - index);
         std::memset(data() + index, ch, count);
-        increase_size(count);
+        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[old_size + count] = '\0';
         }
@@ -1060,7 +1111,7 @@ class basic_small_string
         }
         // check if the capacity is enough
         if constexpr (Safe) {
-            allocate_more(count);
+            buffer_type::allocate_more(count);
         }
         // by now, the capacity is enough
         // memmove the data to the new position
@@ -1068,7 +1119,7 @@ class basic_small_string
         std::memmove(data() + index + count, c_str() + index, old_size - index);
         // set the new data
         std::memcpy(data() + index, str, count);
-        increase_size(count);
+        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[old_size + count] = '\0';
         }
@@ -1095,7 +1146,7 @@ class basic_small_string
     constexpr auto insert(const_iterator pos, size_type count, Char ch) -> iterator {
         // check if the capacity is enough
         if constexpr (Safe) {
-            allocate_more(count);
+            buffer_type::allocate_more(count);
         }
         // by now, the capacity is enough
         // memmove the data to the new position
@@ -1103,7 +1154,7 @@ class basic_small_string
                      static_cast<size_type>(end() - pos));  // end() - pos is faster than size() - (pos - begin())
         // set the new data
         std::memset(const_cast<Char*>(pos), ch, count);
-        increase_size(count);
+        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
@@ -1119,14 +1170,14 @@ class basic_small_string
         size_type count = std::distance(first, last);
         size_type index = pos - begin();
         if constexpr (Safe) {
-            allocate_more(count);
+            buffer_type::allocate_more(count);
         }
         // by now, the capacity is enough
         // move the data to the new position
         std::memmove(data() + index + count, data() + index, static_cast<size_type>(size() - index));
         // copy the new data
         std::copy(first, last, data() + index);
-        increase_size(count);
+        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
@@ -1163,16 +1214,9 @@ class basic_small_string
         // memmove the data to the new position
         std::memmove(data() + index, c_str() + index + real_count, old_size - index - real_count);
         // set the new size
-        if (is_external()) [[likely]] {
-            external.set_size(old_size - real_count);
-            if constexpr (NullTerminated) {
-                *(external.c_str() + old_size - real_count) = '\0';
-            }
-        } else {
-            internal.internal_size -= real_count;
-            if constexpr (NullTerminated) {
-                internal.data[internal.internal_size] = '\0';
-            }
+        buffer_type::set_size(old_size - real_count);
+        if constexpr (NullTerminated) {
+            data()[old_size - real_count] = '\0';
         }
         return *this;
     }
@@ -1194,12 +1238,7 @@ class basic_small_string
     }
 
     void pop_back() {
-        if (is_external()) [[likely]] {
-            // the size maybe was stored in the head of the external buffer
-            external.decrease_size(1);
-        } else {
-            internal.internal_size--;
-        }
+        buffer_type::decrease_size(1);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
@@ -1207,12 +1246,11 @@ class basic_small_string
     template <bool Safe = true>
     constexpr auto append(size_type count, Char c) -> basic_small_string& {
         if constexpr (Safe) {
-            // allocate a new external buffer if need
-            allocate_more(count);
+            buffer_type::allocate_more(count);
         }
         // by now, the capacity is enough
         std::memset(data() + size(), c, count);
-        increase_size(count);
+        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
@@ -1222,13 +1260,13 @@ class basic_small_string
     template <bool Safe = true>
     constexpr auto append(const basic_small_string& other) -> basic_small_string& {
         if constexpr (Safe) {
-            allocate_more(other.size());
+            buffer_type::allocate_more(other.size());
         }
         // by now, the capacity is enough
         // size() function maybe slower than while the size is larger than 4k, so store it.
         auto other_size = other.size();
         std::memcpy(end(), other.c_str(), other_size);
-        increase_size(other_size);
+        buffer_type::increase_size(other_size);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
@@ -1247,11 +1285,11 @@ class basic_small_string
     template <bool Safe = true>
     constexpr auto append(const Char* s, size_type count) -> basic_small_string& {
         if constexpr (Safe) {
-            allocate_more(count);
+            buffer_type::allocate_more(count);
         }
 
         std::memcpy(data() + size(), s, count);
-        increase_size(count);
+        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
@@ -1273,10 +1311,10 @@ class basic_small_string
                       "the value type of the input iterator is not the same as the char type");
         size_type count = std::distance(first, last);
         if constexpr (Safe) {
-            allocate_more(count);
+            buffer_type::allocate_more(count);
         }
         std::copy(first, last, data() + size());
-        increase_size(count);
+        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
@@ -1351,7 +1389,7 @@ class basic_small_string
             }
             // by now, the capacity is enough
             std::memset(data() + pos, ch, count2);
-            set_size(new_size);
+            buffer_type::set_size(new_size);
             if constexpr (NullTerminated) {
                 data()[new_size] = '\0';
             }
@@ -1376,7 +1414,7 @@ class basic_small_string
         }
         // by now, the buffer is ready
         std::memset(data() + pos, ch, count2);
-        set_size(new_size);
+        buffer_type::set_size(new_size);
         if constexpr (NullTerminated) {
             data()[new_size] = '\0';
         }
@@ -1403,7 +1441,7 @@ class basic_small_string
             }
             // by now, the capacity is enough
             std::memcpy(data() + pos, cstr, count2);
-            set_size(new_size);
+            buffer_type::set_size(new_size);
             if constexpr (NullTerminated) {
                 data()[new_size] = '\0';
             }
@@ -1429,7 +1467,7 @@ class basic_small_string
         }
         // by now, the buffer is ready
         std::memcpy(data() + pos, cstr, count2);
-        set_size(new_size);
+        buffer_type::set_size(new_size);
         if constexpr (NullTerminated) {
             data()[new_size] = '\0';
         }
@@ -1490,7 +1528,7 @@ class basic_small_string
             // by now, the capacity is enough
             // if first2 and last2 is ptr, will use memcpy?
             std::copy(first2, last2, first);
-            set_size(new_size);
+            buffer_type::set_size(new_size);
             if constexpr (NullTerminated) {
                 data()[new_size] = '\0';
             }
@@ -1515,7 +1553,7 @@ class basic_small_string
         }
         // the buffer is ready
         std::copy(first2, last2, first);
-        set_size(new_size);
+        buffer_type::set_size(new_size);
         if constexpr (NullTerminated) {
             data()[new_size] = '\0';
         }
@@ -1554,7 +1592,7 @@ class basic_small_string
 
     auto resize(size_type count) -> void {
         if (count <= size()) {
-            set_size(count);
+            buffer_type::set_size(count);
             if constexpr (NullTerminated) {
                 data()[count] = '\0';
             }
@@ -1564,7 +1602,7 @@ class basic_small_string
             reserve(count);
         }
         std::memset(data() + size(), '\0', count - size());
-        set_size(count);
+        buffer_type::set_size(count);
         if constexpr (NullTerminated) {
             data()[count] = '\0';
         }
@@ -1574,7 +1612,7 @@ class basic_small_string
     auto resize(size_type count, Char ch) -> void {
         // if the count is less than the size, just set the size
         if (count <= size()) {
-            set_size(count);
+            buffer_type::set_size(count);
             if constexpr (NullTerminated) {
                 data()[count] = '\0';
             }
@@ -1586,7 +1624,7 @@ class basic_small_string
         }
         // by now, the capacity is enough
         std::memset(data() + size(), ch, count - size());
-        set_size(count);
+        buffer_type::set_size(count);
         if constexpr (NullTerminated) {
             data()[count] = '\0';
         }
@@ -1595,9 +1633,7 @@ class basic_small_string
 
     void swap(basic_small_string& other) noexcept {
         // just a temp variable to avoid self-assignment, std::swap will do the same thing, maybe faster?
-        const auto temp = internal;
-        internal = other.internal;
-        other.internal = temp;
+        buffer_type::swap(other);
     }
 
     // search
@@ -1954,16 +1990,16 @@ class basic_small_string
 };  // class basic_small_string
 
 // input/output
-template <typename C, class T, class A, bool N>
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
 inline auto operator<<(std::basic_ostream<C, T>& os,
-                       const basic_small_string<C, T, A, N>& str) -> std::basic_ostream<C, T>& {
+                       const basic_small_string<C, B, T, A, N>& str) -> std::basic_ostream<C, T>& {
     return os.write(str.data(), str.size());
 }
 
-template <typename C, class T, class A, bool N>
-inline auto operator>>(std::basic_istream<C, T>& is, basic_small_string<C, T, A, N>& str) -> std::basic_istream<C, T>& {
-    using _istream_type = std::basic_istream<typename basic_small_string<C, T, A, N>::value_type,
-                                             typename basic_small_string<C, T, A, N>::traits_type>;
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator>>(std::basic_istream<C, T>& is, basic_small_string<C, B, T, A, N>& str) -> std::basic_istream<C, T>& {
+    using _istream_type = std::basic_istream<typename basic_small_string<C, B, T, A, N>::value_type,
+                                             typename basic_small_string<C, B, T, A, N>::traits_type>;
     typename _istream_type::sentry sentry(is);
     size_t extracted = 0;
     typename _istream_type::iostate err = _istream_type::goodbit;
@@ -1997,219 +2033,219 @@ inline auto operator>>(std::basic_istream<C, T>& is, basic_small_string<C, T, A,
 
 // operator +
 // 1
-template <typename C, class T, class A, bool N>
-inline auto operator+(const basic_small_string<C, T, A, N>& lhs,
-                      const basic_small_string<C, T, A, N>& rhs) -> basic_small_string<C, T, A, N> {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(const basic_small_string<C, B, T, A, N>& lhs,
+                      const basic_small_string<C, B, T, A, N>& rhs) -> basic_small_string<C, B, T, A, N> {
     auto result = lhs;
     result.append(rhs);
     return result;
 }
 
 // 2
-template <typename C, class T, class A, bool N>
-inline auto operator+(const basic_small_string<C, T, A, N>& lhs, const C* rhs) -> basic_small_string<C, T, A, N> {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(const basic_small_string<C, B, T, A, N>& lhs, const C* rhs) -> basic_small_string<C, B, T, A, N> {
     auto result = lhs;
     result.append(rhs);
     return result;
 }
 
 // 3
-template <typename C, class T, class A, bool N>
-inline auto operator+(const basic_small_string<C, T, A, N>& lhs, C rhs) -> basic_small_string<C, T, A, N> {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(const basic_small_string<C, B, T, A, N>& lhs, C rhs) -> basic_small_string<C, B, T, A, N> {
     auto result = lhs;
     result.push_back(rhs);
     return result;
 }
 
 // 5
-template <typename C, class T, class A, bool N>
-inline auto operator+(const C* lhs, const basic_small_string<C, T, A, N>& rhs) -> basic_small_string<C, T, A, N> {
-    return basic_small_string<C, T, A, N>(lhs) + rhs;
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(const C* lhs, const basic_small_string<C, B, T, A, N>& rhs) -> basic_small_string<C, B, T, A, N> {
+    return basic_small_string<C, B, T, A, N>(lhs) + rhs;
 }
 
 // 6
-template <typename C, class T, class A, bool N>
-inline auto operator+(C lhs, const basic_small_string<C, T, A, N>& rhs) -> basic_small_string<C, T, A, N> {
-    return basic_small_string<C, T, A, N>(1, lhs) + rhs;
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(C lhs, const basic_small_string<C, B, T, A, N>& rhs) -> basic_small_string<C, B, T, A, N> {
+    return basic_small_string<C, B, T, A, N>(1, lhs) + rhs;
 }
 
 // 8
-template <typename C, class T, class A, bool N>
-inline auto operator+(basic_small_string<C, T, A, N>&& lhs,
-                      basic_small_string<C, T, A, N>&& rhs) -> basic_small_string<C, T, A, N> {
-    basic_small_string<C, T, A, N> result(std::move(lhs));
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(basic_small_string<C, B, T, A, N>&& lhs,
+                      basic_small_string<C, B, T, A, N>&& rhs) -> basic_small_string<C, B, T, A, N> {
+    basic_small_string<C, B, T, A, N> result(std::move(lhs));
     result.append(std::move(rhs));
     return result;
 }
 
 // 9
-template <typename C, class T, class A, bool N>
-inline auto operator+(basic_small_string<C, T, A, N>&& lhs,
-                      const basic_small_string<C, T, A, N>& rhs) -> basic_small_string<C, T, A, N> {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(basic_small_string<C, B, T, A, N>&& lhs,
+                      const basic_small_string<C, B, T, A, N>& rhs) -> basic_small_string<C, B, T, A, N> {
     auto result = std::move(lhs);
     result.append(rhs);
     return result;
 }
 
 // 10
-template <typename C, class T, class A, bool N>
-inline auto operator+(basic_small_string<C, T, A, N>&& lhs, const C* rhs) -> basic_small_string<C, T, A, N> {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(basic_small_string<C, B, T, A, N>&& lhs, const C* rhs) -> basic_small_string<C, B, T, A, N> {
     auto result = std::move(lhs);
     result.append(rhs);
     return result;
 }
 
 // 11
-template <typename C, class T, class A, bool N>
-inline auto operator+(basic_small_string<C, T, A, N>&& lhs, C rhs) -> basic_small_string<C, T, A, N> {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(basic_small_string<C, B, T, A, N>&& lhs, C rhs) -> basic_small_string<C, B, T, A, N> {
     auto result = std::move(lhs);
     result.push_back(rhs);
     return result;
 }
 
 // 13
-template <typename C, class T, class A, bool N>
-inline auto operator+(const basic_small_string<C, T, A, N>& lhs,
-                      basic_small_string<C, T, A, N>&& rhs) -> basic_small_string<C, T, A, N> {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(const basic_small_string<C, B, T, A, N>& lhs,
+                      basic_small_string<C, B, T, A, N>&& rhs) -> basic_small_string<C, B, T, A, N> {
     auto result = lhs;
     result.append(std::move(rhs));
     return result;
 }
 
 // 14
-template <typename C, class T, class A, bool N>
-inline auto operator+(const C* lhs, basic_small_string<C, T, A, N>&& rhs) -> basic_small_string<C, T, A, N> {
-    return basic_small_string<C, T, A, N>(lhs) + std::move(rhs);
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(const C* lhs, basic_small_string<C, B, T, A, N>&& rhs) -> basic_small_string<C, B, T, A, N> {
+    return basic_small_string<C, B, T, A, N>(lhs) + std::move(rhs);
 }
 
 // 15
-template <typename C, class T, class A, bool N>
-inline auto operator+(C lhs, basic_small_string<C, T, A, N>&& rhs) -> basic_small_string<C, T, A, N> {
-    return basic_small_string<C, T, A, N>(1, lhs) + std::move(rhs);
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator+(C lhs, basic_small_string<C, B, T, A, N>&& rhs) -> basic_small_string<C, B, T, A, N> {
+    return basic_small_string<C, B, T, A, N>(1, lhs) + std::move(rhs);
 }
 
 // comparison operators
-template <typename C, class T, class A, bool N>
-inline auto operator<=>(const basic_small_string<C, T, A, N>& lhs,
-                        const basic_small_string<C, T, A, N>& rhs) noexcept -> std::strong_ordering {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator<=>(const basic_small_string<C, B, T, A, N>& lhs,
+                        const basic_small_string<C, B, T, A, N>& rhs) noexcept -> std::strong_ordering {
     return lhs.compare(rhs) <=> 0;
 }
 
-template <typename C, class T, class A, bool N>
-inline auto operator==(const basic_small_string<C, T, A, N>& lhs,
-                       const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator==(const basic_small_string<C, B, T, A, N>& lhs,
+                       const basic_small_string<C, B, T, A, N>& rhs) noexcept -> bool {
     return lhs.size() == rhs.size() and lhs.compare(rhs) == 0;
 }
 
-template <typename C, class T, class A, bool N>
-inline auto operator!=(const basic_small_string<C, T, A, N>& lhs,
-                       const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator!=(const basic_small_string<C, B, T, A, N>& lhs,
+                       const basic_small_string<C, B, T, A, N>& rhs) noexcept -> bool {
     return not(lhs == rhs);
 }
 
-template <typename C, class T, class A, bool N>
-inline auto operator>(const basic_small_string<C, T, A, N>& lhs,
-                      const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator>(const basic_small_string<C, B, T, A, N>& lhs,
+                      const basic_small_string<C, B, T, A, N>& rhs) noexcept -> bool {
     return lhs.compare(rhs) > 0;
 }
 
-template <typename C, class T, class A, bool N>
-inline auto operator<(const basic_small_string<C, T, A, N>& lhs,
-                      const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator<(const basic_small_string<C, B, T, A, N>& lhs,
+                      const basic_small_string<C, B, T, A, N>& rhs) noexcept -> bool {
     return lhs.compare(rhs) < 0;
 }
 
-template <typename C, class T, class A, bool N>
-inline auto operator>=(const basic_small_string<C, T, A, N>& lhs,
-                       const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator>=(const basic_small_string<C, B, T, A, N>& lhs,
+                       const basic_small_string<C, B, T, A, N>& rhs) noexcept -> bool {
     return not(lhs < rhs);
 }
 
-template <typename C, class T, class A, bool N>
-inline auto operator<=(const basic_small_string<C, T, A, N>& lhs,
-                       const basic_small_string<C, T, A, N>& rhs) noexcept -> bool {
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N>
+inline auto operator<=(const basic_small_string<C, B, T, A, N>& lhs,
+                       const basic_small_string<C, B, T, A, N>& rhs) noexcept -> bool {
     return not(lhs > rhs);
 }
 
 // basic_string compatibility routines
-template <typename E, class T, class A, bool N, class S, class A2>
-inline auto operator<=>(const basic_small_string<E, T, A, N>& lhs,
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
+inline auto operator<=>(const basic_small_string<E, B, T, A, N>& lhs,
                         const std::basic_string<E, T, A2>& rhs) noexcept -> std::strong_ordering {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) <=> 0;
 }
 
 // swap the lhs and rhs
-template <typename C, class T, class A, bool N, class S, class A2>
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
 inline auto operator<=>(const std::basic_string<C, T, A2>& lhs,
-                        const basic_small_string<C, T, A, N>& rhs) noexcept -> std::strong_ordering {
+                        const basic_small_string<C, B, T, A, N>& rhs) noexcept -> std::strong_ordering {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) <=> 0;
 }
 
-template <typename C, class T, bool N, class A, class A2>
-inline auto operator==(const basic_small_string<C, T, A, N>& lhs,
+template <typename C, template <typename, class, class, bool> class B, class T, class A, bool N, class A2>
+inline auto operator==(const basic_small_string<C, B, T, A, N>& lhs,
                        const std::basic_string<C, T, A2>& rhs) noexcept -> bool {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) == 0;
 }
 
-template <typename E, class T, class A, bool N, class S, class A2>
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
 inline auto operator==(const std::basic_string<E, T, A2>& lhs,
-                       const basic_small_string<E, T, A, N>& rhs) noexcept -> bool {
+                       const basic_small_string<E, B, T, A, N>& rhs) noexcept -> bool {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) == 0;
 }
 
-template <typename E, class T, class A, bool N, class S, class A2>
-inline auto operator!=(const basic_small_string<E, T, A, N>& lhs,
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
+inline auto operator!=(const basic_small_string<E, B, T, A, N>& lhs,
                        const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return !(lhs == rhs);
 }
 
-template <typename E, class T, class A, class S, class A2>
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
 inline auto operator!=(const std::basic_string<E, T, A2>& lhs,
-                       const basic_small_string<E, T, A>& rhs) noexcept -> bool {
+                       const basic_small_string<E, B, T, A, N>& rhs) noexcept -> bool {
     return !(lhs == rhs);
 }
 
-template <typename E, class T, class A, class S, class A2>
-inline auto operator<(const basic_small_string<E, T, A>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
+inline auto operator<(const basic_small_string<E, B, T, A, N>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) < 0;
 }
 
-template <typename E, class T, class A, class S, class A2>
-inline auto operator>(const basic_small_string<E, T, A>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
+inline auto operator>(const basic_small_string<E, B, T, A, N>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) > 0;
 }
 
-template <typename E, class T, class A, class S, class A2>
-inline auto operator<(const std::basic_string<E, T, A2>& lhs, const basic_small_string<E, T, A>& rhs) noexcept -> bool {
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
+inline auto operator<(const std::basic_string<E, T, A2>& lhs, const basic_small_string<E, B, T, A, N>& rhs) noexcept -> bool {
     return rhs > lhs;
 }
 
-template <typename E, class T, class A, class S, class A2>
-inline auto operator>(const std::basic_string<E, T, A2>& lhs, const basic_small_string<E, T, A>& rhs) noexcept -> bool {
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
+inline auto operator>(const std::basic_string<E, T, A2>& lhs, const basic_small_string<E, B, T, A, N>& rhs) noexcept -> bool {
     return rhs < lhs;
 }
 
-template <typename E, class T, class A, class S, class A2>
-inline auto operator<=(const basic_small_string<E, T, A>& lhs,
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
+inline auto operator<=(const basic_small_string<E, B, T, A, N>& lhs,
                        const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return !(lhs > rhs);
 }
 
-template <typename E, class T, class A, class S, class A2>
-inline auto operator>=(const basic_small_string<E, T, A>& lhs,
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
+inline auto operator>=(const basic_small_string<E, B, T, A, N>& lhs,
                        const std::basic_string<E, T, A2>& rhs) noexcept -> bool {
     return !(lhs < rhs);
 }
 
-template <typename E, class T, class A, class S, class A2>
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
 inline auto operator<=(const std::basic_string<E, T, A2>& lhs,
-                       const basic_small_string<E, T, A>& rhs) noexcept -> bool {
+                       const basic_small_string<E, B, T, A, N>& rhs) noexcept -> bool {
     return !(lhs > rhs);
 }
 
-template <typename E, class T, class A, class S, class A2>
+template <typename E, template <typename, class, class, bool> class B, class T, class A, bool N, class S, class A2>
 inline auto operator>=(const std::basic_string<E, T, A2>& lhs,
-                       const basic_small_string<E, T, A>& rhs) noexcept -> bool {
+                       const basic_small_string<E, B, T, A, N>& rhs) noexcept -> bool {
     return !(lhs < rhs);
 }
 
@@ -2221,13 +2257,13 @@ static_assert(sizeof(small_string) == 8, "small_string should be same as a point
 // decl the formatter of small_string
 namespace fmt {
 
-template <typename C, typename T, typename A, bool N>
-struct formatter<stdb::memory::basic_small_string<C, T, A, N>> : formatter<string_view>
+template <typename C, template <typename, class, class, bool> class B, typename T, typename A, bool N>
+struct formatter<stdb::memory::basic_small_string<C, B, T, A, N>> : formatter<string_view>
 {
     using formatter<fmt::string_view>::parse;
 
     template <typename Context>
-    auto format(const stdb::memory::basic_small_string<C, T, A, N>& str, Context& ctx) const noexcept {
+    auto format(const stdb::memory::basic_small_string<C, B, T, A, N>& str, Context& ctx) const noexcept {
         return formatter<string_view>::format({str.data(), str.size()}, ctx);
     }
 };
