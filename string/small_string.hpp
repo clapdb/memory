@@ -90,6 +90,9 @@ constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capaci
     return kInvalidSize;
 }
 
+// if NDEBUG is not defined, the zero_init will be 0, so the check is useless
+#define INSANE_INIT_CHECK() Assert(zero_init == 0, "the zero_init is not 0");
+
 // if NullTerminated is true, the string will be null terminated, and the size will be the length of the string
 // if NullTerminated is false, the string will not be null terminated, and the size will still be the length of the
 // string
@@ -118,13 +121,14 @@ class basic_small_string
     constexpr static size_type npos = std::numeric_limits<size_type>::max();
 
    private:
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
     struct internal_core
     {
-        Char data[7] = {};
+        Char data[7];
         // 0~7
-        uint8_t internal_size : 4 = 0;
+        uint8_t internal_size : 4;
         // 0000 , ths higher 4 bits is 0, means is_internal is 0
-        uint8_t is_internal : 4 = 0;
+        uint8_t is_internal : 4;
         [[nodiscard, gnu::always_inline]] static constexpr auto capacity() noexcept -> size_type {
             if constexpr (not NullTerminated) {
                 return sizeof(data);
@@ -145,7 +149,7 @@ class basic_small_string
         }
 
         [[gnu::always_inline]] void set_size(size_type new_size) noexcept { internal_size = new_size; }
-    };
+    }; // struct internal_core
 
     static_assert(sizeof(internal_core) == 8);
 
@@ -182,27 +186,28 @@ class basic_small_string
             uint16_t external_size : 12;
             uint8_t shift : 3;  // 1: 16, 2: 32, 3: 64, 4: 128, 5: 256, 6: 512, 7: 1024, shift always not be 000
             uint8_t flag : 1;   // must be 0
-        };
+        }; // struct size_and_shift
 
         struct size_and_times
         {
             uint16_t external_size : 12;
             uint8_t times : 2;  // 0, 1, 2, if times == 3, the size is 4096
             uint8_t flag : 2;   // the flag must be 01
-        };
+        }; // struct size_and_times
 
         struct idle_and_flag
         {
             uint16_t idle : 14;
             uint8_t flag : 2;  // must be 11
-        };
+        }; // struct idle_and_flag
 
         union
         {
             size_and_shift size_shift;
             size_and_times size_times;
             idle_and_flag idle_flag;
-        };
+        }; // union size_or_mask
+
 
         [[nodiscard]] auto capacity_fast() const noexcept -> size_type {
             Assert(not check_if_internal(*this), "the external must be external");
@@ -550,9 +555,11 @@ class basic_small_string
 
     union
     {
+        int64_t zero_init = 0;
         internal_core internal;
         external_core external;
     };
+
 
     [[nodiscard]] auto is_external() const noexcept -> bool { return internal.is_internal != 0; }
 
@@ -607,12 +614,14 @@ class basic_small_string
    public:
     // Member functions
     // no new or malloc needed, just noexcept
-    constexpr basic_small_string() noexcept
-        : internal{} {}  // the is_external is false, the size is 0, and the capacity is 7
+    constexpr basic_small_string() noexcept { INSANE_INIT_CHECK(); }
 
-    constexpr explicit basic_small_string([[maybe_unused]] const Allocator& /*unused*/) noexcept : internal{} {}
+    constexpr explicit basic_small_string([[maybe_unused]] const Allocator& /*unused*/) noexcept {
+        INSANE_INIT_CHECK();
+    }
 
     constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
+        INSANE_INIT_CHECK();
         if (count > internal_core::capacity()) [[likely]] {
             // by now, need external buffer, allocate a new buffer
             external = this->allocate_new_external_buffer(calculate_new_buffer_size(count), count);
@@ -624,7 +633,6 @@ class basic_small_string
         } else {
             // the size is smaller than the internal capacity, do not need to allocate a new buffer
             // set the size first
-            internal = {};
             internal.set_size(count);
             // fill the buffer with the ch
             std::fill_n(internal.data, count, ch);
@@ -636,6 +644,7 @@ class basic_small_string
 
     // copy constructor
     basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
+        INSANE_INIT_CHECK();
         if (not other.is_external()) {
             // is a internal string, just copy the internal part
             internal = other.internal;
@@ -666,6 +675,7 @@ class basic_small_string
 
     constexpr basic_small_string(const basic_small_string& other, size_type pos,
                                  [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
+        INSANE_INIT_CHECK();
         auto new_size = other.size() - pos;
         if (new_size <= internal_core::capacity()) {
             // the size is smaller than the internal capacity, do not need to allocate a new buffer
@@ -687,9 +697,9 @@ class basic_small_string
 
     constexpr basic_small_string(basic_small_string&& other,
                                  [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) noexcept
-        : external(other.external) {
+        : zero_init(other.zero_init) {
         // set the other's external to 0, to avoid double free
-        memset(&other.external, 0, sizeof(other.external));
+        other.zero_init = 0;
     }
 
     constexpr basic_small_string(basic_small_string&& other, size_type pos,
@@ -705,8 +715,8 @@ class basic_small_string
         : basic_small_string{other.substr(pos, count)} {}
 
     constexpr basic_small_string(const Char* s, size_type count,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
-        : internal{} {
+                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
+        INSANE_INIT_CHECK();
         append(s, count);
     }
 
@@ -715,22 +725,22 @@ class basic_small_string
 
     template <class InputIt>
     constexpr basic_small_string(InputIt first, InputIt last,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
-        : internal{} {
+                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator()){
+        INSANE_INIT_CHECK();
         append(first, last);
     }
 
     constexpr basic_small_string(std::initializer_list<Char> ilist,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
-        : internal{} {
+                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
+        INSANE_INIT_CHECK();
         append(ilist.begin(), ilist.end());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> and
                  not std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr basic_small_string(const StringViewLike& s, [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
-        : internal{} {
+    constexpr basic_small_string(const StringViewLike& s, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
+        INSANE_INIT_CHECK();
         append(s.begin(), s.end());
     }
 
@@ -738,8 +748,8 @@ class basic_small_string
         requires(std::is_convertible_v<const StringViewLike&, const Char*> and
                  not std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>>)
     constexpr basic_small_string(const StringViewLike& s, size_type pos, size_type n,
-                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator())
-        : internal{} {
+                                 [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
+        INSANE_INIT_CHECK();
         append(s, pos, n);
     }
 
