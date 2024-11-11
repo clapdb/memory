@@ -94,6 +94,7 @@ template <typename Char, class Traits = std::char_traits<Char>, class Allocator 
           bool NullTerminated = true>
 class small_string_buffer {
 
+
    protected:
     // types
     using value_type = typename Traits::char_type;
@@ -113,6 +114,11 @@ class small_string_buffer {
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     // npos is the largest value of size_type, is the max value of size_type
     constexpr static size_type npos = std::numeric_limits<size_type>::max();
+
+    enum class NeedTerminated: bool {
+        Yes = true,
+        No = false
+    };
 
    private:
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
@@ -484,6 +490,7 @@ class small_string_buffer {
    protected:
     // this function handle append / push_back / operator +='s internal reallocation
     // this funciion will not change the size, but the capacity or delta
+    template<NeedTerminated NeedTerminated = NeedTerminated::Yes>
     void allocate_more(size_type new_append_size) noexcept {
         size_type old_delta_fast = check_if_internal(external) ? ((internal_core&)external).idle_capacity()
                                                                    : external.idle_capacity_fast();
@@ -521,7 +528,7 @@ class small_string_buffer {
             auto new_external = allocate_new_external_buffer(new_buffer_size, old_internal.size());
             // copy the old data to the new buffer
             std::memcpy(new_external.c_str(), old_internal.data, old_internal.size());
-            if constexpr (NullTerminated) {
+            if constexpr (NullTerminated and NeedTerminated == NeedTerminated::Yes) {
                 new_external.c_str()[old_internal.size()] = '\0';
             }
             external = new_external;
@@ -533,7 +540,7 @@ class small_string_buffer {
         auto new_external = allocate_new_external_buffer(new_buffer_size, external.size());
         // print_detail_of_external(new_external);
         std::memcpy(new_external.c_str(), external.c_str(), external.size());
-        if constexpr (NullTerminated) {
+        if constexpr (NullTerminated and NeedTerminated == NeedTerminated::Yes) {
             new_external.c_str()[external.size()] = '\0';
         }
         // replace the old external with the new one
@@ -555,7 +562,9 @@ class small_string_buffer {
         internal_core internal;
         external_core external;
     };
-    constexpr auto reserve(size_type new_cap) -> void {
+
+    template<NeedTerminated NeedTerminated>
+    constexpr auto buffer_reserve(size_type new_cap) -> void {
         // check the new_cap is larger than the internal capacity, and larger than current cap
         auto [cap, size] = get_capacity_and_size();
         if (new_cap > cap) [[likely]] {
@@ -566,7 +575,7 @@ class small_string_buffer {
             auto new_external = allocate_new_external_buffer(new_buffer_size, old_size);
             // copy the old data to the new buffer
             std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
-            if constexpr (NullTerminated) {
+            if constexpr (NullTerminated and NeedTerminated == NeedTerminated::Yes) {
                 reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
             }
             // copy the old size to tmp
@@ -1048,7 +1057,7 @@ class basic_small_string: private Buffer<Char, Traits, Allocator, NullTerminated
     [[nodiscard, gnu::always_inline]] constexpr auto max_size() const noexcept -> size_type { return kInvalidSize - 1; }
 
     constexpr auto reserve(size_type new_cap) -> void {
-        buffer_type::reserve(new_cap);
+        this->template buffer_reserve<buffer_type::NeedTerminated::Yes>(new_cap);
     }
 
     // it was a just exported function, should not be called frequently, it was a little bit slow in some case.
@@ -1085,7 +1094,7 @@ class basic_small_string: private Buffer<Char, Traits, Allocator, NullTerminated
             throw std::out_of_range("index is out of range");
         }
         if constexpr (Safe) {
-            buffer_type::allocate_more(count);
+            this->template allocate_more<buffer_type::NeedTerminated::No>(count);
         }
         auto old_size = size();
         std::memmove(data() + index + count, c_str() + index, old_size - index);
@@ -1111,7 +1120,7 @@ class basic_small_string: private Buffer<Char, Traits, Allocator, NullTerminated
         }
         // check if the capacity is enough
         if constexpr (Safe) {
-            buffer_type::allocate_more(count);
+            this->template allocate_more<buffer_type::NeedTerminated::No>(count);
         }
         // by now, the capacity is enough
         // memmove the data to the new position
@@ -1146,7 +1155,7 @@ class basic_small_string: private Buffer<Char, Traits, Allocator, NullTerminated
     constexpr auto insert(const_iterator pos, size_type count, Char ch) -> iterator {
         // check if the capacity is enough
         if constexpr (Safe) {
-            buffer_type::allocate_more(count);
+            this->template allocate_more<buffer_type::NeedTerminated::No>(count);
         }
         // by now, the capacity is enough
         // memmove the data to the new position
@@ -1170,7 +1179,7 @@ class basic_small_string: private Buffer<Char, Traits, Allocator, NullTerminated
         size_type count = std::distance(first, last);
         size_type index = pos - begin();
         if constexpr (Safe) {
-            buffer_type::allocate_more(count);
+            this->template allocate_more<buffer_type::NeedTerminated::No>(count);
         }
         // by now, the capacity is enough
         // move the data to the new position
@@ -1260,7 +1269,7 @@ class basic_small_string: private Buffer<Char, Traits, Allocator, NullTerminated
     template <bool Safe = true>
     constexpr auto append(const basic_small_string& other) -> basic_small_string& {
         if constexpr (Safe) {
-            buffer_type::allocate_more(other.size());
+            this->template allocate_more<buffer_type::NeedTerminated::No>(other.size());
         }
         // by now, the capacity is enough
         // size() function maybe slower than while the size is larger than 4k, so store it.
@@ -1311,7 +1320,7 @@ class basic_small_string: private Buffer<Char, Traits, Allocator, NullTerminated
                       "the value type of the input iterator is not the same as the char type");
         size_type count = std::distance(first, last);
         if constexpr (Safe) {
-            buffer_type::allocate_more(count);
+            this->template allocate_more<buffer_type::NeedTerminated::No>(count);
         }
         std::copy(first, last, data() + size());
         buffer_type::increase_size(count);
@@ -1385,7 +1394,7 @@ class basic_small_string: private Buffer<Char, Traits, Allocator, NullTerminated
                 throw std::length_error("the new capacity is too large");
             }
             if (new_size > capacity()) {
-                reserve(new_size);
+                this->template buffer_reserve<buffer_type::NeedTerminated::No>(new_size);
             }
             // by now, the capacity is enough
             std::memset(data() + pos, ch, count2);
@@ -1402,7 +1411,7 @@ class basic_small_string: private Buffer<Char, Traits, Allocator, NullTerminated
             throw std::length_error("the new capacity is too large");
         }
         if (new_size > capacity()) {
-            reserve(new_size);
+            this->template buffer_reserve<buffer_type::NeedTerminated::No>(new_size);
         }
         // by now, the capacity is enough
         // check if need do some memmove
