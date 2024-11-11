@@ -487,11 +487,6 @@ class basic_small_string
         return ((internal_core&)old_external).is_internal == 0;
     }
 
-    [[nodiscard, gnu::always_inline]] static inline auto check_if_internal(const internal_core& old_internal) noexcept
-      -> bool {
-        return old_internal.is_internal == 0;
-    }
-
     // this function handle append / push_back / operator +='s internal reallocation
     // this funciion will not change the size, but the capacity or delta
     static inline auto allocate_new_external_buffer_if_need_from_delta(external_core& old_external,
@@ -604,14 +599,10 @@ class basic_small_string
     }
 
     constexpr static inline auto calc_new_buf_size_from_any_size(uint32_t size) noexcept -> uint32_t {
-        if (size < internal_core::capacity()) {
+        if (size < internal_core::capacity()) [[unlikely]] {
             return internal_core::capacity();
         }
         return calculate_new_buffer_size(size);
-    }
-
-    constexpr inline auto check_is_internal_ptr(const Char* ptr) noexcept -> bool {
-        return ptr >= c_str() and ptr < (c_str() + size());
     }
 
    public:
