@@ -616,77 +616,19 @@ class basic_small_string
 
     constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
         INSANE_INIT_CHECK();
-        if (count > internal_core::capacity()) [[likely]] {
-            // by now, need external buffer, allocate a new buffer
-            external = this->allocate_new_external_buffer(calculate_new_buffer_size(count), count);
-            // fill the buffer with the ch
-            std::fill_n(external.c_str(), count, ch);
-            if constexpr (NullTerminated) {
-                external.c_str()[count] = '\0';
-            }
-        } else {
-            // the size is smaller than the internal capacity, do not need to allocate a new buffer
-            // set the size first
-            internal.set_size(count);
-            // fill the buffer with the ch
-            std::fill_n(internal.data, count, ch);
-            if constexpr (NullTerminated) {
-                internal.data[count] = '\0';
-            }
-        }
+        append(count, ch);
     }
 
     // copy constructor
     basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
         INSANE_INIT_CHECK();
-        if (not other.is_external()) {
-            // is a internal string, just copy the internal part
-            internal = other.internal;
-            return;
-        }
-        // is a external string, check if the size is larger than the internal capacity
-        auto other_size = other.size();
-        if (other_size >= internal_core::capacity()) [[likely]] {
-            // by now, need external buffer, allocate a new buffer
-            auto new_buffer_size = calculate_new_buffer_size(other_size);
-            external = allocate_new_external_buffer(new_buffer_size, other_size);
-            // copy the data from the other
-            std::memcpy(external.c_str(), other.c_str(), other_size);
-            if constexpr (NullTerminated) {
-                external.c_str()[other_size] = '\0';
-            }
-        } else {
-            // the size is smaller than the internal capacity, do not need to allocate a new buffer
-            // set the size first
-            internal.set_size(other_size);
-            // copy the data from the other
-            std::memcpy(internal.data, other.c_str(), other_size);
-            if constexpr (NullTerminated) {
-                internal.data[other_size] = '\0';
-            }
-        }
+        append(other);
     }
 
     constexpr basic_small_string(const basic_small_string& other, size_type pos,
                                  [[maybe_unused]] const Allocator& /*unused*/ = Allocator()) {
         INSANE_INIT_CHECK();
-        auto new_size = other.size() - pos;
-        if (new_size <= internal_core::capacity()) {
-            // the size is smaller than the internal capacity, do not need to allocate a new buffer
-            internal.set_size(new_size);
-            std::memcpy(internal.data, other.c_str() + pos, new_size);
-            if constexpr (NullTerminated) {
-                internal.data[new_size] = '\0';
-            }
-        } else {
-            // by now, need external buffer, allocate a new buffer
-            external = allocate_new_external_buffer<Char>(calculate_new_buffer_size(new_size), new_size);
-            // copy the data from the other
-            std::memcpy((Char*)(external.ptr), other.c_str() + pos, new_size);
-            if constexpr (NullTerminated) {
-                ((Char*)(external.ptr))[new_size] = '\0';
-            }
-        }
+        append(other, pos);
     }
 
     constexpr basic_small_string(basic_small_string&& other,
