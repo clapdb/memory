@@ -3622,4 +3622,8 @@ TEST_CASE("small_string::testAllClauses") {
     TEST_CLAUSE_SMALL(21_4_8_9_a);
 }
 
+TEST_CASE("small_string::pmr") {
+    // using pmr_small_string = pmr::small_string;
+}
+
 }  // namespace stdb::memory
