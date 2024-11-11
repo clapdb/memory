@@ -429,18 +429,21 @@ class basic_small_string
         }
     };
 
+    inline static auto calculate_buffer_real_capacity(size_type new_buffer_size) noexcept -> size_type {
+        auto real_capacity = new_buffer_size - (new_buffer_size > kMaxMediumStringSize ? 2 * sizeof(size_type) : 0) -
+                             (NullTerminated ? 1 : 0);
+        return real_capacity;
+    }
+
     // set the buf_size and str_size to the right place
     inline static auto allocate_new_external_buffer(size_type new_buffer_size,
                                                     size_type old_str_size) noexcept -> external_core {
-        // make sure the old_str_size <= new_buffer_size
-        if constexpr (not NullTerminated) {
-            Assert(old_str_size <= new_buffer_size,
-                   "if not NullTerminated,  new_str_size should be not greater than new_buffer_size");
-        } else {
-            Assert(old_str_size < new_buffer_size,
-                   "if NullTerminated str,  new_str_size should be less than new_buffer_size");
-        }
+        // make sure the new_buffer_size is not too large
         Assert(new_buffer_size != kInvalidSize, "new_buffer_size should not be kInvalidSize");
+        // make sure the old_str_size <= new_buffer_size
+        Assert(old_str_size <= calculate_buffer_real_capacity(new_buffer_size),
+               "old_str_size should be less than the real capacity of the new buffer");
+
         if (new_buffer_size <= kMaxSmallStringSize) [[likely]] {
             Assert(is_power_of_2(new_buffer_size), "new_buffer_size should be a power of 2");
             // set the size_shift
