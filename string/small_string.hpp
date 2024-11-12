@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <memory_resource>
@@ -217,7 +218,6 @@ struct malloc_core
                     return size_times.times < 3U ? ((size_times.times + 2U) << 10U) - 1 : 4095;
                 }
             }
-            Assert(idle_flag.flag == kIsDelta, "the flag is must be kIsDelta");
             // means don't know the capacity, because the size_or_mask is overflow
             return kInvalidSize;
         }
@@ -426,8 +426,6 @@ struct malloc_core
         external_core external;
     };
 
-    malloc_core() noexcept = default;
-
     [[nodiscard, gnu::always_inline]] inline auto is_external() const noexcept -> bool {
         return internal.is_internal != 0;
     }
@@ -445,21 +443,30 @@ struct malloc_core
         other.zero_init = zero_init;
         zero_init = temp;
     }
+
+    // constructor
+    constexpr malloc_core([[maybe_unused]] const std::allocator<Char>& unused = std::allocator<Char>{}) noexcept {}
 };  // struct malloc_core
 
 template <typename Char, bool NullTerminated>
-struct malloc_core_and_pmr_allocator : public malloc_core<Char, NullTerminated>
+struct pmr_core : public malloc_core<Char, NullTerminated>
 {
-    std::pmr::polymorphic_allocator<Char>& allocator;
-
-    malloc_core_and_pmr_allocator(std::pmr::polymorphic_allocator<Char>& allocator) noexcept
-        : malloc_core<Char, NullTerminated>(), allocator(allocator) {}
+    std::pmr::polymorphic_allocator<Char> pmr_allocator = {};
 
     using use_std_allocator = std::false_type;
-    auto swap(malloc_core_and_pmr_allocator& other) noexcept -> void {
-        allocator.swap(other.allocator);
+    auto swap(pmr_core& other) noexcept -> void {
+        Assert(pmr_allocator.resource() == other.pmr_allocator.resource(), "the swap's 2 allocator is not the same");
         malloc_core<Char, NullTerminated>::swap(other);
+        // the buffer and the allocator_ptr belongs to same Arena or Object, so the swap both is OK
     }
+    // constructor
+    constexpr pmr_core(const std::pmr::polymorphic_allocator<Char>& allocator) noexcept
+        : malloc_core<Char, NullTerminated>(), pmr_allocator(allocator) {}
+
+    constexpr pmr_core() noexcept = delete;
+
+    constexpr pmr_core(const pmr_core& other) noexcept
+        : malloc_core<Char, NullTerminated>(other), pmr_allocator(other.pmr_allocator) {}
 };  // struct malloc_core_and_pmr_allocator
 
 template <typename Char, template <typename, bool> typename Core, class Traits, class Allocator, bool NullTerminated>
@@ -494,7 +501,15 @@ class small_string_buffer
     };
 
    private:
-    core_type _core = {};
+    core_type _core;
+
+    [[nodiscard]] auto check_the_allocator() const -> bool {
+        if constexpr (core_type::use_std_allocator::value) {
+            return true;
+        } else {
+            return _core.pmr_allocator != std::pmr::polymorphic_allocator<Char>{};
+        }
+    }
 
     inline static auto calculate_buffer_real_capacity(size_type new_buffer_size) noexcept -> size_type {
         auto real_capacity = new_buffer_size - (new_buffer_size > kMaxMediumStringSize ? 2 * sizeof(size_type) : 0) -
@@ -609,24 +624,25 @@ class small_string_buffer
             if constexpr (core_type::use_std_allocator::value) {
                 new_external = allocate_new_external_buffer(new_buffer_size, old_internal.size());
             } else {
-                new_external = allocate_new_external_buffer(new_buffer_size, old_internal.size(), &_core.allocator);
+                new_external = allocate_new_external_buffer(new_buffer_size, old_internal.size(), &_core.pmr_allocator);
             }
             // copy the old data to the new buffer
             std::memcpy(new_external.c_str(), old_internal.data, old_internal.size());
             if constexpr (NullTerminated and NeedTerminated == NeedTerminated::Yes) {
                 new_external.c_str()[old_internal.size()] = '\0';
             }
-            if constexpr (core_type::use_std_allocator::value) {
-                _core.external = new_external;
-            } else {
-                _core.core.external = new_external;
-            }
+            _core.external = new_external;
             return;
         }
         // else is external
         // copy the old data to the new buffer
         auto new_buffer_size = calculate_new_buffer_size(_core.external.size() + new_append_size);
-        auto new_external = allocate_new_external_buffer(new_buffer_size, _core.external.size());
+        typename core_type::external_core new_external;
+        if constexpr (core_type::use_std_allocator::value) {
+            new_external = allocate_new_external_buffer(new_buffer_size, _core.external.size());
+        } else {
+            new_external = allocate_new_external_buffer(new_buffer_size, _core.external.size(), &_core.pmr_allocator);
+        }
         std::memcpy(new_external.c_str(), _core.external.c_str(), _core.external.size());
 
         if constexpr (NullTerminated and NeedTerminated == NeedTerminated::Yes) {
@@ -636,7 +652,7 @@ class small_string_buffer
         if constexpr (core_type::use_std_allocator::value) {
             std::free(_core.external.get_buffer_ptr());
         } else {
-            _core.allocator.deallocate(_core.external.get_buffer_ptr(), _core.external.capacity());
+            _core.pmr_allocator.deallocate(_core.external.get_buffer_ptr(), _core.external.capacity());
         }
         _core.external = new_external;
         return;
@@ -646,17 +662,16 @@ class small_string_buffer
     template <NeedTerminated NeedTerminated>
     constexpr auto buffer_reserve(size_type new_cap) -> void {
         // check the new_cap is larger than the internal capacity, and larger than current cap
-        auto [cap, size] = get_capacity_and_size();
-        if (new_cap > cap) [[likely]] {
+        auto [old_cap, old_size] = get_capacity_and_size();
+        if (new_cap > old_cap) [[likely]] {
             // still be a small string
             auto new_buffer_size = calculate_new_buffer_size(new_cap);
-            auto old_size = size;
             // allocate a new buffer
             typename core_type::external_core new_external;
             if constexpr (core_type::use_std_allocator::value) {
                 new_external = allocate_new_external_buffer(new_buffer_size, old_size);
             } else {
-                new_external = allocate_new_external_buffer(new_buffer_size, old_size, &_core.allocator);
+                new_external = allocate_new_external_buffer(new_buffer_size, old_size, &_core.pmr_allocator);
             }
             // copy the old data to the new buffer
             std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
@@ -670,7 +685,7 @@ class small_string_buffer
                 }
             } else {
                 if (_core.is_external()) [[likely]] {
-                    _core.allocator.deallocate(_core.external.get_buffer_ptr(), _core.external.capacity());
+                    _core.pmr_allocator.deallocate(_core.external.get_buffer_ptr(), _core.external.capacity());
                 }
             }
             // replace the old external with the new one
@@ -694,7 +709,11 @@ class small_string_buffer
             return {_core.external.capacity_fast(), _core.external.size_fast()};
         }
         auto* buf = (size_type*)_core.external.c_str_ptr;
-        return {*(buf - 2), *(buf - 1)};
+        if constexpr (NullTerminated) {
+            return {*(buf - 2) - 2 * sizeof(size_type) - 1, *(buf - 1)};
+        } else {
+            return {*(buf - 2) - 2 * sizeof(size_type), *(buf - 1)};
+        }
     }
 
     // increase the size, and won't change the capacity, so the internal/exteral'type or ptr will not change
@@ -731,13 +750,15 @@ class small_string_buffer
     }
 
    public:
-    // the default constructor
-    constexpr small_string_buffer() noexcept = default;
+    constexpr small_string_buffer([[maybe_unused]] const Allocator& allocator) noexcept : _core{allocator} {
+        if constexpr (not core_type::use_std_allocator::value) {
+            Assert(check_the_allocator(), "the pmr default allocator is not allowed to be used in small_string");
+        }
+    }
     // delete the copy and move constructor
     constexpr small_string_buffer(const small_string_buffer& other) = delete;
     constexpr small_string_buffer(small_string_buffer&& other) noexcept = delete;
 
-    constexpr small_string_buffer([[maybe_unused]] const Allocator& /*unused*/) noexcept : small_string_buffer() {}
     // copy constructor is deleted
     constexpr small_string_buffer(const small_string_buffer& other,
                                   [[maybe_unused]] const Allocator& /*unused*/) noexcept = delete;
@@ -746,6 +767,7 @@ class small_string_buffer
         : _core(other._core) {
         // set the other's external to 0, to avoid double free
         other._core.zero_init = 0;
+        Assert(check_the_allocator(), "the pmr default allocator is not allowed to be used in small_string");
     }
 
     constexpr ~small_string_buffer() noexcept {
@@ -755,7 +777,7 @@ class small_string_buffer
             }
         } else {
             if (_core.is_external()) [[likely]] {
-                _core.allocator.deallocate(_core.external.get_buffer_ptr(), _core.external.capacity());
+                _core.pmr_allocator.deallocate(_core.external.get_buffer_ptr(), _core.external.capacity());
             }
         }
     }
@@ -781,6 +803,13 @@ class small_string_buffer
         return _core.is_external() ? _core.external.capacity() : core_type::internal_core::capacity();
     }
 
+    [[nodiscard]] constexpr auto get_allocator() const -> Allocator {
+        if constexpr (core_type::use_std_allocator::value) {
+            return Allocator();
+        } else {
+            return _core.pmr_allocator;
+        }
+    }
 };  // class small_string_buffer
 
 // if NullTerminated is true, the string will be null terminated, and the size will be the length of the string
@@ -815,7 +844,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
    public:
     constexpr explicit basic_small_string([[maybe_unused]] const Allocator& allocator = Allocator()) noexcept
-        : buffer_type(allocator) {}
+        : buffer_type(allocator) { }
 
     constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& allocator = Allocator())
         : buffer_type(allocator) {
@@ -823,8 +852,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     // copy constructor
-    basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& allocator = Allocator())
-        : buffer_type(allocator) {
+    basic_small_string(const basic_small_string& other)
+        : buffer_type(other.get_allocator()) {
         append(other);
     }
 
@@ -891,6 +920,9 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     basic_small_string(std::nullptr_t) = delete;
 
     ~basic_small_string() noexcept = default;
+    
+    // get_allocator
+    [[nodiscard]] constexpr auto get_allocator() const -> Allocator { return buffer_type::get_allocator(); }
 
     // copy assignment
     auto operator=(const basic_small_string& other) -> basic_small_string& {
@@ -1015,8 +1047,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         append(s, pos, n);
         return *this;
     }
-
-    [[nodiscard]] auto get_allocator() const -> Allocator { return Allocator(); }
 
     // element access
     template <bool Safe = true>
@@ -1465,28 +1495,22 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     // replace [pos, pos+count] with count2 times of ch
+    template <bool Safe = true>
     auto replace(size_type pos, size_type count, size_type count2, Char ch) -> basic_small_string& {
         // check the pos is not out of range
         if (pos > size()) [[unlikely]] {
             throw std::out_of_range("replace: pos is out of range");
         }
         // then check if pos+count is the out of range
-        if (pos + count >= size()) {
-            // no right part to move
-            uint64_t new_size = pos + count2;  // to avoid overflow from size_type
-            if (new_size > max_size()) [[unlikely]] {
-                throw std::length_error("the new capacity is too large");
-            }
-            if (new_size > capacity()) {
-                this->template buffer_reserve<buffer_type::NeedTerminated::No>(new_size);
-            }
-            // by now, the capacity is enough
-            std::memset(data() + pos, ch, count2);
-            buffer_type::set_size(new_size);
-            if constexpr (NullTerminated) {
-                data()[new_size] = '\0';
-            }
+        if (count >= size() or pos + count >= size()) { // to avoid count overflow from size_type
+            // no right part to move, just append the new string
+            append<Safe>(count2, ch);
             return *this;
+        }
+
+        if (count2 == 0) [[unlikely]] {
+            // just delete the right part
+            return erase(pos, count);
         }
         // else, there is right part, maybe need to move
         // check the size, if the pos + count is greater than the cap, we need to reserve
@@ -1494,6 +1518,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         if (new_size > max_size()) [[unlikely]] {
             throw std::length_error("the new capacity is too large");
         }
+        // to make sure the capacity is enough
         if (new_size > capacity()) {
             this->template buffer_reserve<buffer_type::NeedTerminated::No>(new_size);
         }
@@ -1503,7 +1528,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             // move the right part to the new position, and the size will not be zero
 
             // the memmove will handle the overlap automatically
-            std::memmove(data() + pos + count, c_str() + pos + count2, size() - pos - count);
+            std::memmove(data() + pos + count2, c_str() + pos + count, size() - pos - count);
         }
         // by now, the buffer is ready
         std::memset(data() + pos, ch, count2);
@@ -1515,11 +1540,17 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     // replace [pos, pos+count] with the range [cstr, cstr + count2]
+    template <bool Safe = true>
     auto replace(size_type pos, size_type count, const Char* cstr, size_type count2) -> basic_small_string& {
+        
         // check the pos is not out of range
         auto old_size = size();
         if (pos > old_size) [[unlikely]] {
             throw std::out_of_range("replace: pos is out of range");
+        }
+        if (count2 == 0) [[unlikely]] {
+            // just delete the right part
+            return erase(pos, count);
         }
 
         if (pos + count >= old_size) {
@@ -1528,16 +1559,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             if (new_size > max_size()) [[unlikely]] {
                 throw std::length_error("the new capacity is too large");
             }
-            auto old_cap = capacity();
-            if (new_size > old_cap) {
-                reserve(new_size);
-            }
-            // by now, the capacity is enough
-            std::memcpy(data() + pos, cstr, count2);
-            buffer_type::set_size(new_size);
-            if constexpr (NullTerminated) {
-                data()[new_size] = '\0';
-            }
+            // just append the new string
+            append<Safe>(cstr, count2);
             return *this;
         }
         // else, there is right part, maybe need to move
@@ -1548,14 +1571,14 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         auto cap = capacity();
         if (new_size > cap) {
-            reserve(new_size);
+            // because count2 is not 0, so 
+            this->template buffer_reserve<buffer_type::NeedTerminated::No>(new_size);
         }
         // by now, the capacity is enough
         // check if need do some memmove
         if (count != count2) {
             // move the right part to the new position, and the size will not be zero
-
-            std::memmove(data() + pos + count, c_str() + pos + count2, old_size - pos - count);
+            std::memmove(data() + pos + count2, c_str() + pos + count, old_size - pos - count);
             // the memmove will handle the overlap automatically
         }
         // by now, the buffer is ready
@@ -1603,32 +1626,24 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     auto replace(const_iterator first, const_iterator last, InputIt first2, InputIt last2) -> basic_small_string& {
         static_assert(std::is_same_v<typename std::iterator_traits<InputIt>::value_type, Char>,
                       "the value type of the input iterator is not the same as the char type");
-        Assert(first2 < last2, "the range is valid");
-        auto count = last - first;
-        if (count > 0) [[unlikely]] {
+        Assert(first2 <= last2, "the range is valid");
+        auto count = std::distance(first, last);
+        if (count < 0) [[unlikely]] {
             throw std::invalid_argument("the range is invalid");
         }
         auto count2 = std::distance(first2, last2);
         if (last == end()) {
-            // no right part to move
-            uint64_t new_size = first - begin() + count2;  // to avoid overflow from size_type
-            if (new_size > max_size()) [[unlikely]] {
-                throw std::length_error("the new capacity is too large");
-            }
-            if (new_size > capacity()) {
-                reserve(new_size);
-            }
-            // by now, the capacity is enough
-            // if first2 and last2 is ptr, will use memcpy?
-            std::copy(first2, last2, first);
-            buffer_type::set_size(new_size);
-            if constexpr (NullTerminated) {
-                data()[new_size] = '\0';
-            }
+            // no right part to move, just append the new string
+            append(first2, last2);
             return *this;
         }
+
+        if (count2 == 0) [[unlikely]] {
+            // just delete the right part
+            return erase(begin(), first);
+        }
         // else, there is right part, maybe need to move
-        uint64_t new_size = size() - (last - first) + count2;  // to avoid overflow from size_type
+        uint64_t new_size = size() - count + count2;  // to avoid overflow from size_type
         if (new_size > max_size()) [[unlikely]] {
             throw std::length_error("the new capacity is too large");
         }
@@ -2075,7 +2090,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             throw std::out_of_range("substr: pos is out of range");
         }
 
-        return basic_small_string{data() + pos, std::min(count, current_size - pos)};
+        return basic_small_string{data() + pos, std::min(count, current_size - pos), get_allocator()};
     }
 
     [[nodiscard]] constexpr auto substr(size_type pos = 0, size_type count = npos) && -> basic_small_string {
@@ -2178,7 +2193,7 @@ template <typename Char, template <typename, template <class, bool> class, class
 inline auto operator+(const Char* lhs,
                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs)
   -> basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated> {
-    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(lhs) + rhs;
+    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(lhs, rhs.get_allocator()) + rhs;
 }
 
 // 6
@@ -2186,7 +2201,7 @@ template <typename Char, template <typename, template <class, bool> class, class
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator+(Char lhs, const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs)
   -> basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated> {
-    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(1, lhs) + rhs;
+    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(1, lhs, rhs.get_allocator()) + rhs;
 }
 
 // 8
@@ -2247,7 +2262,7 @@ template <typename Char, template <typename, template <class, bool> class, class
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator+(const Char* lhs, basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>&& rhs)
   -> basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated> {
-    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(lhs) + std::move(rhs);
+    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(lhs, rhs.get_allocator()) + std::move(rhs);
 }
 
 // 15
@@ -2255,10 +2270,11 @@ template <typename Char, template <typename, template <class, bool> class, class
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator+(Char lhs, basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>&& rhs)
   -> basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated> {
-    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(1, lhs) + std::move(rhs);
+    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(1, lhs, rhs.get_allocator()) + std::move(rhs);
 }
 
 // comparison operators
+// small_string <=> small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator<=>(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
@@ -2267,6 +2283,7 @@ inline auto operator<=>(const basic_small_string<Char, Buffer, Core, Traits, All
     return lhs.compare(rhs) <=> 0;
 }
 
+// small_string == small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
@@ -2275,6 +2292,7 @@ inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allo
     return lhs.size() == rhs.size() and lhs.compare(rhs) == 0;
 }
 
+// small_string != small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator!=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
@@ -2283,6 +2301,7 @@ inline auto operator!=(const basic_small_string<Char, Buffer, Core, Traits, Allo
     return not(lhs == rhs);
 }
 
+// small_string > small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator>(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
@@ -2291,6 +2310,7 @@ inline auto operator>(const basic_small_string<Char, Buffer, Core, Traits, Alloc
     return lhs.compare(rhs) > 0;
 }
 
+// small_string < small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator<(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
@@ -2299,6 +2319,7 @@ inline auto operator<(const basic_small_string<Char, Buffer, Core, Traits, Alloc
     return lhs.compare(rhs) < 0;
 }
 
+// small_string >= small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator>=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
@@ -2307,6 +2328,7 @@ inline auto operator>=(const basic_small_string<Char, Buffer, Core, Traits, Allo
     return not(lhs < rhs);
 }
 
+// small_string <= small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator<=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
@@ -2316,108 +2338,233 @@ inline auto operator<=(const basic_small_string<Char, Buffer, Core, Traits, Allo
 }
 
 // basic_string compatibility routines
+// small_string <=> basic_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
-          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
 inline auto operator<=>(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
-                        const std::basic_string<Char, Traits, Allocator>& rhs) noexcept -> std::strong_ordering {
+                        const std::basic_string<Char, Traits, STDAllocator>& rhs) noexcept -> std::strong_ordering {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) <=> 0;
 }
 
-// swap the lhs and rhs
+// basic_string <=> small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
-          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
-inline auto operator<=>(const std::basic_string<Char, Traits, Allocator>& lhs,
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator<=>(const std::basic_string<Char, Traits, STDAllocator>& lhs,
                         const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> std::strong_ordering {
     return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) <=> 0;
 }
 
+// small_string <=> Char*
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator<=>(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                       const Char* rhs) noexcept -> std::strong_ordering {
+    return lhs.compare(0, lhs.size(), rhs, Traits::length(rhs)) <=> 0;
+}
+
+// Char* <=> small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator<=>(const Char* lhs,
+                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+  -> std::strong_ordering {
+    auto r = Traits::compare(lhs, rhs.data(), std::min(Traits::length(lhs), rhs.size()));
+    return r != 0 ? r <=> 0 : rhs.size() <=> Traits::length(lhs);
+}
+
+// small_string == basic_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                       const std::basic_string<Char, Traits, STDAllocator>& rhs) noexcept -> bool {
+    return lhs.size() == rhs.size() and lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) == 0;
+}
+
+// basic_string == small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator==(const std::basic_string<Char, Traits, STDAllocator>& lhs,
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+  -> bool {
+    return rhs == lhs;
+}
+
+// small_string == Char*
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator==(const Char* lhs,
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+  -> bool {
+    return rhs.size() == Traits::length(lhs) and rhs.compare(lhs) == 0;
+}
+
+// small_string == Char*
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
-                       const std::basic_string<Char, Traits, Allocator>& rhs) noexcept -> bool {
-    return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) == 0;
+                       const Char* rhs) noexcept -> bool {
+    return rhs == lhs;
 }
 
+// small_string != basic_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
-          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
-inline auto operator==(const std::basic_string<Char, Traits, Allocator>& lhs,
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator!=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                       const std::basic_string<Char, Traits, STDAllocator>& rhs) noexcept -> bool {
+    return !(lhs == rhs);
+}
+
+// basic_string != small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator!=(const std::basic_string<Char, Traits, STDAllocator>& lhs,
                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
-    return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) == 0;
+    return !(lhs == rhs);
 }
 
+// small_string != Char*
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator!=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
-                       const std::basic_string<Char, Traits, Allocator>& rhs) noexcept -> bool {
+                       const Char* rhs) noexcept -> bool {
     return !(lhs == rhs);
 }
 
+// Char* != small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
-inline auto operator!=(const std::basic_string<Char, Traits, Allocator>& lhs,
-                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+inline auto operator!=(const Char* lhs,
+                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
     return !(lhs == rhs);
 }
 
+// small_string < basic_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator<(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                      const std::basic_string<Char, Traits, STDAllocator>& rhs) noexcept -> bool {
+    return lhs.compare(rhs) < 0;
+}
+
+// basic_string < small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator<(const std::basic_string<Char, Traits, STDAllocator>& lhs,
+                      const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+  -> bool {
+    return rhs.compare(lhs) > 0;
+}
+
+// small_string < Char*
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator<(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
-                      const std::basic_string<Char, Traits, Allocator>& rhs) noexcept -> bool {
-    return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) < 0;
+                      const Char* rhs) noexcept -> bool {
+    return lhs.compare(rhs) < 0;
 }
 
+// Char* < small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator<(const Char* lhs,
+                      const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+  -> bool {
+    return rhs.compare(lhs) > 0;
+}
+
+// basic_string > small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator>(const std::basic_string<Char, Traits, STDAllocator>& lhs,
+                      const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+  -> bool {
+    return rhs.compare(lhs) < 0;
+}
+
+// Char* > small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator>(const Char* lhs,
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+  -> bool {
+    return rhs.compare(lhs) < 0;
+}
+
+// small_string > Char*
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator>(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
-                      const std::basic_string<Char, Traits, Allocator>& rhs) noexcept -> bool {
-    return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) > 0;
+                       const Char* rhs) noexcept -> bool {
+    return lhs.compare(rhs) > 0;
 }
 
+// small_string <= basic_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
-          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
-inline auto operator<(const std::basic_string<Char, Traits, Allocator>& lhs,
-                      const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
-  -> bool {
-    return rhs > lhs;
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator<=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                       const std::basic_string<Char, Traits, STDAllocator>& rhs) noexcept -> bool {
+    return !(lhs > rhs);
 }
 
+// basic_string <= small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
-          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
-inline auto operator>(const std::basic_string<Char, Traits, Allocator>& lhs,
-                      const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator<=(const std::basic_string<Char, Traits, STDAllocator>& lhs,
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
-    return rhs < lhs;
+    return !(lhs > rhs);
 }
 
+// small_string <= Char*
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator<=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
-                       const std::basic_string<Char, Traits, Allocator>& rhs) noexcept -> bool {
+                       const Char* rhs) noexcept -> bool {
     return !(lhs > rhs);
 }
 
+// Char* <= small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
-inline auto operator>=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
-                       const std::basic_string<Char, Traits, Allocator>& rhs) noexcept -> bool {
-    return !(lhs < rhs);
-}
-
-template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
-          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
-inline auto operator<=(const std::basic_string<Char, Traits, Allocator>& lhs,
-                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+inline auto operator<=(const Char* lhs,
+                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
     return !(lhs > rhs);
 }
 
+// basic_string >= small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator>=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                       const std::basic_string<Char, Traits, STDAllocator>& rhs) noexcept -> bool {
+    return !(lhs < rhs);
+}
+
+// basic_string >= small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
+inline auto operator>=(const std::basic_string<Char, Traits, STDAllocator>& lhs,
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+  -> bool {
+    return !(lhs < rhs);
+}
+
+// small_string >= Char*
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
-inline auto operator>=(const std::basic_string<Char, Traits, Allocator>& lhs,
-                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+inline auto operator>=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                       const Char* rhs) noexcept -> bool {
+    return !(lhs < rhs);
+}
+
+// Char* >= small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator>=(const Char* lhs,
+                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
     return !(lhs < rhs);
 }
@@ -2449,9 +2596,12 @@ struct formatter<stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Al
 }  // namespace fmt
 
 namespace stdb::memory::pmr {
-using small_string = basic_small_string<char, small_string_buffer, malloc_core_and_pmr_allocator,
+using small_string = basic_small_string<char, small_string_buffer, pmr_core,
                                         std::char_traits<char>, std::pmr::polymorphic_allocator<char>, true>;
-using small_byte_string = basic_small_string<char, small_string_buffer, malloc_core_and_pmr_allocator,
+using small_byte_string = basic_small_string<char, small_string_buffer, pmr_core,
                                              std::char_traits<char>, std::allocator<char>, false>;
+
+
+static_assert(sizeof(small_string) == 16, "small_string should be same as a pointer");
 
 }  // namespace stdb::memory::pmr

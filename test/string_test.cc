@@ -3504,6 +3504,22 @@ TEST_CASE("small_string::reserve_and_shrink") {
     reserve_and_shrink_test(median_str_10);
 }
 
+TEST_CASE("small_string::replace") {
+    basic_small_string<char> str("1234567890");
+    str.replace(0, 3, "abcdef");
+    CHECK_EQ(str, "abcdef4567890");
+    str.replace(3, 3, "ghijkl");
+    CHECK_EQ(str, "abcghijkl4567890");
+
+    // replace to a empty string
+    basic_small_string<char> empty_str;
+    empty_str.replace(0, 3, str);
+    CHECK_EQ(empty_str, "abcghijkl4567890");
+    // just replace the right part
+    str.replace(15, 3, "xxxx");
+    CHECK_EQ(str, "abcghijkl4567890xxxx");
+}
+
 // small_string section
 TEST_CASE("small_string::testAllClauses") {
     std::cout << "Starting with seed: " << seed << std::endl;
@@ -3524,7 +3540,7 @@ TEST_CASE("small_string::testAllClauses") {
             CHECK_EQ(c, r);
 
             auto localSeed = seed + count;
-            // auto localSeed = temp_seed + count;
+            // auto localSeed = tmp_seed + count;
             rng = RandomT(localSeed);
             f_string(r);
             f_fbstring(c);
@@ -3622,8 +3638,147 @@ TEST_CASE("small_string::testAllClauses") {
     TEST_CLAUSE_SMALL(21_4_8_9_a);
 }
 
-TEST_CASE("small_string::pmr") {
-    // using pmr_small_string = pmr::small_string;
+TEST_CASE("pmr_small_string::eq") {
+    Arena arena(Arena::Options::GetDefaultOptions());
+    pmr::small_string str1("1234567890", arena.get_memory_resource());
+    pmr::small_string str2("1234567890", arena.get_memory_resource());
+    CHECK_EQ(str1, str2);
+    CHECK_EQ(str1, "1234567890");
+    std::string std_str("1234567890");
+    CHECK_EQ(str2, std_str);
+}
+
+TEST_CASE("pmr_small_string::test_allocator") {
+    Arena arena(Arena::Options::GetDefaultOptions());
+    pmr::small_string arena_str("1234567890", arena.get_memory_resource());
+    // will crash for the Assert.
+    // pmr::small_string std_str("1234567890");
+
+    // check the allocator is std::pmr::polymorphic_allocator
+    CHECK_EQ(arena_str.get_allocator().resource(), arena.get_memory_resource());
+    // CHECK_EQ(std_str.get_allocator().resource(), std::pmr::get_default_resource());
+}
+
+TEST_CASE("pmr_small_string::testAllClauses") {
+    using pmr_small_string = pmr::small_string;
+    std::cout << "Starting with seed: " << seed << std::endl;
+    Arena arena(Arena::Options::GetDefaultOptions());
+    std::string r;
+    pmr_small_string c(arena.get_memory_resource());
+
+    uint count = 0;
+
+
+    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_arena_string)(pmr_small_string&)) {
+        do {
+            // NOLINTNEXTLINE
+            if (true) {
+            } else {
+                std::cout << "Testing clause " << clause << std::endl;
+            }
+            randomString(&r);
+            c = r;
+            CHECK_EQ(c, r);
+
+            auto localSeed = seed + count;
+            rng = RandomT(localSeed);
+            f_string(r);
+            rng = RandomT(localSeed);
+            f_arena_string(c);
+        } while (++count % 100 != 0);
+    };
+
+#define TEST_CLAUSE_PMR_SMALL(x) l(#x, arena_clause11_##x<std::string>, arena_clause11_##x<pmr_small_string>);
+
+    //    TEST_CLAUSE_PMR_SMALL(21_4_2_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_e);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_f);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_g);
+    // TEST_CLAUSE_PMR_SMALL(21_4_2_h);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_i);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_j);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_k);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_l);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_lprime);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_m);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_n);
+
+    TEST_CLAUSE_PMR_SMALL(21_4_3);
+    TEST_CLAUSE_PMR_SMALL(21_4_4);
+    TEST_CLAUSE_PMR_SMALL(21_4_5);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_1);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_2);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_e);
+
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_f);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_g);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_h);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_i);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_j);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_k);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_4);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_5);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_6);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_7);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_8);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_1);
+
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_a1);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_a2);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_b1);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_b2);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_c1);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_c2);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_3_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_3_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_3_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_3_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_4_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_4_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_4_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_4_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_5_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_5_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_5_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_5_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_6_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_6_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_6_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_6_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_7_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_7_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_7_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_7_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_8);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_9_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_9_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_9_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_9_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_9_e);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_e);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_f);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_g);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_h);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_i);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_j);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_k);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_l);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_9_a);
 }
 
 }  // namespace stdb::memory
