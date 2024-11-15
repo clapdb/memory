@@ -259,7 +259,7 @@ struct malloc_core
             Assert(is_external_valid(), "the external is not valid");
             if (idle_flag.flag != kIsDelta) [[likely]] {
                 // just set the external_size or the times
-                Assert(new_size <= capacity_fast(), "the new_size is must be less or equal to the 4k");
+                Assert(new_size <= capacity_fast(), "the new_size is must be less or equal to the capacity_fast()");
                 size_times.external_size = new_size;  // 4096 will overflow, it's nice
                 if constexpr (not NullTerminated) {
                     if (new_size == 4096) [[unlikely]] {  // little probability
@@ -1334,8 +1334,11 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // calc the real count
         size_type real_count = std::min(count, old_size - index);
-        // memmove the data to the new position
-        std::memmove(data() + index, c_str() + index + real_count, old_size - index - real_count);
+        // if the count is greater than 0, then move right part of  the data to the new position
+        if (real_count > 0) {
+            // memmove the data to the new position
+            std::memmove(data() + index, c_str() + index + real_count, old_size - index - real_count);
+        }
         // set the new size
         buffer_type::set_size(old_size - real_count);
         if constexpr (NullTerminated) {
@@ -1699,6 +1702,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     auto resize(size_type count) -> void {
+        fmt::print("resize: count = {}, size = {}, capacity = {}\n", count, size(), capacity());
         if (count <= size()) {
             buffer_type::set_size(count);
             if constexpr (NullTerminated) {
@@ -2104,6 +2108,12 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             resize(count);
         }
         return std::move(*this);
+    }
+
+    // convert to std::basic_string_view, to support C++11 compatibility. and it's noexcept.
+    // and small_string can be converted to std::basic_string_view implicity, so third party String can be converted from small_string.
+    operator std::basic_string_view<Char, Traits>() const noexcept {
+        return std::basic_string_view<Char, Traits>(data(), size());
     }
 };  // class basic_small_string
 
@@ -2568,6 +2578,9 @@ inline auto operator>=(const Char* lhs,
   -> bool {
     return !(lhs < rhs);
 }
+
+// to std::string
+
 
 using small_string = basic_small_string<char>;
 using small_byte_string =
