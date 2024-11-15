@@ -263,8 +263,9 @@ struct malloc_core
                 size_times.external_size = new_size;  // 4096 will overflow, it's nice
                 if constexpr (not NullTerminated) {
                     if (new_size == 4096) [[unlikely]] {  // little probability
+                        Assert(size_times.flag == kIsTimes, "the flag is must be kIsTimes");
                         size_times.times = 3U;
-                    } else if (size_times.times == 3U) [[unlikely]] {
+                    } else if (size_times.flag == kIsTimes and size_times.times == 3U) [[unlikely]] {
                         // the new_size is not 4k, so the times should be 2U
                         size_times.times = 2U;
                     }
@@ -426,6 +427,39 @@ struct malloc_core
         external_core external;
     };
 
+    enum class CoreType : uint8_t
+    {
+        // the core type is internal
+        Internal = 0,
+        // the flag is shift
+        Shift = 1,
+        // the flag is times
+        Times = 2,
+        // the flag is delta
+        Delta = 3
+    };
+
+    constexpr static uint8_t kInterCore = static_cast<uint8_t>(CoreType::Internal);
+    constexpr static uint8_t kShiftCore = static_cast<uint8_t>(CoreType::Shift);
+    constexpr static uint8_t kTimesCore = static_cast<uint8_t>(CoreType::Times);
+    constexpr static uint8_t kDeltaCore = static_cast<uint8_t>(CoreType::Delta);
+
+    [[nodiscard]] auto get_core_type() -> uint8_t {
+        if (internal.is_internal == 0) {
+            return kInterCore;
+        }
+        if (external.size_shift.flag == kIsShift) {
+            return kShiftCore;
+        }
+        if (external.size_times.flag == kIsTimes) {
+            return kTimesCore;
+        }
+        if (external.idle_flag.flag == kIsDelta) {
+            return kDeltaCore;
+        }
+        Assert(false, "the core type is invalid");
+    }
+
     [[nodiscard, gnu::always_inline]] inline auto is_external() const noexcept -> bool {
         return internal.is_internal != 0;
     }
@@ -447,6 +481,8 @@ struct malloc_core
     // constructor
     constexpr malloc_core([[maybe_unused]] const std::allocator<Char>& unused = std::allocator<Char>{}) noexcept {}
 };  // struct malloc_core
+
+static_assert(sizeof(malloc_core<char, true>) == 8, "malloc_core should be same as a pointer");
 
 template <typename Char, bool NullTerminated>
 struct pmr_core : public malloc_core<Char, NullTerminated>
@@ -583,10 +619,24 @@ class small_string_buffer
     }
 
    protected:
+    [[nodiscard]] auto get_core_type() -> uint8_t { return _core.get_core_type(); }
+
+    template <NeedTerminated NeedTerminated = NeedTerminated::Yes>
+    [[gnu::always_inline]] void allocate_more(size_type new_append_size) noexcept {
+#ifndef NDEBUG
+        auto origin_core_type = _core.get_core_type();
+#endif
+        return allocate_more_impl<NeedTerminated>(new_append_size);
+#ifndef NDEBUG
+        auto new_core_type = _core.get_core_type();
+        Assert(origin_core_type <= new_core_type, "the core type should stay or grow");
+#endif
+    }
+
     // this function handle append / push_back / operator +='s internal reallocation
     // this funciion will not change the size, but the capacity or delta
     template <NeedTerminated NeedTerminated = NeedTerminated::Yes>
-    void allocate_more(size_type new_append_size) noexcept {
+    void allocate_more_impl(size_type new_append_size) noexcept {
         size_type old_delta_fast =
           _core.is_external() ? _core.external.idle_capacity_fast() : _core.internal.idle_capacity();
 
@@ -661,6 +711,9 @@ class small_string_buffer
    public:
     template <NeedTerminated NeedTerminated>
     constexpr auto buffer_reserve(size_type new_cap) -> void {
+#ifndef NDEBUG
+        auto origin_core_type = _core.get_core_type();
+#endif
         // check the new_cap is larger than the internal capacity, and larger than current cap
         auto [old_cap, old_size] = get_capacity_and_size();
         if (new_cap > old_cap) [[likely]] {
@@ -691,6 +744,10 @@ class small_string_buffer
             // replace the old external with the new one
             _core.external = new_external;
         }
+#ifndef NDEBUG
+        auto new_core_type = _core.get_core_type();
+        Assert(origin_core_type <= new_core_type, "the core type should stay or grow");
+#endif
     }
 
     [[nodiscard]] auto buffer_size() const noexcept -> size_type {
@@ -719,27 +776,54 @@ class small_string_buffer
     // increase the size, and won't change the capacity, so the internal/exteral'type or ptr will not change
     // you should always call the allocate_new_external_buffer first, then call this function
     void increase_size(size_type delta) noexcept {
+#ifndef NDEBUG
+        auto origin_core_type = _core.get_core_type();
+#endif
+
         if (_core.is_external()) [[likely]] {
             _core.external.increase_size(delta);
         } else {
             _core.internal.internal_size += delta;
         }
+
+#ifndef NDEBUG
+        auto new_core_type = _core.get_core_type();
+        Assert(origin_core_type == new_core_type, "the core type should not change");
+#endif
     }
 
     void set_size(size_type new_size) noexcept {
+#ifndef NDEBUG
+        auto origin_core_type = _core.get_core_type();
+#endif
+
         if (_core.is_external()) [[likely]] {
             _core.external.set_size(new_size);
         } else {
             _core.internal.set_size(new_size);
         }
+
+#ifndef NDEBUG
+        auto new_core_type = _core.get_core_type();
+        Assert(origin_core_type == new_core_type, "the core type should not change");
+#endif
     }
 
     void decrease_size(size_type delta) noexcept {
+#ifndef NDEBUG
+        auto origin_core_type = _core.get_core_type();
+#endif
+
         if (_core.is_external()) [[likely]] {
             _core.external.decrease_size(delta);
         } else {
             _core.internal.internal_size -= delta;
         }
+
+#ifndef NDEBUG
+        auto new_core_type = _core.get_core_type();
+        Assert(origin_core_type == new_core_type, "the core type should not change");
+#endif
     }
 
     constexpr static inline auto calculate_buffer_size(uint32_t size) noexcept -> uint32_t {
@@ -844,7 +928,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
    public:
     constexpr explicit basic_small_string([[maybe_unused]] const Allocator& allocator = Allocator()) noexcept
-        : buffer_type(allocator) { }
+        : buffer_type(allocator) {}
 
     constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& allocator = Allocator())
         : buffer_type(allocator) {
@@ -852,10 +936,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     // copy constructor
-    basic_small_string(const basic_small_string& other)
-        : buffer_type(other.get_allocator()) {
-        append(other);
-    }
+    basic_small_string(const basic_small_string& other) : buffer_type(other.get_allocator()) { append(other); }
 
     constexpr basic_small_string(const basic_small_string& other, size_type pos,
                                  [[maybe_unused]] const Allocator& allocator = Allocator())
@@ -920,7 +1001,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     basic_small_string(std::nullptr_t) = delete;
 
     ~basic_small_string() noexcept = default;
-    
+
     // get_allocator
     [[nodiscard]] constexpr auto get_allocator() const -> Allocator { return buffer_type::get_allocator(); }
 
@@ -1180,6 +1261,10 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     constexpr auto shrink_to_fit() -> void {
+#ifndef NDEBUG
+        auto origin_core_type = buffer_type::get_core_type();
+#endif
+
         auto [cap, size] = buffer_type::get_capacity_and_size();
         Assert(cap >= size, "cap should always be greater or equal to size");
         auto best_cap = buffer_type::calculate_buffer_size(size);
@@ -1187,6 +1272,11 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             auto new_str(*this);
             swap(new_str);
         }
+
+#ifndef NDEBUG
+        auto new_core_type = buffer_type::get_core_type();
+        Assert(origin_core_type >= new_core_type, "the core type should stay or shrink");
+#endif
     }
 
     // modifiers
@@ -1505,7 +1595,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             throw std::out_of_range("replace: pos is out of range");
         }
         // then check if pos+count is the out of range
-        if (count >= size() or pos + count >= size()) { // to avoid count overflow from size_type
+        if (count >= size() or pos + count >= size()) {  // to avoid count overflow from size_type
             // no right part to move, just append the new string
             append<Safe>(count2, ch);
             return *this;
@@ -1545,7 +1635,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     // replace [pos, pos+count] with the range [cstr, cstr + count2]
     template <bool Safe = true>
     auto replace(size_type pos, size_type count, const Char* cstr, size_type count2) -> basic_small_string& {
-        
         // check the pos is not out of range
         auto old_size = size();
         if (pos > old_size) [[unlikely]] {
@@ -1574,7 +1663,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         auto cap = capacity();
         if (new_size > cap) {
-            // because count2 is not 0, so 
+            // because count2 is not 0, so
             this->template buffer_reserve<buffer_type::NeedTerminated::No>(new_size);
         }
         // by now, the capacity is enough
@@ -1702,7 +1791,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     auto resize(size_type count) -> void {
-        fmt::print("resize: count = {}, size = {}, capacity = {}\n", count, size(), capacity());
         if (count <= size()) {
             buffer_type::set_size(count);
             if constexpr (NullTerminated) {
@@ -2111,7 +2199,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     // convert to std::basic_string_view, to support C++11 compatibility. and it's noexcept.
-    // and small_string can be converted to std::basic_string_view implicity, so third party String can be converted from small_string.
+    // and small_string can be converted to std::basic_string_view implicity, so third party String can be converted
+    // from small_string.
     operator std::basic_string_view<Char, Traits>() const noexcept {
         return std::basic_string_view<Char, Traits>(data(), size());
     }
@@ -2272,7 +2361,8 @@ template <typename Char, template <typename, template <class, bool> class, class
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator+(const Char* lhs, basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>&& rhs)
   -> basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated> {
-    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(lhs, rhs.get_allocator()) + std::move(rhs);
+    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(lhs, rhs.get_allocator()) +
+           std::move(rhs);
 }
 
 // 15
@@ -2280,7 +2370,8 @@ template <typename Char, template <typename, template <class, bool> class, class
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator+(Char lhs, basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>&& rhs)
   -> basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated> {
-    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(1, lhs, rhs.get_allocator()) + std::move(rhs);
+    return basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>(1, lhs, rhs.get_allocator()) +
+           std::move(rhs);
 }
 
 // comparison operators
@@ -2369,7 +2460,7 @@ inline auto operator<=>(const std::basic_string<Char, Traits, STDAllocator>& lhs
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator<=>(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
-                       const Char* rhs) noexcept -> std::strong_ordering {
+                        const Char* rhs) noexcept -> std::strong_ordering {
     return lhs.compare(0, lhs.size(), rhs, Traits::length(rhs)) <=> 0;
 }
 
@@ -2446,7 +2537,7 @@ inline auto operator!=(const basic_small_string<Char, Buffer, Core, Traits, Allo
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator!=(const Char* lhs,
-                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
     return !(lhs == rhs);
 }
@@ -2498,7 +2589,7 @@ inline auto operator>(const std::basic_string<Char, Traits, STDAllocator>& lhs,
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator>(const Char* lhs,
-                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+                      const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
     return rhs.compare(lhs) < 0;
 }
@@ -2507,7 +2598,7 @@ inline auto operator>(const Char* lhs,
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator>(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
-                       const Char* rhs) noexcept -> bool {
+                      const Char* rhs) noexcept -> bool {
     return lhs.compare(rhs) > 0;
 }
 
@@ -2540,7 +2631,7 @@ inline auto operator<=(const basic_small_string<Char, Buffer, Core, Traits, Allo
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator<=(const Char* lhs,
-                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
     return !(lhs > rhs);
 }
@@ -2574,19 +2665,17 @@ inline auto operator>=(const basic_small_string<Char, Buffer, Core, Traits, Allo
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator>=(const Char* lhs,
-                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
     return !(lhs < rhs);
 }
-
-// to std::string
-
 
 using small_string = basic_small_string<char>;
 using small_byte_string =
   basic_small_string<char, small_string_buffer, malloc_core, std::char_traits<char>, std::allocator<char>, false>;
 
 static_assert(sizeof(small_string) == 8, "small_string should be same as a pointer");
+static_assert(sizeof(small_byte_string) == 8, "small_byte_string should be same as a pointer");
 
 }  // namespace stdb::memory
 
@@ -2609,11 +2698,10 @@ struct formatter<stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Al
 }  // namespace fmt
 
 namespace stdb::memory::pmr {
-using small_string = basic_small_string<char, small_string_buffer, pmr_core,
-                                        std::char_traits<char>, std::pmr::polymorphic_allocator<char>, true>;
-using small_byte_string = basic_small_string<char, small_string_buffer, pmr_core,
-                                             std::char_traits<char>, std::allocator<char>, false>;
-
+using small_string = basic_small_string<char, small_string_buffer, pmr_core, std::char_traits<char>,
+                                        std::pmr::polymorphic_allocator<char>, true>;
+using small_byte_string =
+  basic_small_string<char, small_string_buffer, pmr_core, std::char_traits<char>, std::allocator<char>, false>;
 
 static_assert(sizeof(small_string) == 16, "small_string should be same as a pointer");
 
