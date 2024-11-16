@@ -1294,16 +1294,25 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
     }
 
+    // 1
     template <bool Safe = true>
     constexpr auto insert(size_type index, size_type count, Char ch) -> basic_small_string& {
+        if (count == 0) [[unlikely]] {
+            // do nothing
+            return *this;
+        }
         if (index > size()) [[unlikely]] {
             throw std::out_of_range("index is out of range");
         }
+
         if constexpr (Safe) {
             this->template allocate_more<buffer_type::NeedTerminated::No>(count);
         }
         auto old_size = size();
-        std::memmove(data() + index + count, c_str() + index, old_size - index);
+        if (index < old_size) [[likely]] {
+            // if index == old_size, do not need memmove
+            std::memmove(data() + index + count, c_str() + index, old_size - index);
+        }
         std::memset(data() + index, ch, count);
         buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
@@ -1321,7 +1330,12 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     template <bool Safe = true>
     constexpr auto insert(size_type index, const Char* str, size_type count) -> basic_small_string& {
-        if (index > size()) [[unlikely]] {
+        if (count == 0) [[unlikely]] {
+            // do nothing
+            return *this;
+        }
+        auto old_size = size();
+        if (index > old_size) [[unlikely]] {
             throw std::out_of_range("index is out of range");
         }
         // check if the capacity is enough
@@ -1330,8 +1344,9 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // by now, the capacity is enough
         // memmove the data to the new position
-        auto old_size = size();
-        std::memmove(data() + index + count, c_str() + index, old_size - index);
+        if (index < old_size) [[likely]] {
+            std::memmove(data() + index + count, c_str() + index, old_size - index);
+        }
         // set the new data
         std::memcpy(data() + index, str, count);
         buffer_type::increase_size(count);
@@ -1359,21 +1374,9 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     template <bool Safe = true>
     constexpr auto insert(const_iterator pos, size_type count, Char ch) -> iterator {
-        // check if the capacity is enough
-        if constexpr (Safe) {
-            this->template allocate_more<buffer_type::NeedTerminated::No>(count);
-        }
-        // by now, the capacity is enough
-        // memmove the data to the new position
-        std::memmove(const_cast<Char*>(pos) + count, pos,
-                     static_cast<size_type>(end() - pos));  // end() - pos is faster than size() - (pos - begin())
-        // set the new data
-        std::memset(const_cast<Char*>(pos), ch, count);
-        buffer_type::increase_size(count);
-        if constexpr (NullTerminated) {
-            data()[size()] = '\0';
-        }
-        return const_cast<iterator>(pos);
+        size_type index = pos - begin();
+        insert(index, count, ch);
+        return begin() + index;
     }
 
     template <class InputIt, bool Safe = true>
@@ -1383,13 +1386,19 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
                       "the value type of the input iterator is not the same as the char type");
         // calculate the count
         size_type count = std::distance(first, last);
+        if (count == 0) [[unlikely]] {
+            // do nothing
+            return const_cast<iterator>(pos);
+        }
         size_type index = pos - begin();
         if constexpr (Safe) {
             this->template allocate_more<buffer_type::NeedTerminated::No>(count);
         }
         // by now, the capacity is enough
-        // move the data to the new position
-        std::memmove(data() + index + count, data() + index, static_cast<size_type>(size() - index));
+        if (index < size()) [[likely]] {
+            // move the data to the new position
+            std::memmove(data() + index + count, data() + index, static_cast<size_type>(size() - index));
+        }
         // copy the new data
         std::copy(first, last, data() + index);
         buffer_type::increase_size(count);
