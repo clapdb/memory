@@ -3522,7 +3522,7 @@ TEST_CASE("small_string::replace") {
 
 // small_string section
 TEST_CASE("small_string::testAllClauses") {
-    std::cout << "Starting with seed: " << seed << std::endl;
+    std::cout << "Starting small_string tests with seed: " << seed << std::endl;
     std::string r;
     small_string c;
 
@@ -3661,7 +3661,7 @@ TEST_CASE("pmr_small_string::test_allocator") {
 
 TEST_CASE("pmr_small_string::testAllClauses") {
     using pmr_small_string = pmr::small_string;
-    std::cout << "Starting with seed: " << seed << std::endl;
+    std::cout << "Starting pmr_small_string tests with seed: " << seed << std::endl;
     Arena arena(Arena::Options::GetDefaultOptions());
     std::string r;
     pmr_small_string c(arena.get_memory_resource());
@@ -3781,7 +3781,7 @@ TEST_CASE("pmr_small_string::testAllClauses") {
 }
 
 TEST_CASE("small_string_not_null_terminated::testAllClauses") {
-    std::cout << "Starting with seed: " << seed << std::endl;
+    std::cout << "Starting small_byte_string tests with seed: " << seed << std::endl;
     std::string r;
     small_byte_string c;
 
@@ -3799,7 +3799,6 @@ TEST_CASE("small_string_not_null_terminated::testAllClauses") {
             CHECK_EQ(c, r);
 
             auto localSeed = seed + count;
-            // auto localSeed = tmp_seed + count;
             rng = RandomT(localSeed);
             f_string(r);
             f_fbstring(c);
@@ -3899,7 +3898,7 @@ TEST_CASE("small_string_not_null_terminated::testAllClauses") {
 
 TEST_CASE("pmr_small_string::testAllClauses") {
     using pmr_small_byte_string = pmr::small_byte_string;
-    std::cout << "Starting with seed: " << seed << std::endl;
+    std::cout << "Starting pmr_small_byte_string tests with seed: " << seed << std::endl;
     Arena arena(Arena::Options::GetDefaultOptions());
     std::string r;
     pmr_small_byte_string c(arena.get_memory_resource());
