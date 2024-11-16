@@ -227,10 +227,12 @@ struct malloc_core
             // means don't know the capacity, because the size_or_mask is overflow
             if constexpr (not NullTerminated) {
                 // the buffer_size - sizeof header
-                return cap != kInvalidSize ? cap : *((size_type*)c_str_ptr - 2) - 2 * sizeof(size_type);
+                return cap != kInvalidSize ? cap
+                                           : *(reinterpret_cast<size_type*>(c_str_ptr) - 2) - 2 * sizeof(size_type);
             } else {
                 // the buffer_size = sizeof header and the '\0'
-                return cap != kInvalidSize ? cap : *((size_type*)c_str_ptr - 2) - 2 * sizeof(size_type) - 1;
+                return cap != kInvalidSize ? cap
+                                           : *(reinterpret_cast<size_type*>(c_str_ptr) - 2) - 2 * sizeof(size_type) - 1;
             }
         }
 
@@ -251,7 +253,7 @@ struct malloc_core
         [[nodiscard]] constexpr auto size() const noexcept -> size_type {
             auto size = size_fast();
             // if size is KInvalidSize, get the true size from the buffer head
-            return size != kInvalidSize ? size : *((size_type*)c_str_ptr - 1);
+            return size != kInvalidSize ? size : *(reinterpret_cast<size_type*>(c_str_ptr) - 1);
         }
 
         // set size will be some slow, do not call it frequently
@@ -273,7 +275,7 @@ struct malloc_core
                 return;
             }
             // set the header of buffer the size
-            auto* ptr = (size_type*)c_str_ptr - 1;
+            auto* ptr = reinterpret_cast<size_type*>(c_str_ptr) - 1;
             *ptr = new_size;
             // set the delta to delta_flag.delta
             auto new_delta = *(ptr - 1) - new_size - 2 * sizeof(size_type);
@@ -301,7 +303,7 @@ struct malloc_core
                 return;
             }
             // by now the string is a large string, the size was stored in the buffer head
-            auto* size_ptr = (size_type*)c_str_ptr - 1;
+            auto* size_ptr = reinterpret_cast<size_type*>(c_str_ptr) - 1;
             size_type new_size;
             if (__builtin_uadd_overflow(*size_ptr, delta, &new_size)) [[unlikely]] {
                 // the size is overflow size_type
@@ -333,7 +335,7 @@ struct malloc_core
                 return;
             }
             // by now the string is a large string, the size was stored in the buffer head
-            auto* size_ptr = (size_type*)c_str_ptr - 1;
+            auto* size_ptr = reinterpret_cast<size_type*>(c_str_ptr) - 1;
             *size_ptr -= delta;
 
             // re-calculate the delta, because the Assert, the new_delta will never overflow or underflow
@@ -404,14 +406,14 @@ struct malloc_core
         [[nodiscard, gnu::always_inline]] auto get_buffer_ptr() const noexcept -> Char* {
             Assert(is_external_valid(), "the external is not valid");
             if (idle_flag.flag != kIsDelta) [[likely]] {  // small string is designed for shorted than 4k
-                return (Char*)(c_str_ptr);
+                return reinterpret_cast<Char*>(c_str_ptr);
             }
-            return (Char*)(c_str_ptr)-2 * sizeof(size_type);
+            return reinterpret_cast<Char*>(c_str_ptr) - 2 * sizeof(size_type);
         }
 
         [[gnu::always_inline, nodiscard]] auto c_str() const noexcept -> Char* {
             Assert(is_external_valid(), "the external is not valid");
-            return (Char*)(c_str_ptr);
+            return reinterpret_cast<Char*>(c_str_ptr);
         }
 
         [[gnu::always_inline, nodiscard]] auto is_external_valid() const noexcept -> bool {
@@ -635,7 +637,7 @@ class small_string_buffer
 
     // this function handle append / push_back / operator +='s internal reallocation
     // this funciion will not change the size, but the capacity or delta
-    template <NeedTerminated NeedTerminated = NeedTerminated::Yes>
+    template <NeedTerminated Need0 = NeedTerminated::Yes>
     void allocate_more_impl(size_type new_append_size) noexcept {
         size_type old_delta_fast =
           _core.is_external() ? _core.external.idle_capacity_fast() : _core.internal.idle_capacity();
@@ -650,8 +652,8 @@ class small_string_buffer
         if (old_delta_fast == kDeltaMax)
           [[unlikely]] {  // small_string was designed for small string, so large string is not optimized
             // the delta is overflow, re-calc the delta
-            auto* cap = (size_type*)(_core.external.c_str_ptr) - 2;
-            auto* size = (size_type*)(_core.external.c_str_ptr) - 1;
+            auto* cap = reinterpret_cast<size_type*>(_core.external.c_str_ptr) - 2;
+            auto* size = reinterpret_cast<size_type*>(_core.external.c_str_ptr) - 1;
             if constexpr (not NullTerminated) {
                 // cap - size - size of head
                 if ((*cap - *size - 2 * sizeof(size_type)) > new_append_size) {
@@ -678,7 +680,7 @@ class small_string_buffer
             }
             // copy the old data to the new buffer
             std::memcpy(new_external.c_str(), old_internal.data, old_internal.size());
-            if constexpr (NullTerminated and NeedTerminated == NeedTerminated::Yes) {
+            if constexpr (NullTerminated and Need0 == NeedTerminated::Yes) {
                 new_external.c_str()[old_internal.size()] = '\0';
             }
             _core.external = new_external;
@@ -695,7 +697,7 @@ class small_string_buffer
         }
         std::memcpy(new_external.c_str(), _core.external.c_str(), _core.external.size());
 
-        if constexpr (NullTerminated and NeedTerminated == NeedTerminated::Yes) {
+        if constexpr (NullTerminated and Need0 == NeedTerminated::Yes) {
             new_external.c_str()[_core.external.size()] = '\0';
         }
         // deallocate the old buffer
@@ -709,7 +711,7 @@ class small_string_buffer
     }
 
    public:
-    template <NeedTerminated NeedTerminated>
+    template <NeedTerminated Need0>
     constexpr auto buffer_reserve(size_type new_cap) -> void {
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
@@ -728,7 +730,7 @@ class small_string_buffer
             }
             // copy the old data to the new buffer
             std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
-            if constexpr (NullTerminated and NeedTerminated == NeedTerminated::Yes) {
+            if constexpr (NullTerminated and Need0 == NeedTerminated::Yes) {
                 reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
             }
             // deallocate the old buffer
@@ -765,7 +767,7 @@ class small_string_buffer
         if (_core.external.idle_flag.flag != kIsDelta) {
             return {_core.external.capacity_fast(), _core.external.size_fast()};
         }
-        auto* buf = (size_type*)_core.external.c_str_ptr;
+        auto* buf = reinterpret_cast<size_type*>(_core.external.c_str_ptr);
         if constexpr (NullTerminated) {
             return {*(buf - 2) - 2 * sizeof(size_type) - 1, *(buf - 1)};
         } else {
@@ -854,10 +856,10 @@ class small_string_buffer
         Assert(check_the_allocator(), "the pmr default allocator is not allowed to be used in small_string");
     }
 
-    constexpr ~small_string_buffer() noexcept {
+    ~small_string_buffer() noexcept {
         if constexpr (core_type::use_std_allocator::value) {
             if (_core.is_external()) [[likely]] {
-                std::free(_core.external.get_buffer_ptr());
+                std::free(reinterpret_cast<void*>(_core.external.get_buffer_ptr()));
             }
         } else {
             if (_core.is_external()) [[likely]] {

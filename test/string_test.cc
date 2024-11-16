@@ -3906,7 +3906,8 @@ TEST_CASE("pmr_small_string::testAllClauses") {
 
     uint count = 0;
 
-    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_arena_string)(pmr_small_byte_string&)) {
+    auto l = [&](const char* const clause, void (*f_string)(std::string&),
+                 void (*f_arena_string)(pmr_small_byte_string&)) {
         do {
             // NOLINTNEXTLINE
             if (true) {
@@ -3925,7 +3926,8 @@ TEST_CASE("pmr_small_string::testAllClauses") {
         } while (++count % 100 != 0);
     };
 
-#define TEST_CLAUSE_PMR_SMALL_BYTE_STRING(x) l(#x, arena_clause11_##x<std::string>, arena_clause11_##x<pmr_small_byte_string>);
+#define TEST_CLAUSE_PMR_SMALL_BYTE_STRING(x) \
+    l(#x, arena_clause11_##x<std::string>, arena_clause11_##x<pmr_small_byte_string>);
 
     //    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_a);
     TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_b);
