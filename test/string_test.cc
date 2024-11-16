@@ -3897,4 +3897,125 @@ TEST_CASE("small_string_not_null_terminated::testAllClauses") {
     // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_9_a); // need null-terminated
 }
 
+TEST_CASE("pmr_small_string::testAllClauses") {
+    using pmr_small_byte_string = pmr::small_byte_string;
+    std::cout << "Starting with seed: " << seed << std::endl;
+    Arena arena(Arena::Options::GetDefaultOptions());
+    std::string r;
+    pmr_small_byte_string c(arena.get_memory_resource());
+
+    uint count = 0;
+
+    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_arena_string)(pmr_small_byte_string&)) {
+        do {
+            // NOLINTNEXTLINE
+            if (true) {
+            } else {
+                std::cout << "Testing clause " << clause << std::endl;
+            }
+            randomString(&r);
+            c = r;
+            CHECK_EQ(c, r);
+
+            auto localSeed = seed + count;
+            rng = RandomT(localSeed);
+            f_string(r);
+            rng = RandomT(localSeed);
+            f_arena_string(c);
+        } while (++count % 100 != 0);
+    };
+
+#define TEST_CLAUSE_PMR_SMALL_BYTE_STRING(x) l(#x, arena_clause11_##x<std::string>, arena_clause11_##x<pmr_small_byte_string>);
+
+    //    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_b);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_c);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_e);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_f); // need the string is null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_g);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_h);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_i);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_j);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_k);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_l); // need the string is null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_lprime); // need the string is null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_m);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_n);
+
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_3);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_4);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_5);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_1); // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_2); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_b);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_c);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_d); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_e);
+
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_f);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_g);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_h);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_i);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_j); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_k);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_4); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_5);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_6); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_7);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_8);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_1);
+
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_a1);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_a2);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_b);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_b1);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_b2);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_c); // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_c1); // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_c2); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_3_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_3_b);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_3_c); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_3_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_4_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_4_b);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_4_c); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_4_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_5_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_5_b);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_5_c); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_5_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_6_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_6_b);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_6_c); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_6_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_7_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_7_b);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_7_c); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_7_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_8);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_9_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_9_b);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_9_c);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_9_d); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_9_e);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_b);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_c);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_d);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_e); // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_f); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_g);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_h);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_i); // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_j); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_k);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_l);  // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_9_a);  // null-terminated
+}
+
 }  // namespace stdb::memory

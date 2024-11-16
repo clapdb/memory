@@ -2700,8 +2700,8 @@ struct formatter<stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Al
 namespace stdb::memory::pmr {
 using small_string = basic_small_string<char, small_string_buffer, pmr_core, std::char_traits<char>,
                                         std::pmr::polymorphic_allocator<char>, true>;
-using small_byte_string =
-  basic_small_string<char, small_string_buffer, pmr_core, std::char_traits<char>, std::allocator<char>, false>;
+using small_byte_string = basic_small_string<char, small_string_buffer, pmr_core, std::char_traits<char>,
+                                             std::pmr::polymorphic_allocator<char>, false>;
 
 static_assert(sizeof(small_string) == 16, "small_string should be same as a pointer");
 
