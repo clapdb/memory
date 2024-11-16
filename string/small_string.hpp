@@ -1785,8 +1785,12 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     auto copy(Char* dest, size_type count = npos, size_type pos = 0) const -> size_type {
-        if (count == npos) {
-            count = size() - pos;
+        auto current_size = size();
+        if (pos > current_size) [[unlikely]] {
+            throw std::out_of_range("copy's pos > size()");
+        }
+        if ((count == npos) or (pos + count > current_size)) {
+            count = current_size - pos;
         }
         std::memcpy(dest, c_str() + pos, count);
         return count;
