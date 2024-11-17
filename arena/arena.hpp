@@ -332,7 +332,7 @@ class Arena
         }
 
         void do_deallocate([[maybe_unused]] void* /*unused*/, [[maybe_unused]] size_t /*unused*/,
-                           [[maybe_unused]] size_t /*unused*/) noexcept override{};
+                           [[maybe_unused]] size_t /*unused*/) noexcept override {};
 
         [[nodiscard]] auto do_is_equal(const ::pmr::memory_resource& _other) const noexcept -> bool override {
             try {
@@ -597,16 +597,14 @@ class Arena
     }
 
     template <typename T>
-    [[nodiscard, gnu::always_inline]] inline auto RegisterDestructorInternal(T* /*unused*/,
-                                                                             ::std::true_type /*unused*/) noexcept
-      -> bool {
+    [[nodiscard, gnu::always_inline]] inline auto RegisterDestructorInternal(
+      T* /*unused*/, ::std::true_type /*unused*/) noexcept -> bool {
         return true;
     }
 
     template <typename T>
-    [[nodiscard, gnu::always_inline]] inline auto RegisterDestructorInternal(T* ptr,
-                                                                             ::std::false_type /*unused*/) noexcept
-      -> bool {
+    [[nodiscard, gnu::always_inline]] inline auto RegisterDestructorInternal(
+      T* ptr, ::std::false_type /*unused*/) noexcept -> bool {
         return addCleanup(ptr, &arena_destruct_object<T>);
     }
 

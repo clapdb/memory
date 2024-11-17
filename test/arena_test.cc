@@ -888,8 +888,8 @@ class mock_hook
         return _cookie;
     }
     void arena_allocate_hook(const std::type_info* /*unused*/, uint64_t /*unused*/, void* /*unused*/) { allocated++; }
-    auto arena_destruction_hook(Arena* /*unused*/, void* /*unused*/, uint64_t /*unused*/, uint64_t /*unused*/)
-      -> void* {
+    auto arena_destruction_hook(Arena* /*unused*/, void* /*unused*/, uint64_t /*unused*/,
+                                uint64_t /*unused*/) -> void* {
         destructed++;
         return _cookie;
     }
@@ -1362,9 +1362,9 @@ TEST_CASE_TEMPLATE("arena::pmr", T, TYPES) {
     vec.emplace_back();
 
     // access the vector to check alignment
-    for (const auto val : vec) {
-        fmt::print("=== val : {}\n", sizeof(val));
-    }
+    // for (const auto val : vec) {
+    //     fmt::print("=== val : {}\n", sizeof(val));
+    // }
 }
 
 }  // namespace stdb::memory
@@ -1376,12 +1376,13 @@ struct arena_managed_struct
 };
 
 struct arena_non_managed_struct
-{
-};
+{};
 
 TEST_CASE("ArenaHelper") {
-    static_assert(is_arena_full_managable<arena_managed_struct>::value, "arena_managed_struct should have full managed tag");
-    static_assert(not is_arena_full_managable<arena_non_managed_struct>::value, "arena_managed_struct should not have full managed tag");
+    static_assert(is_arena_full_managable<arena_managed_struct>::value,
+                  "arena_managed_struct should have full managed tag");
+    static_assert(not is_arena_full_managable<arena_non_managed_struct>::value,
+                  "arena_managed_struct should not have full managed tag");
 }
 
 }  // namespace stdb::memory::arena

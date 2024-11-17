@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "string/string.hpp"
+
 #include <cxxabi.h>     // for __forced_unwind
 #include <fmt/core.h>   // for format
 #include <sys/types.h>  // for uint
@@ -21,11 +23,12 @@
 #include <atomic>     // for atomic, __atomic_base
 #include <chrono>     // for duration, system_clock, system_clock::t...
 #include <cstddef>    // for size_t
-#include <iostream>   // for cout
-#include <iterator>   // for move_iterator, make_move_iterator, oper...
-#include <list>       // for list, operator==, _List_iterator, _List...
-#include <random>     // for mt19937, uniform_int_distribution
-#include <sstream>    // for operator<<, basic_istream, basic_string...
+#include <cstdlib>
+#include <iostream>  // for cout
+#include <iterator>  // for move_iterator, make_move_iterator, oper...
+#include <list>      // for list, operator==, _List_iterator, _List...
+#include <random>    // for mt19937, uniform_int_distribution
+#include <sstream>   // for operator<<, basic_istream, basic_string...
 #include <thread>
 #include <type_traits>  // for is_same
 #include <vector>       // for vector
@@ -33,6 +36,7 @@
 #include "arena/arena.hpp"    // for size_t, Arena, Arena::Options
 #include "doctest/doctest.h"  // for binary_assert, CHECK_EQ, TestCase, CHECK
 #include "string/arena_string.hpp"
+#include "string/small_string.hpp"
 
 namespace stdb::memory {
 
@@ -457,6 +461,7 @@ void clause11_21_4_4(String& test) {
     auto copy = test;
     copy.reserve(copy.capacity() * 3);
     copy.shrink_to_fit();
+    // TODO(leo): maybe crash. to figure out why
     CHECK_EQ(copy, test);
 
     // exercise empty
@@ -930,7 +935,6 @@ void clause11_21_4_6_5(String& test) {
         test.erase(random(0, test.size()), random(0, maxString));
     }
     if (!test.empty()) {
-        // TODO(longqimin): is erase(end()) allowed?
         test.erase(test.begin() + int(random(0, test.size() - 1)));  // NOLINT
     }
     if (!test.empty()) {
@@ -941,7 +945,7 @@ void clause11_21_4_6_5(String& test) {
     }
     if (!test.empty()) {
         // Can't test pop_back with std::string, doesn't support it yet.
-        // test.pop_back();
+        test.pop_back();
     }
 }
 
@@ -952,7 +956,6 @@ void arena_clause11_21_4_6_5(String& test) {
         test.erase(random(0, test.size()), random(0, maxString));
     }
     if (!test.empty()) {
-        // TODO(longqimin): is erase(end()) allowed?
         test.erase(test.begin() + int(random(0, test.size() - 1)));  // NOLINT
     }
     if (!test.empty()) {
@@ -3214,7 +3217,7 @@ TEST_CASE("string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t1([&, new_small = std::move(origin_small)]() mutable {
             new_small.append("0");
-            std::cout << new_small << std::endl;
+            // std::cout << new_small << std::endl;
         });
         t1.join();
     }
@@ -3224,7 +3227,7 @@ TEST_CASE("string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t2([&, new_median = std::move(origin_median)]() mutable {
             new_median.append("0");
-            std::cout << new_median << std::endl;
+            // std::cout << new_median << std::endl;
         });
         t2.join();
     }
@@ -3237,7 +3240,7 @@ TEST_CASE("string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t3([&, new_large = std::move(origin_large)]() mutable {
             new_large.append("0");
-            std::cout << new_large << std::endl;
+            // std::cout << new_large << std::endl;
         });
         t3.join();
     }
@@ -3265,7 +3268,7 @@ TEST_CASE("arena-string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t1([&, new_small = std::move(origin_small)]() {
             // new_small.append("0");
-            std::cout << new_small << std::endl;
+            // std::cout << new_small << std::endl;
         });
         t1.join();
     }
@@ -3276,7 +3279,7 @@ TEST_CASE("arena-string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t2([&, new_median = std::move(origin_median)]() mutable {
             new_median.append("0");
-            std::cout << new_median << std::endl;
+            // std::cout << new_median << std::endl;
         });
         t2.join();
     }
@@ -3289,7 +3292,7 @@ TEST_CASE("arena-string::cross cpu move") {
         // NOTICE: passed by ref cross thread is not a good practice
         std::thread t3([&, new_large = std::move(origin_large)]() mutable {
             new_large.append("0");
-            std::cout << new_large << std::endl;
+            // std::cout << new_large << std::endl;
         });
         t3.join();
     }
@@ -3302,7 +3305,7 @@ TEST_CASE("string::clone") {
     // NOTICE: passed by ref cross thread is not a good practice
     std::thread t1([&, new_origin_small = origin_small.clone()]() {
         // new_origin_small.append("0");
-        std::cout << new_origin_small << std::endl;
+        // std::cout << new_origin_small << std::endl;
     });
     t1.join();
 }
@@ -3317,7 +3320,7 @@ TEST_CASE("string::clone-then-move") {
         std::thread t1([&, new_origin_small = origin_small.clone()]() mutable {
             auto moved_small = std::move(new_origin_small);
             new_origin_small.append("0");
-            std::cout << new_origin_small << std::endl;
+            // std::cout << new_origin_small << std::endl;
         });
         t1.join();
     }
@@ -3332,7 +3335,7 @@ TEST_CASE("string::clone-then-move") {
         std::thread t1([&, new_origin_small = origin_small.clone()]() mutable {
             auto moved_small = std::move(new_origin_small);
             new_origin_small.append("0");
-            std::cout << new_origin_small << std::endl;
+            // std::cout << new_origin_small << std::endl;
         });
         t1.join();
     }
@@ -3380,5 +3383,640 @@ TEST_CASE("arena_string::cross_cpu_check") {
     t1.join();
 }
 */
+
+TEST_CASE("string::small_string") {
+    basic_small_string<char> str1("123456");
+    CHECK_EQ((char*)&str1, str1.c_str());
+
+    basic_small_string<char> str("1234567890");
+    CHECK_NE(str.c_str(), (char*)&str);
+
+    const char* input = "1234567890";
+    basic_small_string<char> str2(input, 0);
+    CHECK_EQ(str2.size(), 0);
+    CHECK_EQ(str2.capacity(), 6);
+}
+
+TEST_CASE("small_string::calculate_the_buffer_size") {
+    uint32_t old_str_size = 5287U;
+    auto new_buffer_size = calculate_new_buffer_size(old_str_size);
+    CHECK_EQ(new_buffer_size, 5296);
+
+    uint32_t old_str_size1 = 4U;
+    auto new_buffer_size1 = calculate_new_buffer_size(old_str_size1);
+    CHECK_EQ(new_buffer_size1, 16);
+}
+
+TEST_CASE("small_string::capacity") {
+    using smstring = basic_small_string<char>;
+    smstring str1_empty;
+    CHECK_EQ(str1_empty.capacity(), 6);
+
+    smstring str1_short("123456");
+    CHECK_EQ(str1_short.capacity(), 6);
+
+    smstring str1_external("1234567890");
+    CHECK_EQ(str1_external.capacity(), 15);
+
+    smstring str1_long("12345678901234567");
+    CHECK_EQ(str1_long.capacity(), 31);
+
+    smstring str1_long1("123456789012345678901234567890");
+    CHECK_EQ(str1_long1.capacity(), 31);
+    str1_long1.append("12");
+    CHECK_EQ(str1_long1.capacity(), 63);
+
+    str1_long1.append("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+    CHECK_EQ(str1_long1.capacity(), 127);
+
+    smstring long2;
+    for (int i = 0; i < 1000; ++i) {
+        long2.push_back('x');
+    }
+    CHECK_EQ(long2.capacity(), 1023);
+
+    for (int i = 0; i < 1000; ++i) {
+        long2.push_back('z');
+    }
+    CHECK_EQ(long2.capacity(), 2047);
+
+    for (int i = 0; i < 1000; ++i) {
+        long2.push_back('!');
+    }
+    CHECK_EQ(long2.capacity(), 3071);
+
+    for (int i = 0; i < 1000; ++i) {
+        long2.push_back('a');
+    }
+    CHECK_EQ(long2.capacity(), 4095);
+
+    for (int i = 0; i < 100; ++i) {
+        long2.push_back('b');
+    }
+
+    CHECK_EQ(long2.capacity(), 4103);
+    CHECK_EQ(long2.size(), 4100);
+}
+
+TEST_CASE("small_string::substr") {
+    const char* input = "1234567890";
+    basic_small_string<char> str(input);
+    auto substr = str.substr(0, 0);
+    CHECK_EQ(substr.size(), 0);
+    CHECK_EQ(substr, basic_small_string<char>{});
+}
+
+template <typename S>
+void reserve_and_shrink_test(S& origin) {
+    auto str = origin;
+    str.reserve(3 * str.capacity());
+    str.shrink_to_fit();
+    CHECK_EQ(origin, str);
+}
+
+TEST_CASE("small_string::reserve_and_shrink") {
+    basic_small_string<char> empty_str;
+    reserve_and_shrink_test(empty_str);
+    std::vector<basic_small_string<char>> inputs = {"",      "1",      "22",      "333",      "4444",
+                                                    "55555", "666666", "7777777", "88888888", "999999999"};
+    for (auto& input : inputs) {
+        reserve_and_shrink_test(input);
+    }
+    basic_small_string<char> median_str_1(15U, 'c');
+    reserve_and_shrink_test(median_str_1);
+    basic_small_string<char> median_str_2(31U, 'c');
+    reserve_and_shrink_test(median_str_2);
+    basic_small_string<char> median_str_3(63U, 'c');
+    reserve_and_shrink_test(median_str_3);
+    basic_small_string<char> median_str_4(127U, 'c');
+    reserve_and_shrink_test(median_str_4);
+    basic_small_string<char> median_str_5(255U, 'c');
+    reserve_and_shrink_test(median_str_5);
+    basic_small_string<char> median_str_6(511U, 'c');
+    reserve_and_shrink_test(median_str_6);
+    basic_small_string<char> median_str_7(1023U, 'c');
+    reserve_and_shrink_test(median_str_7);
+    basic_small_string<char> median_str_8(2047U, 'c');
+    reserve_and_shrink_test(median_str_8);
+    basic_small_string<char> median_str_9(4000U, 'c');
+    reserve_and_shrink_test(median_str_9);
+    basic_small_string<char> median_str_10(8191U, 'c');
+    reserve_and_shrink_test(median_str_10);
+}
+
+TEST_CASE("small_string::replace") {
+    basic_small_string<char> str("1234567890");
+    str.replace(0, 3, "abcdef");
+    CHECK_EQ(str, "abcdef4567890");
+    str.replace(3, 3, "ghijkl");
+    CHECK_EQ(str, "abcghijkl4567890");
+
+    // replace to a empty string
+    basic_small_string<char> empty_str;
+    empty_str.replace(0, 3, str);
+    CHECK_EQ(empty_str, "abcghijkl4567890");
+    // just replace the right part
+    str.replace(15, 3, "xxxx");
+    CHECK_EQ(str, "abcghijkl4567890xxxx");
+}
+
+// small_string section
+TEST_CASE("small_string::testAllClauses") {
+    std::cout << "Starting small_string tests with seed: " << seed << std::endl;
+    std::string r;
+    small_string c;
+
+    uint count = 0;
+
+    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_fbstring)(small_string&)) {
+        do {
+            // NOLINTNEXTLINE
+            if (true) {
+            } else {
+                std::cout << "Testing clause " << clause << std::endl;
+            }
+            randomString(&r);
+            c = r;
+            CHECK_EQ(c, r);
+
+            auto localSeed = seed + count;
+            // auto localSeed = tmp_seed + count;
+            rng = RandomT(localSeed);
+            f_string(r);
+            f_fbstring(c);
+        } while (++count % 100 != 0);
+    };
+
+#define TEST_CLAUSE_SMALL(x) l(#x, clause11_##x<std::string>, clause11_##x<small_string>);
+
+    TEST_CLAUSE_SMALL(21_4_2_a);
+    TEST_CLAUSE_SMALL(21_4_2_b);
+    TEST_CLAUSE_SMALL(21_4_2_c);
+    TEST_CLAUSE_SMALL(21_4_2_d);
+    TEST_CLAUSE_SMALL(21_4_2_e);
+    TEST_CLAUSE_SMALL(21_4_2_f);  // need the string is null-terminated
+    TEST_CLAUSE_SMALL(21_4_2_g);
+    // TEST_CLAUSE_SMALL(21_4_2_h); // wchar_t was not supported by now
+    TEST_CLAUSE_SMALL(21_4_2_i);
+    TEST_CLAUSE_SMALL(21_4_2_j);
+    TEST_CLAUSE_SMALL(21_4_2_k);
+    TEST_CLAUSE_SMALL(21_4_2_l);       // need the string is null-terminated
+    TEST_CLAUSE_SMALL(21_4_2_lprime);  // need the string is null-terminated
+    TEST_CLAUSE_SMALL(21_4_2_m);
+    TEST_CLAUSE_SMALL(21_4_2_n);
+    TEST_CLAUSE_SMALL(21_4_3);
+    TEST_CLAUSE_SMALL(21_4_4);
+    TEST_CLAUSE_SMALL(21_4_5);
+    TEST_CLAUSE_SMALL(21_4_6_1);
+    TEST_CLAUSE_SMALL(21_4_6_2);
+    TEST_CLAUSE_SMALL(21_4_6_3_a);
+    TEST_CLAUSE_SMALL(21_4_6_3_b);
+    TEST_CLAUSE_SMALL(21_4_6_3_c);
+    TEST_CLAUSE_SMALL(21_4_6_3_d);
+    TEST_CLAUSE_SMALL(21_4_6_3_e);
+    TEST_CLAUSE_SMALL(21_4_6_3_f);
+    TEST_CLAUSE_SMALL(21_4_6_3_g);
+    TEST_CLAUSE_SMALL(21_4_6_3_h);
+    TEST_CLAUSE_SMALL(21_4_6_3_i);
+    TEST_CLAUSE_SMALL(21_4_6_3_j);
+    TEST_CLAUSE_SMALL(21_4_6_3_k);
+    TEST_CLAUSE_SMALL(21_4_6_4);
+    TEST_CLAUSE_SMALL(21_4_6_5);
+    TEST_CLAUSE_SMALL(21_4_6_6);
+    TEST_CLAUSE_SMALL(21_4_6_7);
+    TEST_CLAUSE_SMALL(21_4_6_8);
+    TEST_CLAUSE_SMALL(21_4_7_1);
+
+    TEST_CLAUSE_SMALL(21_4_7_2_a);
+    TEST_CLAUSE_SMALL(21_4_7_2_a1);
+    TEST_CLAUSE_SMALL(21_4_7_2_a2);
+    TEST_CLAUSE_SMALL(21_4_7_2_b);
+    TEST_CLAUSE_SMALL(21_4_7_2_b1);
+    TEST_CLAUSE_SMALL(21_4_7_2_b2);
+    TEST_CLAUSE_SMALL(21_4_7_2_c);
+    TEST_CLAUSE_SMALL(21_4_7_2_c1);
+    TEST_CLAUSE_SMALL(21_4_7_2_c2);
+    TEST_CLAUSE_SMALL(21_4_7_2_d);
+    TEST_CLAUSE_SMALL(21_4_7_3_a);
+    TEST_CLAUSE_SMALL(21_4_7_3_b);
+    TEST_CLAUSE_SMALL(21_4_7_3_c);
+    TEST_CLAUSE_SMALL(21_4_7_3_d);
+    TEST_CLAUSE_SMALL(21_4_7_4_a);
+    TEST_CLAUSE_SMALL(21_4_7_4_b);
+    TEST_CLAUSE_SMALL(21_4_7_4_c);
+    TEST_CLAUSE_SMALL(21_4_7_4_d);
+    TEST_CLAUSE_SMALL(21_4_7_5_a);
+    TEST_CLAUSE_SMALL(21_4_7_5_b);
+    TEST_CLAUSE_SMALL(21_4_7_5_c);
+    TEST_CLAUSE_SMALL(21_4_7_5_d);
+    TEST_CLAUSE_SMALL(21_4_7_6_a);
+    TEST_CLAUSE_SMALL(21_4_7_6_b);
+    TEST_CLAUSE_SMALL(21_4_7_6_c);
+    TEST_CLAUSE_SMALL(21_4_7_6_d);
+    TEST_CLAUSE_SMALL(21_4_7_7_a);
+    TEST_CLAUSE_SMALL(21_4_7_7_b);
+    TEST_CLAUSE_SMALL(21_4_7_7_c);
+    TEST_CLAUSE_SMALL(21_4_7_7_d);
+    TEST_CLAUSE_SMALL(21_4_7_8);
+    TEST_CLAUSE_SMALL(21_4_7_9_a);
+    TEST_CLAUSE_SMALL(21_4_7_9_b);
+    TEST_CLAUSE_SMALL(21_4_7_9_c);
+    TEST_CLAUSE_SMALL(21_4_7_9_d);
+    TEST_CLAUSE_SMALL(21_4_7_9_e);
+    TEST_CLAUSE_SMALL(21_4_8_1_a);
+    TEST_CLAUSE_SMALL(21_4_8_1_b);
+    TEST_CLAUSE_SMALL(21_4_8_1_c);
+    TEST_CLAUSE_SMALL(21_4_8_1_d);
+    TEST_CLAUSE_SMALL(21_4_8_1_e);
+    TEST_CLAUSE_SMALL(21_4_8_1_f);
+    TEST_CLAUSE_SMALL(21_4_8_1_g);
+    TEST_CLAUSE_SMALL(21_4_8_1_h);
+    TEST_CLAUSE_SMALL(21_4_8_1_i);
+    TEST_CLAUSE_SMALL(21_4_8_1_j);
+    TEST_CLAUSE_SMALL(21_4_8_1_k);
+    TEST_CLAUSE_SMALL(21_4_8_1_l);
+    TEST_CLAUSE_SMALL(21_4_8_9_a);
+}
+
+TEST_CASE("pmr_small_string::eq") {
+    Arena arena(Arena::Options::GetDefaultOptions());
+    pmr::small_string str1("1234567890", arena.get_memory_resource());
+    pmr::small_string str2("1234567890", arena.get_memory_resource());
+    CHECK_EQ(str1, str2);
+    CHECK_EQ(str1, "1234567890");
+    std::string std_str("1234567890");
+    CHECK_EQ(str2, std_str);
+}
+
+TEST_CASE("pmr_small_string::test_allocator") {
+    Arena arena(Arena::Options::GetDefaultOptions());
+    pmr::small_string arena_str("1234567890", arena.get_memory_resource());
+    // will crash for the Assert.
+    // pmr::small_string std_str("1234567890");
+
+    // check the allocator is std::pmr::polymorphic_allocator
+    CHECK_EQ(arena_str.get_allocator().resource(), arena.get_memory_resource());
+    // CHECK_EQ(std_str.get_allocator().resource(), std::pmr::get_default_resource());
+}
+
+TEST_CASE("pmr_small_string::testAllClauses") {
+    using pmr_small_string = pmr::small_string;
+    std::cout << "Starting pmr_small_string tests with seed: " << seed << std::endl;
+    Arena arena(Arena::Options::GetDefaultOptions());
+    std::string r;
+    pmr_small_string c(arena.get_memory_resource());
+
+    uint count = 0;
+
+    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_arena_string)(pmr_small_string&)) {
+        do {
+            // NOLINTNEXTLINE
+            if (true) {
+            } else {
+                std::cout << "Testing clause " << clause << std::endl;
+            }
+            randomString(&r);
+            c = r;
+            CHECK_EQ(c, r);
+
+            auto localSeed = seed + count;
+            rng = RandomT(localSeed);
+            f_string(r);
+            rng = RandomT(localSeed);
+            f_arena_string(c);
+        } while (++count % 100 != 0);
+    };
+
+#define TEST_CLAUSE_PMR_SMALL(x) l(#x, arena_clause11_##x<std::string>, arena_clause11_##x<pmr_small_string>);
+
+    //    TEST_CLAUSE_PMR_SMALL(21_4_2_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_e);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_f);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_g);
+    // TEST_CLAUSE_PMR_SMALL(21_4_2_h);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_i);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_j);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_k);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_l);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_lprime);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_m);
+    TEST_CLAUSE_PMR_SMALL(21_4_2_n);
+
+    TEST_CLAUSE_PMR_SMALL(21_4_3);
+    TEST_CLAUSE_PMR_SMALL(21_4_4);
+    TEST_CLAUSE_PMR_SMALL(21_4_5);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_1);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_2);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_e);
+
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_f);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_g);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_h);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_i);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_j);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_3_k);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_4);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_5);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_6);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_7);
+    TEST_CLAUSE_PMR_SMALL(21_4_6_8);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_1);
+
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_a1);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_a2);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_b1);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_b2);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_c1);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_c2);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_2_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_3_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_3_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_3_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_3_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_4_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_4_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_4_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_4_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_5_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_5_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_5_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_5_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_6_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_6_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_6_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_6_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_7_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_7_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_7_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_7_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_8);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_9_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_9_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_9_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_9_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_7_9_e);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_a);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_b);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_c);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_d);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_e);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_f);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_g);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_h);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_i);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_j);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_k);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_1_l);
+    TEST_CLAUSE_PMR_SMALL(21_4_8_9_a);
+}
+
+TEST_CASE("small_string_not_null_terminated::testAllClauses") {
+    std::cout << "Starting small_byte_string tests with seed: " << seed << std::endl;
+    std::string r;
+    small_byte_string c;
+
+    uint count = 0;
+
+    auto l = [&](const char* const clause, void (*f_string)(std::string&), void (*f_fbstring)(small_byte_string&)) {
+        do {
+            // NOLINTNEXTLINE
+            if (true) {
+            } else {
+                std::cout << "Testing clause " << clause << std::endl;
+            }
+            randomString(&r);
+            c = r;
+            CHECK_EQ(c, r);
+
+            auto localSeed = seed + count;
+            rng = RandomT(localSeed);
+            f_string(r);
+            f_fbstring(c);
+        } while (++count % 100 != 0);
+    };
+
+#define TEST_CLAUSE_SMALL_BYTE_STRING(x) l(#x, clause11_##x<std::string>, clause11_##x<small_byte_string>);
+
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_a);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_b);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_c);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_d);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_e);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_f);  // need the string is null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_g);
+    // TEST_CLAUSE_SMALL(21_4_2_h); // wchar_t was not supported by now
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_i);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_j);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_k);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_l);       // need the string is null-terminated
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_lprime);  // need the string is null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_m);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_2_n);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_3);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_4);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_5);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_1);     // need the string is null-terminated
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_2);    // need the string is null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_a);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_b);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_c);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_d);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_e);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_f);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_g);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_h);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_i); // need null-terminated
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_j); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_3_k);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_4);  // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_5);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_6); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_7);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_6_8);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_1);
+
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_2_a);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_2_a1);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_2_a2);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_2_b);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_2_b1);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_2_b2);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_2_c);  // need null-terminated
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_2_c1); // need null-terminated
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_2_c2); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_2_d);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_3_a);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_3_b);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_3_c); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_3_d);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_4_a);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_4_b);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_4_c); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_4_d);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_5_a);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_5_b);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_5_c); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_5_d);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_6_a);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_6_b);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_6_c); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_6_d);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_7_a);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_7_b);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_7_c); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_7_d);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_8);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_9_a);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_9_b);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_9_c);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_9_d); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_7_9_e);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_a);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_b);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_c);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_d);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_e); // need null-terminated
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_f); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_g);
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_h);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_i); // need null-terminated
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_j); // need null-terminated
+    TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_k);
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_1_l); // need null-terminated
+    // TEST_CLAUSE_SMALL_BYTE_STRING(21_4_8_9_a); // need null-terminated
+}
+
+TEST_CASE("pmr_small_string::testAllClauses") {
+    using pmr_small_byte_string = pmr::small_byte_string;
+    std::cout << "Starting pmr_small_byte_string tests with seed: " << seed << std::endl;
+    Arena arena(Arena::Options::GetDefaultOptions());
+    std::string r;
+    pmr_small_byte_string c(arena.get_memory_resource());
+
+    uint count = 0;
+
+    auto l = [&](const char* const clause, void (*f_string)(std::string&),
+                 void (*f_arena_string)(pmr_small_byte_string&)) {
+        do {
+            // NOLINTNEXTLINE
+            if (true) {
+            } else {
+                std::cout << "Testing clause " << clause << std::endl;
+            }
+            randomString(&r);
+            c = r;
+            CHECK_EQ(c, r);
+
+            auto localSeed = seed + count;
+            rng = RandomT(localSeed);
+            f_string(r);
+            rng = RandomT(localSeed);
+            f_arena_string(c);
+        } while (++count % 100 != 0);
+    };
+
+#define TEST_CLAUSE_PMR_SMALL_BYTE_STRING(x) \
+    l(#x, arena_clause11_##x<std::string>, arena_clause11_##x<pmr_small_byte_string>);
+
+    //    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_b);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_c);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_e);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_f); // need the string is null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_g);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_h);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_i);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_j);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_k);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_l); // need the string is null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_lprime); // need the string is null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_m);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_2_n);
+
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_3);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_4);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_5);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_1); // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_2); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_b);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_c);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_d); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_e);
+
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_f);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_g);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_h);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_i);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_j); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_3_k);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_4); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_5);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_6); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_7);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_6_8);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_1);
+
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_a1);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_a2);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_b);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_b1);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_b2);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_c); // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_c1); // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_c2); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_2_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_3_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_3_b);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_3_c); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_3_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_4_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_4_b);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_4_c); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_4_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_5_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_5_b);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_5_c); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_5_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_6_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_6_b);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_6_c); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_6_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_7_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_7_b);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_7_c); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_7_d);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_8);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_9_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_9_b);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_9_c);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_9_d); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_7_9_e);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_a);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_b);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_c);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_d);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_e); // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_f); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_g);
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_h);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_i); // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_j); // need null-terminated
+    TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_k);
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_1_l);  // need null-terminated
+    // TEST_CLAUSE_PMR_SMALL_BYTE_STRING(21_4_8_9_a);  // null-terminated
+}
 
 }  // namespace stdb::memory

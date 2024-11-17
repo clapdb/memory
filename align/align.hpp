@@ -42,7 +42,7 @@ template <uint64_t N>
     // Align n to next multiple of N
     // (from <Hacker's Delight 2rd edition>,Chapter 3.)
     static_assert((N & (N - 1)) == 0, "AlignUpToN, N is power of 2");
-    static_assert(N >= kMinAlignSize, "AlignUpToN, N should be more than 8");  // alignt to 2/4 doesnt make sense
+    static_assert(N >= kMinAlignSize, "AlignUpToN, N should be more than 8");  // align to 2/4 doesnt make sense
     return (n + N - 1) & static_cast<uint64_t>(-N);
 }
 
