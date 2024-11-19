@@ -623,22 +623,9 @@ class small_string_buffer
    protected:
     [[nodiscard]] auto get_core_type() -> uint8_t { return _core.get_core_type(); }
 
-    template <NeedTerminated NeedTerminated = NeedTerminated::Yes>
-    [[gnu::always_inline]] void allocate_more(size_type new_append_size) noexcept {
-#ifndef NDEBUG
-        auto origin_core_type = _core.get_core_type();
-#endif
-        return allocate_more_impl<NeedTerminated>(new_append_size);
-#ifndef NDEBUG
-        auto new_core_type = _core.get_core_type();
-        Assert(origin_core_type <= new_core_type, "the core type should stay or grow");
-#endif
-    }
-
-    // this function handle append / push_back / operator +='s internal reallocation
     // this funciion will not change the size, but the capacity or delta
     template <NeedTerminated Need0 = NeedTerminated::Yes>
-    void allocate_more_impl(size_type new_append_size) noexcept {
+    void allocate_more(size_type new_append_size) noexcept {
         size_type old_delta_fast =
           _core.is_external() ? _core.external.idle_capacity_fast() : _core.internal.idle_capacity();
 
@@ -879,6 +866,15 @@ class small_string_buffer
 
     [[nodiscard]] constexpr auto get_buffer() const noexcept -> const Char* {
         return _core.is_external() ? _core.external.c_str() : _core.internal.data;
+    }
+
+    // will be fast than call get_buffer() + size(), it will waste many times for if checking
+    [[nodiscard]] constexpr auto end() noexcept -> Char* {
+        if (not _core.is_external()) [[unlikely]] {
+            return _core.internal.data + _core.internal.internal_size;
+        }
+        auto size = _core.external.size();
+        return reinterpret_cast<Char*>(_core.external.c_str_ptr) + size;
     }
 
     [[nodiscard]] constexpr auto size() const noexcept -> size_type {
@@ -1200,23 +1196,11 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     [[nodiscard]] constexpr auto cbegin() const noexcept -> const_iterator { return c_str(); }
 
-    [[nodiscard]] constexpr auto end() noexcept -> iterator {
-        auto* buffer = buffer_type::get_buffer();
-        auto size = buffer_type::size();
-        return buffer + size;
-    }
+    [[nodiscard]] constexpr auto end() noexcept -> iterator { return buffer_type::end(); }
 
-    [[nodiscard]] constexpr auto end() const noexcept -> const_iterator {
-        auto* buffer = buffer_type::get_buffer();
-        auto size = buffer_type::size();
-        return buffer + size;
-    }
+    [[nodiscard]] constexpr auto end() const noexcept -> const_iterator { return const_cast<basic_small_string*>(this)->end(); }
 
-    [[nodiscard]] constexpr auto cend() const noexcept -> const_iterator {
-        auto* buffer = buffer_type::get_buffer();
-        auto size = buffer_type::size();
-        return buffer + size;
-    }
+    [[nodiscard]] constexpr auto cend() const noexcept -> const_iterator { return const_cast<basic_small_string*>(this)->end(); }
 
     [[nodiscard]] constexpr auto rbegin() noexcept -> reverse_iterator { return reverse_iterator(end()); }
 
@@ -1476,7 +1460,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             buffer_type::allocate_more(count);
         }
         // by now, the capacity is enough
-        std::memset(data() + size(), c, count);
+        std::memset(end(), c, count);
         buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
@@ -1515,7 +1499,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             buffer_type::allocate_more(count);
         }
 
-        std::memcpy(data() + size(), s, count);
+        std::memcpy(end(), s, count);
         buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
@@ -1540,7 +1524,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         if constexpr (Safe) {
             this->template allocate_more<buffer_type::NeedTerminated::No>(count);
         }
-        std::copy(first, last, data() + size());
+        std::copy(first, last, end());
         buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
