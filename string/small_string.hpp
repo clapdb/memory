@@ -38,9 +38,8 @@ constexpr static inline uint8_t kIsDelta = 3;
  * find the smallest power of 2 that is greater than size, at least return 16U
  */
 [[nodiscard, gnu::always_inline]] constexpr inline auto next_power_of_2(uint16_t size) noexcept -> uint32_t {
-    // if size < 8, add 8, or return the size, remove the if branch
     // make sure get 16U at least.
-    return std::bit_ceil(size + ((uint16_t)(size < 9)) * 8U);
+    return std::max<uint32_t>(16U, std::bit_ceil(size));
 }
 
 [[nodiscard, gnu::always_inline]] constexpr inline auto is_power_of_2(uint16_t size) noexcept -> bool {
@@ -163,8 +162,8 @@ struct malloc_core
         // -- if higher bit is 0, the lowerer 3 bits is shift
 
         // 0001 : 2048
-        // 0101 : 3072
-        // 1001 : 4096
+        // 1001 : 3072
+        // 0101 : 4096
         // 1101 : 4096 and 4096 size, size must be 0
         // -- if the higher 2bits is not 11, the lowerer 2bits is times
 
