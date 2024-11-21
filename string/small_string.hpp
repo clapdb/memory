@@ -622,6 +622,38 @@ class small_string_buffer
    protected:
     [[nodiscard]] auto get_core_type() -> uint8_t { return _core.get_core_type(); }
 
+    consteval static auto initialized_buffer_size() noexcept -> size_type {
+        if constexpr (NullTerminated) {
+            return kMaxInternalBufferSize - 1;
+        } else {
+            return kMaxInternalBufferSize;
+        }
+    }
+
+    constexpr void initial_allocate(size_type new_size) noexcept {
+        if (new_size <= initialized_buffer_size()) [[unlikely]] {
+            // still be a internal_core
+            // set the internal_size
+            _core.internal.internal_size = new_size;
+            if constexpr (NullTerminated) {
+                // set the '\0' at the end of the buffer
+                _core.internal.data[new_size] = '\0';
+            }
+            return;
+        }
+        if constexpr (core_type::use_std_allocator::value) {
+            _core.external = allocate_new_external_buffer(calculate_new_buffer_size(new_size), new_size);
+        } else {
+            _core.external =
+              allocate_new_external_buffer(calculate_new_buffer_size(new_size), new_size, &_core.pmr_allocator);
+        }
+        if constexpr (NullTerminated) {
+            // set the '\0' at the end of the buffer
+            reinterpret_cast<Char*>(_core.external.c_str_ptr)[new_size] = '\0';
+        }
+        return;
+    }
+
     // this funciion will not change the size, but the capacity or delta
     template <NeedTerminated Need0 = NeedTerminated::Yes>
     void allocate_more(size_type new_append_size) noexcept {
@@ -923,23 +955,32 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     // npos is the largest value of size_type, is the max value of size_type
     constexpr static size_type npos = std::numeric_limits<size_type>::max();
 
+    struct initialized_later
+    {};
+
    public:
+    constexpr basic_small_string(initialized_later, size_type size, const Allocator& allocator = Allocator())
+        : buffer_type(allocator) {
+        buffer_type::initial_allocate(size);
+    }
+
     constexpr explicit basic_small_string([[maybe_unused]] const Allocator& allocator = Allocator()) noexcept
         : buffer_type(allocator) {}
 
     constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& allocator = Allocator())
-        : buffer_type(allocator) {
-        append(count, ch);
+        : basic_small_string(initialized_later{}, count, allocator) {
+        memset(data(), ch, count);
     }
 
     // copy constructor
-    basic_small_string(const basic_small_string& other) : buffer_type(other.get_allocator()) { append(other); }
+    constexpr basic_small_string(const basic_small_string& other)
+        : basic_small_string(initialized_later{}, other.size(), other.get_allocator()) {
+        std::memcpy(data(), other.data(), other.size());
+    }
 
     constexpr basic_small_string(const basic_small_string& other, size_type pos,
                                  [[maybe_unused]] const Allocator& allocator = Allocator())
-        : buffer_type(allocator) {
-        append(other, pos);
-    }
+        : basic_small_string(other.substr(pos)) {}
 
     constexpr basic_small_string(basic_small_string&& other,
                                  [[maybe_unused]] const Allocator& allocator = Allocator()) noexcept
@@ -959,31 +1000,31 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     constexpr basic_small_string(const Char* s, size_type count,
                                  [[maybe_unused]] const Allocator& allocator = Allocator())
-        : buffer_type(allocator) {
-        append(s, count);
+        : basic_small_string(initialized_later{}, count, allocator) {
+        std::memcpy(data(), s, count);
     }
 
     constexpr basic_small_string(const Char* s, [[maybe_unused]] const Allocator& allocator = Allocator())
-        : basic_small_string(s, std::strlen(s), allocator) {}
+        : basic_small_string(s, Traits::length(s), allocator) {}
 
     template <class InputIt>
     constexpr basic_small_string(InputIt first, InputIt last, [[maybe_unused]] const Allocator& allocator = Allocator())
-        : buffer_type(allocator) {
-        append(first, last);
+        : basic_small_string(initialized_later{}, std::distance(first, last), allocator) {
+        std::copy(first, last, begin());
     }
 
     constexpr basic_small_string(std::initializer_list<Char> ilist,
                                  [[maybe_unused]] const Allocator& allocator = Allocator())
-        : buffer_type(allocator) {
-        append(ilist.begin(), ilist.end());
+        : basic_small_string(initialized_later{}, ilist.size(), allocator) {
+        std::copy(ilist.begin(), ilist.end(), begin());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> and
                  not std::is_convertible_v<const StringViewLike&, const Char*>)
     constexpr basic_small_string(const StringViewLike& s, [[maybe_unused]] const Allocator& allocator = Allocator())
-        : buffer_type(allocator) {
-        append(s.begin(), s.end());
+        : basic_small_string(initialized_later{}, s.size(), allocator) {
+        std::copy(s.begin(), s.end(), begin());
     }
 
     template <class StringViewLike>
@@ -991,8 +1032,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
                  not std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>>)
     constexpr basic_small_string(const StringViewLike& s, size_type pos, size_type n,
                                  [[maybe_unused]] const Allocator& allocator = Allocator())
-        : buffer_type(allocator) {
-        append(s, pos, n);
+        : basic_small_string(initialized_later{}, n, allocator) {
+        std::copy(s.begin() + pos, s.begin() + pos + n, begin());
     }
 
     basic_small_string(std::nullptr_t) = delete;
@@ -1197,9 +1238,13 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     [[nodiscard]] constexpr auto end() noexcept -> iterator { return buffer_type::end(); }
 
-    [[nodiscard]] constexpr auto end() const noexcept -> const_iterator { return const_cast<basic_small_string*>(this)->end(); }
+    [[nodiscard]] constexpr auto end() const noexcept -> const_iterator {
+        return const_cast<basic_small_string*>(this)->end();
+    }
 
-    [[nodiscard]] constexpr auto cend() const noexcept -> const_iterator { return const_cast<basic_small_string*>(this)->end(); }
+    [[nodiscard]] constexpr auto cend() const noexcept -> const_iterator {
+        return const_cast<basic_small_string*>(this)->end();
+    }
 
     [[nodiscard]] constexpr auto rbegin() noexcept -> reverse_iterator { return reverse_iterator(end()); }
 
