@@ -23,11 +23,11 @@ namespace stdb::memory {
 
 constexpr static inline uint32_t kInvalidSize = std::numeric_limits<uint32_t>::max();
 constexpr static inline uint32_t kMaxInternalBufferSize = 7;
-constexpr static inline uint32_t kMaxSmallStringSize = 1024;
-constexpr static inline uint32_t kMaxMediumStringSize = 4096;
-constexpr static inline uint32_t kMediumStringSizeMask = kMaxMediumStringSize - 1U;
+constexpr static inline uint32_t kMaxSmallBufferSize = 1024;
+constexpr static inline uint32_t kMaxMediumBufferSize = 4096;
+constexpr static inline uint32_t kMediumStringSizeMask = kMaxMediumBufferSize - 1U;
 // the largest buffer is 2 ^ 32 == 4G, the header is 8 bytes, so the largest size is 2 ^ 32 - 8
-constexpr static inline uint64_t kLargeStringSizeMask = (1ULL << 32ULL) - 2 * sizeof(uint32_t);
+constexpr static inline uint64_t kMaxLargeBufferSize = (1ULL << 32ULL) - 2 * sizeof(uint32_t);
 // if the delta is kDeltaMax, the real delta is >= kDeltaMax
 constexpr static inline uint32_t kDeltaMax = (1U << 14U) - 1U;
 constexpr static inline uint8_t kIsShift = 0;
@@ -47,12 +47,12 @@ constexpr static inline uint8_t kIsDelta = 3;
 }
 
 constexpr static inline auto next_small_size(uint32_t size) noexcept -> uint32_t {
-    Assert(size <= kMaxSmallStringSize and size > 0, "size should be in (0, 1024]");
+    Assert(size <= kMaxSmallBufferSize and size > 0, "size should be in (0, 1024]");
     return next_power_of_2(size);
 }
 
 constexpr static inline auto next_medium_size(uint32_t size) noexcept -> uint32_t {
-    Assert(size > kMaxSmallStringSize and size <= kMaxMediumStringSize, "size should be between (1024, 4096]");
+    Assert(size > kMaxSmallBufferSize and size <= kMaxMediumBufferSize, "size should be between (1024, 4096]");
     // align up to times of 1024, just use bitwise operation
     return stdb::memory::align::AlignUpTo<1024>(size);
 }
@@ -63,8 +63,8 @@ constexpr static inline auto next_medium_size(uint32_t size) noexcept -> uint32_
 // the small_string's design goal was saving memory.
 constexpr static inline auto next_large_size(uint32_t size) noexcept -> uint32_t {
     // AlignUp to the next 16 bytes, the fastest way in Arm, x64 is 8
-    Assert(size > kMaxMediumStringSize, "size should be bigger than 4096");
-    if (size <= kLargeStringSizeMask) [[likely]] {
+    Assert(size > kMaxMediumBufferSize, "size should be bigger than 4096");
+    if (size <= kMaxLargeBufferSize) [[likely]] {
         return stdb::memory::align::AlignUpTo<16>(size);  // just align to 16 bytes, to save the memory
     }
     // the size is overflow, return kInvalidSize, just check the return value to handle the overflow
@@ -79,9 +79,9 @@ constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capaci
         // if the string is null terminated, the capacity should need 1 more.
         ++least_new_capacity;
     }
-    if (least_new_capacity <= kMaxSmallStringSize) [[likely]] {
+    if (least_new_capacity <= kMaxSmallBufferSize) [[likely]] {
         return next_power_of_2(least_new_capacity);
-    } else if (least_new_capacity <= kMaxMediumStringSize) [[likely]] {
+    } else if (least_new_capacity <= kMaxMediumBufferSize) [[likely]] {
         return next_medium_size(least_new_capacity);
     } else if (least_new_capacity <= kInvalidSize - 2 * sizeof(uint32_t))
       [[likely]] {  // the size_or_mask is not overflow
@@ -549,7 +549,7 @@ class small_string_buffer
     }
 
     inline static auto calculate_buffer_real_capacity(size_type new_buffer_size) noexcept -> size_type {
-        auto real_capacity = new_buffer_size - (new_buffer_size > kMaxMediumStringSize ? 2 * sizeof(size_type) : 0) -
+        auto real_capacity = new_buffer_size - (new_buffer_size > kMaxMediumBufferSize ? 2 * sizeof(size_type) : 0) -
                              (NullTerminated ? 1 : 0);
         return real_capacity;
     }
@@ -564,7 +564,7 @@ class small_string_buffer
         Assert(old_str_size <= calculate_buffer_real_capacity(new_buffer_size),
                "old_str_size should be less than the real capacity of the new buffer");
 
-        if (new_buffer_size <= kMaxSmallStringSize) [[likely]] {
+        if (new_buffer_size <= kMaxSmallBufferSize) [[likely]] {
             Assert(is_power_of_2(new_buffer_size), "new_buffer_size should be a power of 2");
             // set the size_shift
             void* buf = nullptr;
@@ -579,8 +579,8 @@ class small_string_buffer
                              .shift = static_cast<uint8_t>(std::countr_zero(new_buffer_size) -
                                                            3),  // the shift will not be 000, this is internal_core
                              .flag = kIsShift}};
-        } else if (new_buffer_size <= kMaxMediumStringSize) [[likely]] {
-            Assert((new_buffer_size % kMaxSmallStringSize) == 0, "the medium new_buffer_size is not aligned to 1024");
+        } else if (new_buffer_size <= kMaxMediumBufferSize) [[likely]] {
+            Assert((new_buffer_size % kMaxSmallBufferSize) == 0, "the medium new_buffer_size is not aligned to 1024");
             auto times = static_cast<uint8_t>((new_buffer_size >> 10U) - 2U);  // 0: 2048, 1: 3072, 2: 4096
             void* buf = nullptr;
             if constexpr (core_type::use_std_allocator::value) {
