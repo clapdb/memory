@@ -53,7 +53,7 @@ struct LargeBufferConfig<true> {
 
 // if the delta is kDeltaMax, the real delta is >= kDeltaMax
 constexpr static inline uint32_t kDeltaMax = (1U << 14U) - 1U;
-constexpr static inline uint8_t kIsDelta = 2;
+constexpr static inline uint8_t kIsDelta = 3U;
 
 /**
  * find the smallest power of 2 that is greater than size, at least return 16U
@@ -752,6 +752,7 @@ class small_string_buffer
     }
 
 
+    // just for Assert
     [[nodiscard, gnu::always_inline]] constexpr static auto calculate_buffer_real_capacity(struct buffer_type_and_size type_and_size) noexcept -> size_type {
         Assert(type_and_size.buffer_size > 0, "the buffer_size should be greater than 0");
         if constexpr (NullTerminated) {
@@ -850,46 +851,31 @@ class small_string_buffer
 
     // the fastest initial_allocate, do not calculate the type or size, just allocate the buffer
     // caller should make sure the type_and_size is correct
-    constexpr void initial_allocate(buffer_type_and_size type_and_size) noexcept {
-        if (type_and_size.core_type == CoreType::Internal) [[unlikely]] {
-            // still be a internal_core, do nothing
-            return;
-        }
-        if constexpr (core_type::use_std_allocator::value) {
-            _core.external = allocate_new_external_buffer(type_and_size, 0);
-        } else {
-            _core.external = allocate_new_external_buffer(type_and_size, 0, &_core.pmr_allocator);
-        }
-        if constexpr (NullTerminated) {
-            // set the '\0' at the end of the buffer
-            reinterpret_cast<Char*>(_core.external.c_str_ptr)[0] = '\0';
-        }
-        return;
-    }
-
-    constexpr void initial_allocate(size_type new_size) noexcept {
-        if (new_size <= InternalBufferConfig<NullTerminated>::MaxBufferSize) [[unlikely]] {
+    constexpr void initial_allocate(buffer_type_and_size cap_and_type, size_type size) noexcept {
+        if (cap_and_type.core_type == CoreType::Internal) [[unlikely]] {
             // still be a internal_core
-            // set the internal_size
-            _core.internal.internal_size = new_size;
+            // just set the internal_size
+            _core.internal.internal_size = size;
             if constexpr (NullTerminated) {
                 // set the '\0' at the end of the buffer
-                _core.internal.data[new_size] = '\0';
+                _core.internal.data[size] = '\0';
             }
             return;
         }
         if constexpr (core_type::use_std_allocator::value) {
-            _core.external =
-              allocate_new_external_buffer(calculate_new_buffer_size<NullTerminated>(new_size), new_size);
+            _core.external = allocate_new_external_buffer(cap_and_type, size);
         } else {
-            _core.external = allocate_new_external_buffer(calculate_new_buffer_size<NullTerminated>(new_size), new_size,
-                                                          &_core.pmr_allocator);
+            _core.external = allocate_new_external_buffer(cap_and_type, size, &_core.pmr_allocator);
         }
         if constexpr (NullTerminated) {
             // set the '\0' at the end of the buffer
-            reinterpret_cast<Char*>(_core.external.c_str_ptr)[new_size] = '\0';
+            reinterpret_cast<Char*>(_core.external.c_str_ptr)[size] = '\0';
         }
         return;
+    }
+
+    [[gnu::always_inline]] constexpr inline void initial_allocate(size_type new_string_size) noexcept {
+        initial_allocate(calculate_buffer_size(new_string_size), new_string_size);
     }
 
     // this funciion will not change the size, but the capacity or delta
@@ -1019,7 +1005,7 @@ class small_string_buffer
     }
 
     constexpr static inline auto calculate_buffer_size(uint32_t size) noexcept -> buffer_type_and_size {
-        if (size < core_type::internal_core::capacity()) [[unlikely]] {
+        if (size <= core_type::internal_core::capacity()) [[unlikely]] {
             return {.buffer_size = core_type::internal_core::capacity(), .core_type = CoreType::Internal};
         }
         return calculate_new_buffer_size<NullTerminated>(size);
@@ -1128,14 +1114,14 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     {};
 
    public:
-    constexpr basic_small_string(initialized_later, size_type size, const Allocator& allocator = Allocator())
+    constexpr basic_small_string(initialized_later, size_type new_string_size, const Allocator& allocator = Allocator())
         : buffer_type(allocator) {
-        buffer_type::initial_allocate(size);
+        buffer_type::initial_allocate(new_string_size);
     }
     
-    constexpr basic_small_string(initialized_later, buffer_type_and_size type_and_size, const Allocator& allocator = Allocator())
+    constexpr basic_small_string(initialized_later, buffer_type_and_size type_and_size, size_type new_string_size, const Allocator& allocator = Allocator())
         : buffer_type(allocator) {
-        buffer_type::initial_allocate(type_and_size);
+        buffer_type::initial_allocate(type_and_size, new_string_size);
     }
 
 
@@ -1478,9 +1464,9 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
         auto [cap, size] = buffer_type::get_capacity_and_size();
         Assert(cap >= size, "cap should always be greater or equal to size");
-        auto best_cap_and_size = buffer_type::calculate_buffer_size(size);
-        if (cap > best_cap_and_size.buffer_size) {  // the cap is larger than the best cap, so need to shrink
-            basic_small_string new_str{initialized_later{}, best_cap_and_size, buffer_type::get_allocator()};
+        auto cap_and_type = buffer_type::calculate_buffer_size(size);
+        if (cap > cap_and_type.buffer_size) {  // the cap is larger than the best cap, so need to shrink
+            basic_small_string new_str{initialized_later{}, cap_and_type, size, buffer_type::get_allocator()};
             std::memcpy(new_str.data(), data(), size);
             swap(new_str);
         }
