@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -21,76 +22,137 @@
 
 namespace stdb::memory {
 
-constexpr static inline uint32_t kInvalidSize = std::numeric_limits<uint32_t>::max();
-constexpr static inline uint32_t kMaxInternalBufferSize = 7;
-constexpr static inline uint32_t kMaxSmallStringSize = 1024;
-constexpr static inline uint32_t kMaxMediumStringSize = 4096;
-constexpr static inline uint32_t kMediumStringSizeMask = kMaxMediumStringSize - 1U;
-// the largest buffer is 2 ^ 32 == 4G, the header is 8 bytes, so the largest size is 2 ^ 32 - 8
-constexpr static inline uint64_t kLargeStringSizeMask = (1ULL << 32ULL) - 2 * sizeof(uint32_t);
+template <bool NullTerminated = false>
+struct InternalBufferConfig
+{
+    constexpr static inline uint32_t MaxBufferSize = 7;
+};
+template <>
+struct InternalBufferConfig<true>
+{
+    constexpr static inline uint32_t MaxBufferSize = 6;
+};
+// constexpr static inline uint32_t kMaxSmallBufferSize = 1024;
+template <bool NullTerminated = false>
+struct ShiftBufferConfig
+{
+    constexpr static inline uint32_t MaxBufferSize = 4096;
+};
+template <>
+struct ShiftBufferConfig<true>
+{
+    constexpr static inline uint32_t MaxBufferSize = 4095;
+};
+
+template <bool NullTerminated = false>
+struct LargeBufferConfig
+{
+    constexpr static inline uint32_t MaxBufferSize = (1ULL << 32ULL) - 2 * sizeof(uint32_t);
+    constexpr static inline uint32_t InvalidSize = std::numeric_limits<uint32_t>::max();
+};
+template <>
+struct LargeBufferConfig<true>
+{
+    constexpr static inline uint32_t MaxBufferSize = (1ULL << 32ULL) - 2 * sizeof(uint32_t) - 1;
+    constexpr static inline uint32_t InvalidSize = std::numeric_limits<uint32_t>::max();
+};
+
 // if the delta is kDeltaMax, the real delta is >= kDeltaMax
 constexpr static inline uint32_t kDeltaMax = (1U << 14U) - 1U;
-constexpr static inline uint8_t kIsShift = 0;
-constexpr static inline uint8_t kIsTimes = 2;
-constexpr static inline uint8_t kIsDelta = 3;
+constexpr static inline uint8_t kIsDelta = 3U;
 
 /**
  * find the smallest power of 2 that is greater than size, at least return 16U
+ * in release mode, the function just has 1 line.
  */
-[[nodiscard, gnu::always_inline]] constexpr inline auto next_power_of_2(uint16_t size) noexcept -> uint32_t {
+template <bool NullTerminated>
+[[nodiscard, gnu::always_inline]] constexpr inline auto next_shift_buffer_size(uint32_t size) noexcept -> uint32_t {
     // make sure get 16U at least.
-    return std::max<uint32_t>(16U, std::bit_ceil(size));
-}
-
-[[nodiscard, gnu::always_inline]] constexpr inline auto is_power_of_2(uint16_t size) noexcept -> bool {
-    return bool(size) && not bool(size & (size - 1UL));
-}
-
-constexpr static inline auto next_small_size(uint32_t size) noexcept -> uint32_t {
-    Assert(size <= kMaxSmallStringSize and size > 0, "size should be in (0, 1024]");
-    return next_power_of_2(size);
-}
-
-constexpr static inline auto next_medium_size(uint32_t size) noexcept -> uint32_t {
-    Assert(size > kMaxSmallStringSize and size <= kMaxMediumStringSize, "size should be between (1024, 4096]");
-    // align up to times of 1024, just use bitwise operation
-    return stdb::memory::align::AlignUpTo<1024>(size);
-}
-
-// AlignUp to the next large size
-// we assume that large string usually be immutable, so we just align up to 16 bytes, to save the memory
-// if you want to keep grow, you should reserve first, and then append.
-// the small_string's design goal was saving memory.
-constexpr static inline auto next_large_size(uint32_t size) noexcept -> uint32_t {
-    // AlignUp to the next 16 bytes, the fastest way in Arm, x64 is 8
-    Assert(size > kMaxMediumStringSize, "size should be bigger than 4096");
-    if (size <= kLargeStringSizeMask) [[likely]] {
-        return stdb::memory::align::AlignUpTo<16>(size);  // just align to 16 bytes, to save the memory
-    }
-    // the size is overflow, return kInvalidSize, just check the return value to handle the overflow
-    return kInvalidSize;
-}
-
-// Calculate the new buffer size, the buffer size is the capacity + the size of the head
-// the head is [capacity:4B, size:4B] for large buffer, [capacity:2B] for small buffer
-template <bool NullTerminated = true>
-constexpr static inline auto calculate_new_buffer_size(uint32_t least_new_capacity) noexcept -> uint32_t {
+    // return std::max<uint32_t>(16U, std::bit_ceil(size));
+    Assert(size > InternalBufferConfig<NullTerminated>::MaxBufferSize and
+             size <= ShiftBufferConfig<NullTerminated>::MaxBufferSize,
+           "size should be between (7, 4096] or [6, 4095]");
     if constexpr (NullTerminated) {
-        // if the string is null terminated, the capacity should need 1 more.
-        ++least_new_capacity;
+        // need 1 more for '\0'
+        return std::bit_ceil(size + 1);
+    } else {
+        return std::bit_ceil(size);
     }
-    if (least_new_capacity <= kMaxSmallStringSize) [[likely]] {
-        return next_power_of_2(least_new_capacity);
-    } else if (least_new_capacity <= kMaxMediumStringSize) [[likely]] {
-        return next_medium_size(least_new_capacity);
-    } else if (least_new_capacity <= kInvalidSize - 2 * sizeof(uint32_t))
-      [[likely]] {  // the size_or_mask is not overflow
-        return next_large_size(least_new_capacity + 2 * sizeof(uint32_t));
-    }
-    // the next_large_size always was aligned to 16 bytes, so kInvalidSize means overflow is OK
-    return kInvalidSize;
 }
 
+[[nodiscard, gnu::always_inline]] constexpr inline auto is_power_of_2(uint32_t buffer_size) noexcept -> bool {
+    // the 8 is the smallest shift buffer size
+    return buffer_size >= 8 && not bool(buffer_size & (buffer_size - 1UL));
+}
+
+// constexpr static inline auto next_medium_size(uint32_t size) noexcept -> uint32_t {
+//     Assert(size > kMaxSmallBufferSize and size <= kMaxMediumBufferSize, "size should be between (1024, 4096]");
+//     // align up to times of 1024, just use bitwise operation
+//     return stdb::memory::align::AlignUpTo<1024>(size);
+// }
+
+/**
+ * AlignUp to the next large size
+ * we assume that large string usually be immutable, so we just align up to 16 bytes, to save the memory
+ * NOTE: in release mode, the function just has 1 line.
+ */
+template <bool NullTerminated>
+constexpr static inline auto next_large_buffer_size(uint32_t size) noexcept -> uint32_t {
+    // AlignUp to the next 16 bytes, the fastest way in Arm, x64 is 8
+    Assert(size > ShiftBufferConfig<NullTerminated>::MaxBufferSize and
+             size <= LargeBufferConfig<NullTerminated>::MaxBufferSize,
+           "size should be between (4096, 2^32 - 2 * sizeof(uint32_t)]");
+    // NOTO: no runtime check for the size overflow, because the size overflow is very rare, and i guess the system do
+    // not have so many memory, you will get bad_alloc first, or a OOM at last.
+    if constexpr (NullTerminated) {
+        // need 1 more for '\0'
+        return stdb::memory::align::AlignUpTo<16>(size + 1 + sizeof(int64_t));
+    } else {
+        return stdb::memory::align::AlignUpTo<16>(size + sizeof(int64_t));
+    }
+}
+enum class CoreType : uint8_t
+{
+    // the core type is internal
+    Internal = 0,
+    // the flag is shift
+    Shift = 1,
+    // the flag is delta
+    Delta = 2
+};
+
+struct buffer_type_and_size
+{
+    uint32_t buffer_size;
+    CoreType core_type;
+};
+
+static_assert(sizeof(buffer_type_and_size) == 8);
+
+template <typename S>
+struct capacity_and_size
+{
+    S capacity;
+    S size;
+};
+
+static_assert(sizeof(capacity_and_size<uint32_t>) == 8);
+
+// calculate the buffer_size and the core_type
+template <bool NullTerminated>
+[[nodiscard, gnu::always_inline]] constexpr inline auto calculate_new_buffer_size(uint32_t least_new_capacity) noexcept
+  -> buffer_type_and_size {
+    Assert(least_new_capacity > InternalBufferConfig<NullTerminated>::MaxBufferSize,
+           "the least_new_capacity should be greater than the internal buffer's max size");
+    // if the least_new_capacity is less than the shift buffer's max size, return the next shift buffer size
+    // otherwise return the next large size
+    // the '\0' will be handled in the template functions.
+    return (least_new_capacity <= ShiftBufferConfig<NullTerminated>::MaxBufferSize)
+             ? buffer_type_and_size{.buffer_size = next_shift_buffer_size<NullTerminated>(least_new_capacity),
+                                    .core_type = CoreType::Shift}
+             : buffer_type_and_size{.buffer_size = next_large_buffer_size<NullTerminated>(least_new_capacity),
+                                    .core_type = CoreType::Delta};
+}
 /**
  * the struct was wrapped all of status and data / ptr.
  */
@@ -114,7 +176,8 @@ struct malloc_core
         uint8_t internal_size : 4;
         // 0000 , ths higher 4 bits is 0, means is_internal is 0
         uint8_t is_internal : 4;
-        [[nodiscard, gnu::always_inline]] static constexpr auto capacity() noexcept -> size_type {
+        // consteval means it will be evaluated at compile time
+        [[nodiscard, gnu::always_inline]] static consteval auto capacity() noexcept -> size_type {
             if constexpr (not NullTerminated) {
                 return sizeof(data);
             } else {
@@ -148,46 +211,21 @@ struct malloc_core
     {
         // amd64 / x64 / aarch64 is all little endian, the
         int64_t c_str_ptr : 48;  // the pointer to c_str
-        // 12bits: size
 
-        // shift + is_not_shift
-        // 0000 : 7
-        // 0010 : 16
-        // 0100 : 32
-        // 0110 : 64
-        // 1000 : 128
-        // 1010 : 256
-        // 1100 : 512
-        // 1110 : 1024
-        // -- if higher bit is 0, the lowerer 3 bits is shift
-
-        // 0001 : 2048
-        // 1001 : 3072
-        // 0101 : 4096
-        // 1101 : 4096 and 4096 size, size must be 0
-        // -- if the higher 2bits is not 11, the lowerer 2bits is times
-
-        // xx11 : if highest 2bits is 11, means capacity is over 4096, and [capacity:4B, size:4B] in the head of the
-        // buffer, and the lowerer 2bits should combine the higher 12 bits, the 14bits is the delta
-
-        // and the 14bits of the size_or_mask is the capacity - size, if the value is 1<<14 -1, the delta overflow, and
-        // ignore the 14bits
         struct size_and_shift
         {
+            // 12bits: size, just use 12 bits to store the size, the max size is 4095, if the size is 4096, the shift
+            // will be 11, and the external_size will be 0
             uint16_t external_size : 12;
-            uint8_t shift : 3;  // 1: 16, 2: 32, 3: 64, 4: 128, 5: 256, 6: 512, 7: 1024, shift always not be 000
-            uint8_t flag : 1;   // must be 0
+            uint8_t shift : 4;  // 1: 8, 2: 16, 3: 32, 4: 64, 5: 128, 6: 256, 7: 512, 8: 1024, 9: 2048, 10: 4096, 11:
+                                // 4096 and 4096 size
+            // the shift should always be in (0, 12), 0 means internal, 12 means idle_and_flag
         };  // struct size_and_shift
-
-        struct size_and_times
-        {
-            uint16_t external_size : 12;
-            uint8_t times : 2;  // 0, 1, 2, if times == 3, the size is 4096
-            uint8_t flag : 2;   // the flag must be 01
-        };  // struct size_and_times
 
         struct idle_and_flag
         {
+            // 14bits: idle, the max idle is 4095, if the idle is 2**14-1, the idle can not be used directly, we need to
+            // calculate it from buffer header.
             uint16_t idle : 14;
             uint8_t flag : 2;  // must be 11
         };  // struct idle_and_flag
@@ -195,228 +233,29 @@ struct malloc_core
         union
         {
             size_and_shift size_shift;
-            size_and_times size_times;
             idle_and_flag idle_flag;
         };  // union size_or_mask
-
-       public:
-        [[nodiscard]] auto capacity_fast() const noexcept -> size_type {
-            Assert(is_external_valid(), "the external is not valid");
-            if (size_shift.flag == kIsShift) {
-                if constexpr (not NullTerminated) {
-                    return 8U << size_shift.shift;
-                } else {
-                    return (8U << size_shift.shift) - 1;
-                }
-            }
-            // or this branch is for times
-            if (size_times.flag == kIsTimes) {
-                if constexpr (not NullTerminated) {
-                    return size_times.times < 3U ? ((size_times.times + 2U) << 10U) : 4096;
-                } else {
-                    return size_times.times < 3U ? ((size_times.times + 2U) << 10U) - 1 : 4095;
-                }
-            }
-            // means don't know the capacity, because the size_or_mask is overflow
-            return kInvalidSize;
-        }
-
-        [[nodiscard]] auto capacity() const noexcept -> size_type {
-            auto cap = capacity_fast();
-            // means don't know the capacity, because the size_or_mask is overflow
-            if constexpr (not NullTerminated) {
-                // the buffer_size - sizeof header
-                return cap != kInvalidSize ? cap
-                                           : *(reinterpret_cast<size_type*>(c_str_ptr) - 2) - 2 * sizeof(size_type);
-            } else {
-                // the buffer_size = sizeof header and the '\0'
-                return cap != kInvalidSize ? cap
-                                           : *(reinterpret_cast<size_type*>(c_str_ptr) - 2) - 2 * sizeof(size_type) - 1;
-            }
-        }
-
-        [[nodiscard]] auto size_fast() const noexcept -> size_type {
-            Assert(is_external_valid(), "the external is not valid");
-            if (idle_flag.flag == kIsDelta) [[unlikely]] {
-                return kInvalidSize;
-            }
-            // if external_size == 0, and the times is 3, the size is 4096
-            // assert if the flag is IsTimes and the times is 3U, then the external_size must be 0
-            Assert(not(size_times.flag == kIsTimes and size_times.times == 3U and size_times.external_size != 0U),
-                   "if the flag is IsTimes and the times is 3U, then the external_size must be 0");
-
-            return size_times.external_size +
-                   (size_type)(size_times.flag == kIsTimes and size_times.times == 3U) * 4096;
-        }
-
-        [[nodiscard]] constexpr auto size() const noexcept -> size_type {
-            auto size = size_fast();
-            // if size is KInvalidSize, get the true size from the buffer head
-            return size != kInvalidSize ? size : *(reinterpret_cast<size_type*>(c_str_ptr) - 1);
-        }
-
-        // set size will be some slow, do not call it frequently
-        auto set_size(size_type new_size) noexcept -> void {
-            Assert(is_external_valid(), "the external is not valid");
-            if (idle_flag.flag != kIsDelta) [[likely]] {
-                // just set the external_size or the times
-                Assert(new_size <= capacity_fast(), "the new_size is must be less or equal to the capacity_fast()");
-                size_times.external_size = new_size;  // 4096 will overflow, it's nice
-                if constexpr (not NullTerminated) {
-                    if (new_size == 4096) [[unlikely]] {  // little probability
-                        Assert(size_times.flag == kIsTimes, "the flag is must be kIsTimes");
-                        size_times.times = 3U;
-                    } else if (size_times.flag == kIsTimes and size_times.times == 3U) [[unlikely]] {
-                        // the new_size is not 4k, so the times should be 2U
-                        size_times.times = 2U;
-                    }
-                }
-                return;
-            }
-            // set the header of buffer the size
-            auto* ptr = reinterpret_cast<size_type*>(c_str_ptr) - 1;
-            *ptr = new_size;
-            // set the delta to delta_flag.delta
-            auto new_delta = *(ptr - 1) - new_size - 2 * sizeof(size_type);
-            if constexpr (not NullTerminated) {
-                idle_flag.idle = std::min<size_type>(new_delta, kDeltaMax);
-            } else {
-                idle_flag.idle = std::min<size_type>(new_delta - 1, kDeltaMax);
-            }
-            return;
-        }
-
-        auto increase_size(size_type delta) -> void {
-            Assert(is_external_valid(), "the external is not valid");
-            if (idle_flag.flag != kIsDelta) [[likely]] {
-                Assert(size_times.external_size + delta <= capacity_fast(),
-                       "the new_size is must be less or equal to the capacity_fast()");
-                size_times.external_size += delta;  // handle the 4096 overflow is OK
-                if constexpr (not NullTerminated) {
-                    if (delta > 0 and size_times.external_size == 0U) [[unlikely]] {
-                        // just increase the times to 3U while the overflow occurs in this increase_size function
-                        // calling.
-                        size_times.times = 3U;
-                    }
-                }
-                return;
-            }
-            // by now the string is a large string, the size was stored in the buffer head
-            auto* size_ptr = reinterpret_cast<size_type*>(c_str_ptr) - 1;
-            size_type new_size;
-            if (__builtin_uadd_overflow(*size_ptr, delta, &new_size)) [[unlikely]] {
-                // the size is overflow size_type
-                throw std::overflow_error("the size will overflow from size_type");
-            }
-            Assert(new_size <= *(size_ptr - 1), "the new_size is must be less or equal to the capacity");
-            // set the size to the buffer head
-            *size_ptr = new_size;
-            // re-calculate the delta, because the Assert, the new_delta will never overflow or underflow
-            size_type new_delta;
-            if constexpr (not NullTerminated) {
-                new_delta = *(size_ptr - 1) - new_size - 2 * sizeof(size_type);
-            } else {
-                // cap - size - size of head - size of '\0'
-                new_delta = *(size_ptr - 1) - new_size - 2 * sizeof(size_type) - 1;
-            }
-
-            // set the delta to the external
-            idle_flag.idle = new_delta < kDeltaMax ? new_delta : kDeltaMax;
-            return;
-        }
-
-        auto decrease_size(size_type delta) -> void {
-            Assert(is_external_valid(), "the external is not valid");
-            // do not check in release mode, because the caller
-            Assert(delta <= size(), "the delta is must be less or equal to the size");
-            if (idle_flag.flag != kIsDelta) [[likely]] {
-                size_times.external_size -= delta;  // handle the 4096 overflow is OK
-                return;
-            }
-            // by now the string is a large string, the size was stored in the buffer head
-            auto* size_ptr = reinterpret_cast<size_type*>(c_str_ptr) - 1;
-            *size_ptr -= delta;
-
-            // re-calculate the delta, because the Assert, the new_delta will never overflow or underflow
-            size_type new_delta;
-            if constexpr (not NullTerminated) {
-                // cap - size - size of head
-                new_delta = *(size_ptr - 1) - *size_ptr - 2 * sizeof(size_type);
-            } else {
-                // cap - size - size of head - size of '\0'
-                new_delta = *(size_ptr - 1) - *size_ptr - 2 * sizeof(size_type) - 1;
-            }
-            // set the delta to the external
-            idle_flag.idle = new_delta < kDeltaMax ? new_delta : kDeltaMax;
-            return;
-        }
-
-        // capcity - size in fast way
-        [[nodiscard]] auto idle_capacity_fast() const noexcept -> size_type {
-            Assert(is_external_valid(), "the external is not valid");
-            // capacity() - size() will be a little bit slower.
-            if (idle_flag.flag == kIsDelta) [[unlikely]] {
-                return idle_flag.idle;  // if the delta is kDeltaMax, the real delta is >= kDeltaMax
-            }
-            if (size_times.flag == kIsTimes) [[unlikely]] {
-                if (size_times.times < 3U) [[likely]] {
-                    if constexpr (not NullTerminated) {
-                        // cap - size
-                        return ((size_times.times + 1U) << 10U) - size_times.external_size;
-                    } else {
-                        // cap - size - sizeof('\0')
-                        return ((size_times.times + 2U) << 10U) - size_times.external_size - 1;
-                    }
-                }
-                // if the NullTerminated is false, the size is 4096, the capacity is 4096
-                // or the size is 4095, the capacity is 4096, 0 = cap - size - sizeof('\0')
-                return 0;  // the cap and size both are 4096
-                // cap == size, the NullTerminated must is false
-            }
-            // by now, the flag is kIsShift
-            Assert(size_shift.flag == kIsShift, "the flag is must be kIsShift");
-            if constexpr (not NullTerminated) {
-                // cap - size
-                return (8U << size_shift.shift) - size_shift.external_size;
-            } else {
-                // cap - size - sizeof('\0')
-                return (8U << size_shift.shift) - size_shift.external_size - 1;
-            }
-        }
-
-        // capacity - size
-        [[nodiscard]] auto idle_capacity() const noexcept -> size_type {
-            auto delta = idle_capacity_fast();
-            if (delta != kDeltaMax) [[likely]] {
-                return delta;
-            }
-            // calculate the idle capacity with the buffer head,
-            // the buffer head is [capacity, size], the external.ptr point to the 8 bytes after the head
-            auto* ptr = (size_type*)c_str_ptr;
-            if constexpr (not NullTerminated) {
-                // cap - size - sizeof header
-                return *(ptr - 2) - *(ptr - 1) - 2 * sizeof(size_type);
-            } else {
-                // cap - size - sizeof header - sizeof('\0')
-                return *(ptr - 2) - *(ptr - 1) - 2 * sizeof(size_type) - 1;
-            }
-        }
-
         [[nodiscard, gnu::always_inline]] auto get_buffer_ptr() const noexcept -> Char* {
-            Assert(is_external_valid(), "the external is not valid");
-            if (idle_flag.flag != kIsDelta) [[likely]] {  // small string is designed for shorted than 4k
-                return reinterpret_cast<Char*>(c_str_ptr);
+            auto flag = size_shift.shift;
+            switch (flag) {
+                case 0:
+                    Assert(false, "the buffer pointer is only valid for external buffer");
+                    __builtin_unreachable();
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                    return reinterpret_cast<Char*>(c_str_ptr);
+                default:
+                    return reinterpret_cast<Char*>(c_str_ptr) - sizeof(struct capacity_and_size<size_type>);
             }
-            return reinterpret_cast<Char*>(c_str_ptr) - 2 * sizeof(size_type);
-        }
-
-        [[gnu::always_inline, nodiscard]] auto c_str() const noexcept -> Char* {
-            Assert(is_external_valid(), "the external is not valid");
-            return reinterpret_cast<Char*>(c_str_ptr);
-        }
-
-        [[gnu::always_inline, nodiscard]] auto is_external_valid() const noexcept -> bool {
-            return (size_shift.shift | size_shift.flag) != 0 and c_str_ptr != 0;
         }
     };  // struct external_core
 
@@ -428,49 +267,438 @@ struct malloc_core
         external_core external;
     };
 
-    enum class CoreType : uint8_t
-    {
-        // the core type is internal
-        Internal = 0,
-        // the flag is shift
-        Shift = 1,
-        // the flag is times
-        Times = 2,
-        // the flag is delta
-        Delta = 3
-    };
-
     constexpr static uint8_t kInterCore = static_cast<uint8_t>(CoreType::Internal);
     constexpr static uint8_t kShiftCore = static_cast<uint8_t>(CoreType::Shift);
-    constexpr static uint8_t kTimesCore = static_cast<uint8_t>(CoreType::Times);
     constexpr static uint8_t kDeltaCore = static_cast<uint8_t>(CoreType::Delta);
 
     [[nodiscard]] auto get_core_type() -> uint8_t {
-        if (internal.is_internal == 0) {
-            return kInterCore;
+        auto flag = internal.is_internal;
+        switch (flag) {
+            case 0:
+                return kInterCore;
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+            case 11:
+                return kShiftCore;
+            default:
+                return kDeltaCore;
         }
-        if (external.size_shift.flag == kIsShift) {
-            return kShiftCore;
-        }
-        if (external.size_times.flag == kIsTimes) {
-            return kTimesCore;
-        }
-        if (external.idle_flag.flag == kIsDelta) {
-            return kDeltaCore;
-        }
-        Assert(false, "the core type is invalid");
     }
 
     [[nodiscard, gnu::always_inline]] inline auto is_external() const noexcept -> bool {
         return internal.is_internal != 0;
     }
 
-    [[nodiscard, gnu::always_inline]] constexpr auto get_capacity() const noexcept -> size_type {
-        return is_external() ? external.capacity() : internal_core::capacity();
+    [[nodiscard, gnu::always_inline]] constexpr auto capacity_from_buffer_header() const noexcept -> size_type {
+        Assert(is_external(), "the buffer capacity is only valid for external buffer");
+        Assert(external.idle_flag.flag == kIsDelta, "the flag should be delta");
+        // the capacity is stored in the buffer header, the capacity is 4 bytes, and it will handle NullTerminated in
+        // allocate_new_external_buffer's logic
+        return *(reinterpret_cast<uint32_t*>(external.c_str_ptr) - 2);
     }
 
-    [[nodiscard, gnu::always_inline]] inline auto get_c_str() const noexcept -> Char* {
-        return is_external() ? external.c_str() : internal_core::c_str();
+    [[nodiscard, gnu::always_inline]] constexpr auto size_from_buffer_header() const noexcept -> size_type {
+        Assert(is_external(), "the buffer size is only valid for external buffer");
+        Assert(external.idle_flag.flag == kIsDelta, "the flag should be delta");
+        return *(reinterpret_cast<uint32_t*>(external.c_str_ptr) - 1);
+    }
+
+    [[nodiscard, gnu::always_inline]] constexpr auto capacity_and_size_from_header() const noexcept
+      -> capacity_and_size<size_type> {
+        Assert(is_external(), "the buffer size is only valid for external buffer");
+        Assert(external.idle_flag.flag == kIsDelta, "the flag should be delta");
+        return *(reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1);
+    }
+
+    [[nodiscard, gnu::always_inline]] constexpr auto delta_from_header() const noexcept -> size_type {
+        Assert(external.idle_flag.flag == kIsDelta, "the flag should be delta");
+        Assert(external.idle_flag.idle == kDeltaMax, "the delta should be kDeltaMax");
+        auto [capacity, size] = capacity_and_size_from_header();
+        if constexpr (NullTerminated) {
+            Assert(capacity >= sizeof(struct capacity_and_size<size_type>) + size + 1,
+                   "the capacity should be greater than the size");
+            return capacity - size - 1 - sizeof(struct capacity_and_size<size_type>);
+        } else {
+            Assert(capacity >= sizeof(struct capacity_and_size<size_type>) + size,
+                   "the capacity should be greater than the size");
+            return capacity - size - sizeof(struct capacity_and_size<size_type>);
+        }
+    }
+
+    [[nodiscard, gnu::always_inline]] constexpr auto capacity() const noexcept -> size_type {
+        auto flag = internal.is_internal;
+        switch (flag) {
+            case 0:
+                return internal_core::capacity();
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+                if constexpr (NullTerminated) {
+                    return (4UL << external.size_shift.shift) - 1;
+                } else {
+                    return (4UL << external.size_shift.shift);
+                }
+            case 11:
+                if constexpr (not NullTerminated) {
+                    return 4096;
+                } else {
+                    Assert(false, "the capacity of the null terminated buffer should be never be 4096");
+                    __builtin_unreachable();
+                }
+            default:
+                return capacity_from_buffer_header();
+        }
+    }
+
+    [[nodiscard, gnu::always_inline]] constexpr auto size() const noexcept -> size_type {
+        auto flag = internal.is_internal;
+        switch (flag) {
+            case 0:
+                return internal.size();
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+                return external.size_shift.external_size;
+            case 11:
+                if constexpr (not NullTerminated) {
+                    return 4096;
+                } else {
+                    Assert(false, "the size of the null terminated buffer should be never be 4096");
+                    __builtin_unreachable();
+                }
+            default:
+                return size_from_buffer_header();
+        }
+    }
+
+    /**
+     * set_size, whithout cap changing
+     */
+    constexpr void set_size_and_idle(size_type new_size) noexcept {
+        auto flag = internal.is_internal;
+        Assert(new_size <= capacity(), "set_size can not overflow the buffer's limit");
+        if constexpr (NullTerminated) {
+            switch (flag) {
+                case 0:
+                    internal.internal_size = new_size;
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                    external.size_shift.external_size = new_size;
+                    break;
+                case 11:
+                    Assert(false, "null terminated shift buffer should never has size = 4096");
+                    __builtin_unreachable();
+                default:
+                    capacity_and_size<size_type>* header_ptr =
+                      reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1;
+                    header_ptr->size = new_size;
+                    auto new_idle = header_ptr->capacity - new_size;
+                    external.idle_flag.idle = std::min<size_type>(new_idle, kDeltaMax);
+                    break;
+            }
+        } else {
+            switch (flag) {
+                case 0:
+                    internal.internal_size = new_size;
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                    external.size_shift.external_size = new_size;
+                    break;
+                case 10:
+                    // set the size, if the new_size is 4096, the external_size will be overflow to 0;
+                    external.size_shift.external_size = new_size;
+                    if (new_size == 4096) [[unlikely]] {
+                        external.size_shift.shift = 11;
+                    }
+                    break;
+                case 11:
+                    external.size_shift.external_size = new_size;
+                    if (new_size < 4096) [[unlikely]] {
+                        external.size_shift.shift = 10;
+                    }
+                    break;
+                default:
+                    capacity_and_size<size_type>* header_ptr =
+                      reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1;
+                    header_ptr->size = new_size;
+                    auto new_idle = header_ptr->capacity - new_size;
+                    external.idle_flag.idle = std::min<size_type>(new_idle, kDeltaMax);
+                    break;
+            }
+        }
+    }
+
+    constexpr void increase_size_and_idle(size_type size_to_increase) noexcept {
+        Assert(size_to_increase <= idle_capacity(), "increase_size can not overflow the buffer's limit");
+        auto flag = internal.is_internal;
+        if constexpr (NullTerminated) {
+            switch (flag) {
+                case 0:
+                    internal.internal_size += size_to_increase;
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                    external.size_shift.external_size += size_to_increase;
+                    break;
+                case 11:
+                    Assert(false, "null terminated shift buffer should never has size = 4096");
+                    __builtin_unreachable();
+                default:
+                    capacity_and_size<size_type>* header_ptr =
+                      reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1;
+                    header_ptr->size += size_to_increase;
+                    auto new_idle = header_ptr->capacity - header_ptr->size;
+                    external.idle_flag.idle = std::min<size_type>(new_idle, kDeltaMax);
+                    break;
+            }
+        } else {
+            switch (flag) {
+                case 0:
+                    internal.internal_size += size_to_increase;
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                    external.size_shift.external_size += size_to_increase;
+                    break;
+                case 10:
+                    external.size_shift.external_size += size_to_increase;
+                    if (external.size_shift.external_size == 0) [[unlikely]] {  // 4096 overflow to 0
+                        external.size_shift.shift = 11;
+                    }
+                    break;
+                case 11:
+                    Assert(false, "cap and size both be 4096, the size should not be increased");
+                    __builtin_unreachable();
+                default:
+                    capacity_and_size<size_type>* header_ptr =
+                      reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1;
+                    header_ptr->size += size_to_increase;
+                    auto new_idle = header_ptr->capacity - header_ptr->size;
+                    external.idle_flag.idle = std::min<size_type>(new_idle, kDeltaMax);
+                    break;
+            }
+        }
+    }
+
+    constexpr void decrease_size_and_idle(size_type size_to_decrease) noexcept {
+        Assert(size_to_decrease <= size(), "decrease_size can not be less than the current size");
+        auto flag = internal.is_internal;
+        if constexpr (NullTerminated) {
+            switch (flag) {
+                case 0:
+                    internal.internal_size -= size_to_decrease;
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                    external.size_shift.external_size -= size_to_decrease;
+                    break;
+                case 11:
+                    Assert(false, "null terminated shift buffer should never has size = 4096");
+                    __builtin_unreachable();
+                default:
+                    capacity_and_size<size_type>* header_ptr =
+                      reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1;
+                    header_ptr->size -= size_to_decrease;
+                    auto new_idle = header_ptr->capacity - header_ptr->size;
+                    external.idle_flag.idle = std::min<size_type>(new_idle, kDeltaMax);
+                    break;
+            }
+        } else {
+            switch (flag) {
+                case 0:
+                    internal.internal_size -= size_to_decrease;
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                    external.size_shift.external_size -= size_to_decrease;
+                    break;
+                case 11:
+                    external.size_shift.external_size = 4096 - size_to_decrease;
+                    external.size_shift.shift = 10;
+                    break;
+                default:
+                    capacity_and_size<size_type>* header_ptr =
+                      reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1;
+                    header_ptr->size -= size_to_decrease;
+                    auto new_idle = header_ptr->capacity - header_ptr->size;
+                    external.idle_flag.idle = std::min<size_type>(new_idle, kDeltaMax);
+                    break;
+            }
+        }
+    }
+
+    [[nodiscard]] constexpr auto get_capacity_and_size() const noexcept -> capacity_and_size<size_type> {
+        auto flag = internal.is_internal;
+        switch (flag) {
+            case 0:
+                return {internal_core::capacity(), internal.size()};
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+                if constexpr (NullTerminated) {
+                    return {static_cast<size_type>(4UL << external.size_shift.shift) - 1,
+                            external.size_shift.external_size};
+                } else {
+                    return {static_cast<size_type>(4UL << external.size_shift.shift),
+                            external.size_shift.external_size};
+                }
+            case 11:
+                if constexpr (not NullTerminated) {
+                    Assert(external.size_shift.external_size == 0, "the size should be 0");
+                    return {4096, 4096};
+                } else {
+                    Assert(false,
+                           "the null terminated buffer should never has size = 4096, and the flag should never be 11");
+                    __builtin_unreachable();
+                }
+            default:
+                return capacity_and_size_from_header();
+        }
+    }
+
+    [[nodiscard]] constexpr auto idle_capacity() const noexcept -> size_type {
+        auto flag = internal.is_internal;
+        switch (flag) {
+            case 0:
+                return internal.idle_capacity();
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+                if constexpr (NullTerminated) {
+                    return (4UL << external.size_shift.shift) - external.size_shift.external_size - 1;
+                } else {
+                    return (4UL << external.size_shift.shift) - external.size_shift.external_size;
+                }
+            case 11:
+                if constexpr (not NullTerminated) {
+                    Assert(external.size_shift.external_size == 0, "the size should be 0");
+                    return 0;
+                } else {
+                    Assert(false, "the null terminated buffer should never has size = 4096");
+                    __builtin_unreachable();
+                }
+            case 12:
+            case 13:
+            case 14:
+                return external.idle_flag.idle;
+            case 15:
+                return external.idle_flag.idle != kDeltaMax ? external.idle_flag.idle : delta_from_header();
+            default:
+                Assert(false, "the flag should be in [0, 15]");
+                __builtin_unreachable();
+        }
+    }
+
+    [[nodiscard, gnu::always_inline]] inline auto begin_ptr() noexcept -> Char* {
+        return is_external() ? reinterpret_cast<Char*>(external.c_str_ptr) : internal.data;
+    }
+
+    [[nodiscard, gnu::always_inline]] constexpr auto end_ptr() noexcept -> Char* {
+        auto flag = internal.is_internal;
+        switch (flag) {
+            case 0:
+                return &internal.data[internal.internal_size];
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+                return reinterpret_cast<Char*>(external.c_str_ptr) + external.size_shift.external_size;
+            case 11:
+                Assert(external.size_shift.external_size == 0, "the size should be 0");
+                return reinterpret_cast<Char*>(external.c_str_ptr) + 4096;
+            default:
+                return reinterpret_cast<Char*>(external.c_str_ptr) + size_from_buffer_header();
+        }
     }
 
     auto swap(malloc_core& other) noexcept -> void {
@@ -548,188 +776,172 @@ class small_string_buffer
         }
     }
 
-    inline static auto calculate_buffer_real_capacity(size_type new_buffer_size) noexcept -> size_type {
-        auto real_capacity = new_buffer_size - (new_buffer_size > kMaxMediumStringSize ? 2 * sizeof(size_type) : 0) -
-                             (NullTerminated ? 1 : 0);
-        return real_capacity;
+    // just for Assert
+    [[nodiscard, gnu::always_inline]] constexpr static auto calculate_buffer_real_capacity(
+      struct buffer_type_and_size type_and_size) noexcept -> size_type {
+        Assert(type_and_size.buffer_size > 0, "the buffer_size should be greater than 0");
+        if constexpr (NullTerminated) {
+            switch (type_and_size.core_type) {
+                case CoreType::Internal:
+                case CoreType::Shift:
+                    return type_and_size.buffer_size - 1;
+                case CoreType::Delta:
+                    return type_and_size.buffer_size - 2 * sizeof(size_type) - 1;
+                default:
+                    __builtin_unreachable();
+            }
+        } else {
+            switch (type_and_size.core_type) {
+                case CoreType::Internal:
+                case CoreType::Shift:
+                    return type_and_size.buffer_size;
+                case CoreType::Delta:
+                    return type_and_size.buffer_size - 2 * sizeof(size_type);
+                default:
+                    __builtin_unreachable();
+            }
+        }
     }
 
     // set the buf_size and str_size to the right place
     inline static auto allocate_new_external_buffer(
-      size_type new_buffer_size, size_type old_str_size,
+      struct buffer_type_and_size type_and_size, size_type old_str_size,
       std::pmr::polymorphic_allocator<Char>* allocator_ptr = nullptr) noexcept -> core_type::external_core {
-        // make sure the new_buffer_size is not too large
-        Assert(new_buffer_size != kInvalidSize, "new_buffer_size should not be kInvalidSize");
         // make sure the old_str_size <= new_buffer_size
-        Assert(old_str_size <= calculate_buffer_real_capacity(new_buffer_size),
+        Assert(old_str_size <= calculate_buffer_real_capacity(type_and_size),
                "old_str_size should be less than the real capacity of the new buffer");
+        auto type = type_and_size.core_type;
+        auto new_buffer_size = type_and_size.buffer_size;
 
-        if (new_buffer_size <= kMaxSmallStringSize) [[likely]] {
-            Assert(is_power_of_2(new_buffer_size), "new_buffer_size should be a power of 2");
-            // set the size_shift
-            void* buf = nullptr;
-            if constexpr (core_type::use_std_allocator::value) {
-                buf = std::malloc(new_buffer_size);
-            } else {
-                buf = allocator_ptr->allocate(new_buffer_size);
-            }
-            return {
-              .c_str_ptr = reinterpret_cast<int64_t>(buf),
-              .size_shift = {.external_size = static_cast<uint16_t>(old_str_size),
-                             .shift = static_cast<uint8_t>(std::countr_zero(new_buffer_size) -
-                                                           3),  // the shift will not be 000, this is internal_core
-                             .flag = kIsShift}};
-        } else if (new_buffer_size <= kMaxMediumStringSize) [[likely]] {
-            Assert((new_buffer_size % kMaxSmallStringSize) == 0, "the medium new_buffer_size is not aligned to 1024");
-            auto times = static_cast<uint8_t>((new_buffer_size >> 10U) - 2U);  // 0: 2048, 1: 3072, 2: 4096
-            void* buf = nullptr;
-            if constexpr (core_type::use_std_allocator::value) {
-                buf = std::malloc(new_buffer_size);
-            } else {
-                buf = allocator_ptr->allocate(new_buffer_size);
-            }
-            if constexpr (not NullTerminated) {
+        switch (type) {
+            case CoreType::Internal:
+                Assert(false, "the internal buffer should not be allocated in allocate_new_external_buffer");
+                __builtin_unreachable();
+            case CoreType::Shift: {
+                Assert(is_power_of_2(new_buffer_size), "new_buffer_size should be a power of 2 in Shift Type");
+                Assert(new_buffer_size >= 8, "the new_buffer_size should be no less than 8");
+                Assert(new_buffer_size <= 4096, "the new_buffer_size should be no more than 4096");
+
+                void* buf = nullptr;
+
+                if constexpr (core_type::use_std_allocator::value) {
+                    buf = std::malloc(new_buffer_size);
+                } else {
+                    buf = allocator_ptr->allocate(new_buffer_size);
+                }
+
                 return {.c_str_ptr = reinterpret_cast<int64_t>(buf),
-                        .size_times = {.external_size = static_cast<uint16_t>(old_str_size),
-                                       .times = static_cast<uint8_t>(times + uint8_t(bool(old_str_size == 4096))),
-                                       .flag = kIsTimes}};
-            } else {
-                return {.c_str_ptr = reinterpret_cast<int64_t>(buf),
-                        .size_times = {
-                          .external_size = static_cast<uint16_t>(old_str_size), .times = times, .flag = kIsTimes}};
+                        .size_shift = {
+                          .external_size = static_cast<uint16_t>(old_str_size),
+                          .shift = static_cast<uint8_t>(std::countr_zero(new_buffer_size) -
+                                                        2),  // the shift will not be 000, this is internal_core
+                        }};
+            }
+            case CoreType::Delta: {
+                Assert(new_buffer_size <= LargeBufferConfig<NullTerminated>::MaxBufferSize,
+                       "the new_buffer_size should be no more than kMaxLargeBufferSize");
+                void* buf = nullptr;
+                if constexpr (core_type::use_std_allocator::value) {
+                    buf = std::malloc(new_buffer_size);
+                } else {
+                    buf = allocator_ptr->allocate(new_buffer_size);
+                }
+                auto* head = reinterpret_cast<capacity_and_size<size_type>*>(buf);
+                uint16_t delta;
+                if constexpr (NullTerminated) {
+                    capacity_and_size<size_type> buffer_header = {
+                      .capacity = new_buffer_size - 1 - static_cast<size_type>(sizeof(capacity_and_size<size_type>)),
+                      .size = old_str_size};
+                    *head = buffer_header;
+                    delta = std::min<size_type>(buffer_header.capacity - buffer_header.size, kDeltaMax);
+                } else {
+                    capacity_and_size<size_type> buffer_header = {
+                      .capacity = new_buffer_size - static_cast<size_type>(sizeof(capacity_and_size<size_type>)),
+                      .size = old_str_size};
+                    *head = buffer_header;
+                    delta = std::min<size_type>(buffer_header.capacity - buffer_header.size, kDeltaMax);
+                }
+                return {.c_str_ptr = reinterpret_cast<int64_t>(head + 1),
+                        .idle_flag = {.idle = delta, .flag = kIsDelta}};
             }
         }
-        uint16_t idle;
-        // the large buffer
-        if constexpr (not NullTerminated) {
-            idle = std::min<size_type>(new_buffer_size - old_str_size - 2 * sizeof(size_type), kDeltaMax);
-        } else {
-            idle = std::min<size_type>(new_buffer_size - old_str_size - 2 * sizeof(size_type) - 1, kDeltaMax);
-        }
-        void* buf = nullptr;
-        if constexpr (core_type::use_std_allocator::value) {
-            buf = std::malloc(new_buffer_size);
-        } else {
-            buf = allocator_ptr->allocate(new_buffer_size);
-        }
-        auto* head = reinterpret_cast<size_type*>(buf);
-        *head = new_buffer_size;
-        *(head + 1) = old_str_size;
-        // the ptr point to the 8 bytes after the head
-        return {.c_str_ptr = reinterpret_cast<int64_t>(head + 2), .idle_flag = {.idle = idle, .flag = kIsDelta}};
     }
 
    protected:
     [[nodiscard]] auto get_core_type() -> uint8_t { return _core.get_core_type(); }
 
-    consteval static auto initialized_buffer_size() noexcept -> size_type {
-        if constexpr (NullTerminated) {
-            return kMaxInternalBufferSize - 1;
-        } else {
-            return kMaxInternalBufferSize;
-        }
-    }
-
-    constexpr void initial_allocate(size_type new_size) noexcept {
-        if (new_size <= initialized_buffer_size()) [[unlikely]] {
+    // the fastest initial_allocate, do not calculate the type or size, just allocate the buffer
+    // caller should make sure the type_and_size is correct
+    constexpr void initial_allocate(buffer_type_and_size cap_and_type, size_type size) noexcept {
+        if (cap_and_type.core_type == CoreType::Internal) [[unlikely]] {
             // still be a internal_core
-            // set the internal_size
-            _core.internal.internal_size = new_size;
+            // just set the internal_size
+            _core.internal.internal_size = size;
             if constexpr (NullTerminated) {
                 // set the '\0' at the end of the buffer
-                _core.internal.data[new_size] = '\0';
+                _core.internal.data[size] = '\0';
             }
             return;
         }
         if constexpr (core_type::use_std_allocator::value) {
-            _core.external = allocate_new_external_buffer(calculate_new_buffer_size(new_size), new_size);
+            _core.external = allocate_new_external_buffer(cap_and_type, size);
         } else {
-            _core.external =
-              allocate_new_external_buffer(calculate_new_buffer_size(new_size), new_size, &_core.pmr_allocator);
+            _core.external = allocate_new_external_buffer(cap_and_type, size, &_core.pmr_allocator);
         }
         if constexpr (NullTerminated) {
             // set the '\0' at the end of the buffer
-            reinterpret_cast<Char*>(_core.external.c_str_ptr)[new_size] = '\0';
+            reinterpret_cast<Char*>(_core.external.c_str_ptr)[size] = '\0';
         }
         return;
+    }
+
+    [[gnu::always_inline]] constexpr inline void initial_allocate(size_type new_string_size) noexcept {
+        initial_allocate(calculate_buffer_size(new_string_size), new_string_size);
     }
 
     // this funciion will not change the size, but the capacity or delta
     template <NeedTerminated Need0 = NeedTerminated::Yes>
     void allocate_more(size_type new_append_size) noexcept {
-        size_type old_delta_fast =
-          _core.is_external() ? _core.external.idle_capacity_fast() : _core.internal.idle_capacity();
+        size_type old_delta = _core.idle_capacity();
 
         // if no need, do nothing, just update the size or delta
-        if (old_delta_fast >= new_append_size) {
+        if (old_delta >= new_append_size) {
             // just return and do nothing
             return;
         }
-        // by now, new_append_size > old_delta
-        // check the delta is overflow
-        if (old_delta_fast == kDeltaMax)
-          [[unlikely]] {  // small_string was designed for small string, so large string is not optimized
-            // the delta is overflow, re-calc the delta
-            auto* cap = reinterpret_cast<size_type*>(_core.external.c_str_ptr) - 2;
-            auto* size = reinterpret_cast<size_type*>(_core.external.c_str_ptr) - 1;
-            if constexpr (not NullTerminated) {
-                // cap - size - size of head
-                if ((*cap - *size - 2 * sizeof(size_type)) > new_append_size) {
-                    // no need to allocate a new buffer, just return
-                    return;
-                }
-            } else {
-                if ((*cap - *size - 2 * sizeof(size_type) - 1) > new_append_size) {
-                    // no need to allocate a new buffer, just return
-                    return;
-                }
-            }
-        }
-        // by now, the old delta is not enough, have to allocate a new buffer, to save the new_append_size
-        // check if the old_external is internal
-        if (not _core.is_external()) {
-            auto& old_internal = _core.internal;
-            auto new_buffer_size = calculate_new_buffer_size(old_internal.size() + new_append_size);
-            typename core_type::external_core new_external;
-            if constexpr (core_type::use_std_allocator::value) {
-                new_external = allocate_new_external_buffer(new_buffer_size, old_internal.size());
-            } else {
-                new_external = allocate_new_external_buffer(new_buffer_size, old_internal.size(), &_core.pmr_allocator);
-            }
-            // copy the old data to the new buffer
-            std::memcpy(new_external.c_str(), old_internal.data, old_internal.size());
-            if constexpr (NullTerminated and Need0 == NeedTerminated::Yes) {
-                new_external.c_str()[old_internal.size()] = '\0';
-            }
-            _core.external = new_external;
-            return;
-        }
-        // else is external
-        // copy the old data to the new buffer
-        auto new_buffer_size = calculate_new_buffer_size(_core.external.size() + new_append_size);
-        typename core_type::external_core new_external;
-        if constexpr (core_type::use_std_allocator::value) {
-            new_external = allocate_new_external_buffer(new_buffer_size, _core.external.size());
-        } else {
-            new_external = allocate_new_external_buffer(new_buffer_size, _core.external.size(), &_core.pmr_allocator);
-        }
-        std::memcpy(new_external.c_str(), _core.external.c_str(), _core.external.size());
+        auto old_size = size();
+        // if need allocate a new buffer, always a external_buffer
+        // do the allocation
 
+        std::pmr::polymorphic_allocator<Char>* allocator_ptr = nullptr;
+        if constexpr (not core_type::use_std_allocator::value) {
+            allocator_ptr = &_core.pmr_allocator;
+        }
+
+        auto new_external = allocate_new_external_buffer(
+          calculate_new_buffer_size<NullTerminated>(size() + new_append_size), size(), allocator_ptr);
+
+        // copy the old data to the new buffer
+        std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
+        // set the '\0' at the end of the buffer if needed;
         if constexpr (NullTerminated and Need0 == NeedTerminated::Yes) {
-            new_external.c_str()[_core.external.size()] = '\0';
+            reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
         }
         // deallocate the old buffer
-        if constexpr (core_type::use_std_allocator::value) {
-            std::free(_core.external.get_buffer_ptr());
-        } else {
-            _core.pmr_allocator.deallocate(_core.external.get_buffer_ptr(), _core.external.capacity());
+        if (_core.is_external()) [[likely]] {
+            if constexpr (core_type::use_std_allocator::value) {
+                std::free(_core.external.get_buffer_ptr());
+            } else {
+                // the size is not used, so just set it to 0
+                _core.pmr_allocator.deallocate(_core.external.get_buffer_ptr(), 0);
+            }
         }
+        // replace the old external with the new one
         _core.external = new_external;
-        return;
     }
 
    public:
-    template <NeedTerminated Need0>
+    template <NeedTerminated Need0, bool NeedCopy>
     constexpr auto buffer_reserve(size_type new_cap) -> void {
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
@@ -738,17 +950,18 @@ class small_string_buffer
         auto [old_cap, old_size] = get_capacity_and_size();
         if (new_cap > old_cap) [[likely]] {
             // still be a small string
-            auto new_buffer_size = calculate_new_buffer_size(new_cap);
+            auto new_buffer_size = calculate_new_buffer_size<NullTerminated>(new_cap);
             // allocate a new buffer
-            typename core_type::external_core new_external;
-            if constexpr (core_type::use_std_allocator::value) {
-                new_external = allocate_new_external_buffer(new_buffer_size, old_size);
-            } else {
-                new_external = allocate_new_external_buffer(new_buffer_size, old_size, &_core.pmr_allocator);
+            std::pmr::polymorphic_allocator<Char>* allocator_ptr = nullptr;
+            if constexpr (not core_type::use_std_allocator::value) {
+                allocator_ptr = &_core.pmr_allocator;
             }
-            // copy the old data to the new buffer
-            std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
-            if constexpr (NullTerminated and Need0 == NeedTerminated::Yes) {
+            auto new_external = allocate_new_external_buffer(new_buffer_size, old_size, allocator_ptr);
+            if constexpr (NeedCopy) {
+                // copy the old data to the new buffer
+                std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
+            }
+            if constexpr (NullTerminated and Need0 == NeedTerminated::Yes and NeedCopy) {
                 reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
             }
             // deallocate the old buffer
@@ -758,7 +971,8 @@ class small_string_buffer
                 }
             } else {
                 if (_core.is_external()) [[likely]] {
-                    _core.pmr_allocator.deallocate(_core.external.get_buffer_ptr(), _core.external.capacity());
+                    // the size is not used, so just set it to 0
+                    _core.pmr_allocator.deallocate(_core.external.get_buffer_ptr(), 0);
                 }
             }
             // replace the old external with the new one
@@ -770,27 +984,10 @@ class small_string_buffer
 #endif
     }
 
-    [[nodiscard]] auto buffer_size() const noexcept -> size_type {
-        return _core.is_external() ? _core.external.buffer_size() : _core.internal.buffer_size();
-    }
+    [[nodiscard, gnu::always_inline]] auto idle_capacity() const noexcept -> size_type { return _core.idle_capacity(); }
 
-    [[nodiscard, gnu::always_inline]] auto idle_capacity() const noexcept -> size_type {
-        return _core.is_external() ? _core.external.idle_capacity() : _core.internal.idle_capacity();
-    }
-
-    [[nodiscard]] auto get_capacity_and_size() const noexcept -> std::pair<size_type, size_type> {
-        if (not _core.is_external()) {
-            return {core_type::internal_core::capacity(), _core.internal.size()};
-        }
-        if (_core.external.idle_flag.flag != kIsDelta) {
-            return {_core.external.capacity_fast(), _core.external.size_fast()};
-        }
-        auto* buf = reinterpret_cast<size_type*>(_core.external.c_str_ptr);
-        if constexpr (NullTerminated) {
-            return {*(buf - 2) - 2 * sizeof(size_type) - 1, *(buf - 1)};
-        } else {
-            return {*(buf - 2) - 2 * sizeof(size_type), *(buf - 1)};
-        }
+    [[nodiscard]] auto get_capacity_and_size() const noexcept -> capacity_and_size<size_type> {
+        return _core.get_capacity_and_size();
     }
 
     // increase the size, and won't change the capacity, so the internal/exteral'type or ptr will not change
@@ -799,13 +996,7 @@ class small_string_buffer
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
 #endif
-
-        if (_core.is_external()) [[likely]] {
-            _core.external.increase_size(delta);
-        } else {
-            _core.internal.internal_size += delta;
-        }
-
+        _core.increase_size_and_idle(delta);
 #ifndef NDEBUG
         auto new_core_type = _core.get_core_type();
         Assert(origin_core_type == new_core_type, "the core type should not change");
@@ -816,13 +1007,7 @@ class small_string_buffer
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
 #endif
-
-        if (_core.is_external()) [[likely]] {
-            _core.external.set_size(new_size);
-        } else {
-            _core.internal.set_size(new_size);
-        }
-
+        _core.set_size_and_idle(new_size);
 #ifndef NDEBUG
         auto new_core_type = _core.get_core_type();
         Assert(origin_core_type == new_core_type, "the core type should not change");
@@ -833,24 +1018,18 @@ class small_string_buffer
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
 #endif
-
-        if (_core.is_external()) [[likely]] {
-            _core.external.decrease_size(delta);
-        } else {
-            _core.internal.internal_size -= delta;
-        }
-
+        _core.decrease_size_and_idle(delta);
 #ifndef NDEBUG
         auto new_core_type = _core.get_core_type();
         Assert(origin_core_type == new_core_type, "the core type should not change");
 #endif
     }
 
-    constexpr static inline auto calculate_buffer_size(uint32_t size) noexcept -> uint32_t {
-        if (size < core_type::internal_core::capacity()) [[unlikely]] {
-            return core_type::internal_core::capacity();
+    constexpr static inline auto calculate_buffer_size(uint32_t size) noexcept -> buffer_type_and_size {
+        if (size <= core_type::internal_core::capacity()) [[unlikely]] {
+            return {.buffer_size = core_type::internal_core::capacity(), .core_type = CoreType::Internal};
         }
-        return calculate_new_buffer_size(size);
+        return calculate_new_buffer_size<NullTerminated>(size);
     }
 
    public:
@@ -881,7 +1060,8 @@ class small_string_buffer
             }
         } else {
             if (_core.is_external()) [[likely]] {
-                _core.pmr_allocator.deallocate(_core.external.get_buffer_ptr(), _core.external.capacity());
+                // the size is not used, so just set it to 0
+                _core.pmr_allocator.deallocate(_core.external.get_buffer_ptr(), 0);
             }
         }
     }
@@ -891,30 +1071,18 @@ class small_string_buffer
     constexpr auto operator=(const small_string_buffer& other) noexcept = delete;
     constexpr auto operator=(small_string_buffer&& other) noexcept = delete;
 
-    [[nodiscard]] constexpr auto get_buffer() noexcept -> Char* {
-        return _core.is_external() ? _core.external.c_str() : _core.internal.data;
-    }
+    [[nodiscard]] constexpr auto get_buffer() noexcept -> Char* { return _core.begin_ptr(); }
 
     [[nodiscard]] constexpr auto get_buffer() const noexcept -> const Char* {
-        return _core.is_external() ? _core.external.c_str() : _core.internal.data;
+        return const_cast<small_string_buffer*>(this)->_core.begin_ptr();
     }
 
     // will be fast than call get_buffer() + size(), it will waste many times for if checking
-    [[nodiscard]] constexpr auto end() noexcept -> Char* {
-        if (not _core.is_external()) [[unlikely]] {
-            return _core.internal.data + _core.internal.internal_size;
-        }
-        auto size = _core.external.size();
-        return reinterpret_cast<Char*>(_core.external.c_str_ptr) + size;
-    }
+    [[nodiscard]] constexpr auto end() noexcept -> Char* { return _core.end_ptr(); }
 
-    [[nodiscard]] constexpr auto size() const noexcept -> size_type {
-        return _core.is_external() ? _core.external.size() : _core.internal.size();
-    }
+    [[nodiscard]] constexpr auto size() const noexcept -> size_type { return _core.size(); }
 
-    [[nodiscard]] constexpr auto capacity() const noexcept -> size_type {
-        return _core.is_external() ? _core.external.capacity() : core_type::internal_core::capacity();
-    }
+    [[nodiscard]] constexpr auto capacity() const noexcept -> size_type { return _core.capacity(); }
 
     [[nodiscard]] constexpr auto get_allocator() const -> Allocator {
         if constexpr (core_type::use_std_allocator::value) {
@@ -923,6 +1091,17 @@ class small_string_buffer
             return _core.pmr_allocator;
         }
     }
+
+    template <size_type Size>
+    constexpr void static_assign(Char ch) {
+        static_assert(Size > 0 and Size <= InternalBufferConfig<NullTerminated>::MaxBufferSize,
+                      "the size should be greater than 0");
+        memset(get_buffer(), ch, Size);
+        if constexpr (NullTerminated) {
+            reinterpret_cast<Char*>(get_buffer())[Size] = '\0';
+        }
+    }
+
 };  // class small_string_buffer
 
 // if NullTerminated is true, the string will be null terminated, and the size will be the length of the string
@@ -959,9 +1138,15 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     {};
 
    public:
-    constexpr basic_small_string(initialized_later, size_type size, const Allocator& allocator = Allocator())
+    constexpr basic_small_string(initialized_later, size_type new_string_size, const Allocator& allocator = Allocator())
         : buffer_type(allocator) {
-        buffer_type::initial_allocate(size);
+        buffer_type::initial_allocate(new_string_size);
+    }
+
+    constexpr basic_small_string(initialized_later, buffer_type_and_size type_and_size, size_type new_string_size,
+                                 const Allocator& allocator = Allocator())
+        : buffer_type(allocator) {
+        buffer_type::initial_allocate(type_and_size, new_string_size);
     }
 
     constexpr explicit basic_small_string([[maybe_unused]] const Allocator& allocator = Allocator()) noexcept
@@ -1049,8 +1234,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             return *this;
         }
         // assign the other to this
-        assign(other.data(), other.size());
-        return *this;
+        return assign(other.data(), other.size());
     }
 
     // move assignment
@@ -1064,54 +1248,50 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         return *this;
     }
 
-    auto operator=(const Char* s) -> basic_small_string& {
-        clear();
-        append(s);
-        return *this;
-    }
+    auto operator=(const Char* s) -> basic_small_string& { return assign(s, Traits::length(s)); }
 
     auto operator=(Char ch) -> basic_small_string& {
-        clear();
-        append(1, ch);
+        this->template static_assign<1>(ch);
         return *this;
     }
 
     auto operator=(std::initializer_list<Char> ilist) -> basic_small_string& {
-        clear();
-        append(ilist.begin(), ilist.size());
-        return *this;
+        return assign(ilist.begin(), ilist.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> and
                  not std::is_convertible_v<const StringViewLike&, const Char*>)
     auto operator=(const StringViewLike& s) -> basic_small_string& {
-        clear();
-        append(s);
-        return *this;
+        return assign(s.data(), s.size());
     }
 
     auto operator=(std::nullptr_t) -> basic_small_string& = delete;
 
     // assign
+    template <bool Safe = true>
     auto assign(size_type count, Char ch) -> basic_small_string& {
-        clear();
-        append(count, ch);
+        if constexpr (Safe) {
+            this->template buffer_reserve<buffer_type::NeedTerminated::No, false>(count);
+        }
+        memset(data(), ch, count);
+        if constexpr (NullTerminated) {
+            reinterpret_cast<Char*>(data())[count] = '\0';
+        }
         return *this;
     }
 
-    auto assign(const basic_small_string& str) -> basic_small_string& {
+    template <bool Safe = true>
+    [[gnu::always_inline]] auto assign(const basic_small_string& str) -> basic_small_string& {
         if (this == &str) [[unlikely]] {
             return *this;
         }
-        clear();
-        append(str);
-        return *this;
+        return assign<Safe>(str.data(), str.size());
     }
 
+    template <bool Safe = true>
     auto assign(const basic_small_string& str, size_type pos, size_type count = npos) -> basic_small_string& {
-        auto sub_str = str.substr(pos, count);
-        return assign(std::move(sub_str));
+        return assign<Safe>(str.data() + pos, std::min(count, str.size() - pos));
     }
 
     auto assign(basic_small_string&& gone) noexcept -> basic_small_string& {
@@ -1124,47 +1304,53 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         return *this;
     }
 
+    template <bool Safe = true>
     auto assign(const Char* s, size_type count) -> basic_small_string& {
-        clear();
-        append(s, count);
+        if constexpr (Safe) {
+            this->template buffer_reserve<buffer_type::NeedTerminated::No, false>(count);
+        }
+        memcpy(data(), s, count);
+        if constexpr (NullTerminated) {
+            reinterpret_cast<Char*>(data())[count] = '\0';
+        }
         return *this;
     }
 
+    template <bool Safe = true>
     auto assign(const Char* s) -> basic_small_string& {
-        clear();
-        append(s);
-        return *this;
+        return assign<Safe>(s, Traits::length(s));
     }
 
-    template <class InputIt>
+    template <class InputIt, bool Safe = true>
     auto assign(InputIt first, InputIt last) -> basic_small_string& {
-        clear();
-        append(first, last);
+        if constexpr (Safe) {
+            auto count = std::distance(first, last);
+            this->template buffer_reserve<buffer_type::NeedTerminated::No, false>(count);
+        }
+        std::copy(first, last, begin());
+        if constexpr (NullTerminated) {
+            reinterpret_cast<Char*>(data())[size()] = '\0';
+        }
         return *this;
     }
 
+    template <bool Safe = true>
     auto assign(std::initializer_list<Char> ilist) -> basic_small_string& {
-        clear();
-        append(ilist);
-        return *this;
+        return assign<decltype(ilist.begin()), Safe>(ilist.begin(), ilist.end());
     }
 
-    template <class StringViewLike>
+    template <class StringViewLike, bool Safe = true>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> and
                  not std::is_convertible_v<const StringViewLike&, const Char*>)
     auto assign(const StringViewLike& s) -> basic_small_string& {
-        clear();
-        append(s);
-        return *this;
+        return assign<Safe>(s.data(), s.size());
     }
 
-    template <class StringViewLike>
+    template <class StringViewLike, bool Safe = true>
         requires(std::is_convertible_v<const StringViewLike&, const Char*> and
                  not std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>>)
     auto assign(const StringViewLike& s, size_type pos, size_type n = npos) -> basic_small_string& {
-        clear();
-        append(s, pos, n);
-        return *this;
+        return assign<Safe>(s + pos, std::min(n, s.size() - pos));
     }
 
     // element access
@@ -1279,10 +1465,16 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
      * @brief The maximum number of elements that can be stored in the string.
      * the buffer largest size is 1 << 15, the cap occupy 2 bytes, so the max size is 1 << 15 - 2, is 65534
      */
-    [[nodiscard, gnu::always_inline]] constexpr auto max_size() const noexcept -> size_type { return kInvalidSize - 1; }
+    [[nodiscard, gnu::always_inline]] constexpr auto max_size() const noexcept -> size_type {
+        if constexpr (NullTerminated) {
+            return LargeBufferConfig<NullTerminated>::MaxBufferSize - 1;
+        } else {
+            return LargeBufferConfig<NullTerminated>::MaxBufferSize;
+        }
+    }
 
     constexpr auto reserve(size_type new_cap) -> void {
-        this->template buffer_reserve<buffer_type::NeedTerminated::Yes>(new_cap);
+        this->template buffer_reserve<buffer_type::NeedTerminated::Yes, true>(new_cap);
     }
 
     // it was a just exported function, should not be called frequently, it was a little bit slow in some case.
@@ -1297,9 +1489,10 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
         auto [cap, size] = buffer_type::get_capacity_and_size();
         Assert(cap >= size, "cap should always be greater or equal to size");
-        auto best_cap = buffer_type::calculate_buffer_size(size);
-        if (cap > best_cap) {  // the cap is larger than the best cap, so need to shrink
-            auto new_str(*this);
+        auto cap_and_type = buffer_type::calculate_buffer_size(size);
+        if (cap > cap_and_type.buffer_size) {  // the cap is larger than the best cap, so need to shrink
+            basic_small_string new_str{initialized_later{}, cap_and_type, size, buffer_type::get_allocator()};
+            std::memcpy(new_str.data(), data(), size);
             swap(new_str);
         }
 
@@ -1652,7 +1845,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // to make sure the capacity is enough
         if (new_size > capacity()) {
-            this->template buffer_reserve<buffer_type::NeedTerminated::No>(new_size);
+            this->template buffer_reserve<buffer_type::NeedTerminated::No, true>(new_size);
         }
         // by now, the capacity is enough
         // check if need do some memmove
@@ -1703,7 +1896,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         auto cap = capacity();
         if (new_size > cap) {
             // because count2 is not 0, so
-            this->template buffer_reserve<buffer_type::NeedTerminated::No>(new_size);
+            this->template buffer_reserve<buffer_type::NeedTerminated::No, true>(new_size);
         }
         // by now, the capacity is enough
         // check if need do some memmove
