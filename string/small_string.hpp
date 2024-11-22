@@ -1097,6 +1097,7 @@ class small_string_buffer
         static_assert(Size > 0 and Size <= InternalBufferConfig<NullTerminated>::MaxBufferSize,
                       "the size should be greater than 0");
         memset(get_buffer(), ch, Size);
+        set_size(Size);
         if constexpr (NullTerminated) {
             reinterpret_cast<Char*>(get_buffer())[Size] = '\0';
         }
@@ -1274,9 +1275,11 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         if constexpr (Safe) {
             this->template buffer_reserve<buffer_type::NeedTerminated::No, false>(count);
         }
-        memset(data(), ch, count);
+        auto* buffer = buffer_type::get_buffer();
+        memset(buffer, ch, count);
+        buffer_type::set_size(count);
         if constexpr (NullTerminated) {
-            reinterpret_cast<Char*>(data())[count] = '\0';
+            buffer[count] = '\0';
         }
         return *this;
     }
@@ -1291,6 +1294,17 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     template <bool Safe = true>
     auto assign(const basic_small_string& str, size_type pos, size_type count = npos) -> basic_small_string& {
+        if (this == &str) [[unlikely]] {
+            // erase the other part
+            count = std::min(count, str.size() - pos);
+            auto* buffer = buffer_type::get_buffer();
+            std::memmove(buffer, buffer + pos, count);
+            buffer_type::set_size(count);
+            if constexpr (NullTerminated) {
+                buffer[count] = '\0';
+            }
+            return *this;
+        }
         return assign<Safe>(str.data() + pos, std::min(count, str.size() - pos));
     }
 
@@ -1309,9 +1323,11 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         if constexpr (Safe) {
             this->template buffer_reserve<buffer_type::NeedTerminated::No, false>(count);
         }
-        memcpy(data(), s, count);
+        auto* buffer = buffer_type::get_buffer();
+        memcpy(buffer, s, count);
+        buffer_type::set_size(count);
         if constexpr (NullTerminated) {
-            reinterpret_cast<Char*>(data())[count] = '\0';
+            buffer[count] = '\0';
         }
         return *this;
     }
@@ -1323,13 +1339,14 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     template <class InputIt, bool Safe = true>
     auto assign(InputIt first, InputIt last) -> basic_small_string& {
+        auto count = std::distance(first, last);
         if constexpr (Safe) {
-            auto count = std::distance(first, last);
             this->template buffer_reserve<buffer_type::NeedTerminated::No, false>(count);
         }
         std::copy(first, last, begin());
+        buffer_type::set_size(count);
         if constexpr (NullTerminated) {
-            reinterpret_cast<Char*>(data())[size()] = '\0';
+            buffer_type::get_buffer()[count] = '\0';
         }
         return *this;
     }
