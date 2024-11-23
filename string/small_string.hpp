@@ -2732,7 +2732,7 @@ template <typename Char, template <typename, template <class, bool> class, class
 inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
-    return lhs.size() == rhs.size() and lhs.compare(rhs) == 0;
+    return lhs.size() == rhs.size() and std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
 
 // small_string != small_string
