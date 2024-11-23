@@ -1017,7 +1017,8 @@ inline void string_core<Char>::shrinkLarge(const size_t delta) {
 template <typename E, class T = std::char_traits<E>, class A = std::allocator<E>, class Storage = string_core<E>>
 class basic_string
 {
-    static_assert(std::is_same<A, std::allocator<E>>::value or std::is_same<A, std::pmr::polymorphic_allocator<E>>::value,
+    static_assert(std::is_same<A, std::allocator<E>>::value or
+                    std::is_same<A, std::pmr::polymorphic_allocator<E>>::value,
                   "string ignores custom allocators");
 
     template <typename Ex, typename... Args>

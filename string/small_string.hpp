@@ -262,7 +262,9 @@ struct malloc_core
     static_assert(sizeof(external_core) == 8);
     union
     {
-        int64_t zero_init = 0;  // make sure the struct be zero initialized
+        int64_t body;        // use a int64 to assign or swap, for the atomic operation and best performance
+        Char init_slice[8];  // just set init[7] = 0, the small_string will be initialized, and set init[0] =0, can
+                             // handle NullTerminated
         internal_core internal;
         external_core external;
     };
@@ -702,13 +704,26 @@ struct malloc_core
     }
 
     auto swap(malloc_core& other) noexcept -> void {
-        auto temp = other.zero_init;
-        other.zero_init = zero_init;
-        zero_init = temp;
+        auto temp_body = other.body;
+        other.body = body;
+        body = temp_body;
+    }
+
+    [[gnu::always_inline]] void fastest_zero_init() {
+        init_slice[7] = 0;
+        if constexpr (NullTerminated) {
+            init_slice[0] = 0;
+        }
     }
 
     // constructor
-    constexpr malloc_core([[maybe_unused]] const std::allocator<Char>& unused = std::allocator<Char>{}) noexcept {}
+    constexpr malloc_core([[maybe_unused]] const std::allocator<Char>& unused = std::allocator<Char>{}) noexcept {
+        fastest_zero_init();
+    }
+    constexpr malloc_core(const malloc_core& other) noexcept : body(other.body) {}
+    constexpr malloc_core(const malloc_core& other, [[maybe_unused]] const std::allocator<Char>& unused) noexcept
+        : body(other.body) {}
+    constexpr malloc_core(malloc_core&& gone) noexcept : body(gone.body) { gone.fastest_zero_init(); }
 };  // struct malloc_core
 
 static_assert(sizeof(malloc_core<char, true>) == 8, "malloc_core should be same as a pointer");
@@ -732,6 +747,13 @@ struct pmr_core : public malloc_core<Char, NullTerminated>
 
     constexpr pmr_core(const pmr_core& other) noexcept
         : malloc_core<Char, NullTerminated>(other), pmr_allocator(other.pmr_allocator) {}
+
+    constexpr pmr_core(const pmr_core& other, const std::pmr::polymorphic_allocator<Char>& allocator) noexcept
+        : malloc_core<Char, NullTerminated>(other), pmr_allocator(allocator) {}
+
+    constexpr pmr_core(pmr_core&& gone) noexcept
+        : malloc_core<Char, NullTerminated>(std::move(gone)), pmr_allocator(gone.pmr_allocator) {}
+
 };  // struct malloc_core_and_pmr_allocator
 
 template <typename Char, template <typename, bool> typename Core, class Traits, class Allocator, bool NullTerminated>
@@ -1032,25 +1054,104 @@ class small_string_buffer
         return calculate_new_buffer_size<NullTerminated>(size);
     }
 
+    // at most 6 lines, at least 4 lines
+    template <bool HasHeader>
+    [[gnu::always_inline]] inline auto directly_allocate_new_buffer_and_copy(size_type buffer_size,
+                                                                             size_type old_size) -> int64_t {
+        char* buffer_ptr;
+        if constexpr (core_type::use_std_allocator::value) {
+            buffer_ptr = reinterpret_cast<Char*>(std::malloc(buffer_size));
+        } else {
+            buffer_ptr = _core.pmr_allocator.allocate(buffer_size);
+        }
+
+        if constexpr (HasHeader) {
+            // copy the buffer header
+            std::memcpy(buffer_ptr,
+                        reinterpret_cast<Char*>(_core.external.c_str_ptr) - sizeof(struct capacity_and_size<size_type>),
+                        old_size + sizeof(struct capacity_and_size<size_type>));
+            // move to the end of the header
+            buffer_ptr = buffer_ptr + sizeof(struct capacity_and_size<size_type>);
+        } else {
+            std::memcpy(buffer_ptr, reinterpret_cast<Char*>(_core.external.c_str_ptr), old_size);
+        }
+        return reinterpret_cast<int64_t>(buffer_ptr);
+    }
+
+    /**
+     * copy the data from other to this, the other should be a small_string_buffer
+     * and it should always be called in a constructor, in outter, the core should be copied first.
+     */
+    [[gnu::always_inline]] inline void clone_the_external_buffer_if_need() {
+        // copy the core done, then allocate the external buffer if need
+        uint16_t flag = _core.internal.is_internal;
+        switch (flag) {
+            case 0:
+                return;  // internal core, do nothing, no need
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+                // shift core, allocate the shift external buffer, and copy it.
+                _core.external.c_str_ptr =
+                  directly_allocate_new_buffer_and_copy<false>((4UL << flag), _core.external.size_shift.external_size);
+                return;
+            case 11:
+                // the size is 4096, the external_size is 0, so the buffer is full
+                Assert(_core.external.size_shift.external_size == 0, "the size should be 0");
+                _core.external.c_str_ptr = directly_allocate_new_buffer_and_copy<false>(4096, 4096);
+                return;
+            default:
+                auto [cap, size] = _core.capacity_and_size_from_header();
+                if constexpr (NullTerminated) {
+                    // copy the data and '\0'
+                    _core.external.c_str_ptr = directly_allocate_new_buffer_and_copy<true>(
+                      cap + sizeof(struct capacity_and_size<size_type>) + 1, size + 1);
+                } else {
+                    _core.external.c_str_ptr = directly_allocate_new_buffer_and_copy<true>(
+                      cap + sizeof(struct capacity_and_size<size_type>), size);
+                }
+                return;
+        }
+    }
+
    public:
     constexpr small_string_buffer([[maybe_unused]] const Allocator& allocator) noexcept : _core{allocator} {
         if constexpr (not core_type::use_std_allocator::value) {
             Assert(check_the_allocator(), "the pmr default allocator is not allowed to be used in small_string");
         }
     }
-    // delete the copy and move constructor
-    constexpr small_string_buffer(const small_string_buffer& other) = delete;
+
     constexpr small_string_buffer(small_string_buffer&& other) noexcept = delete;
 
-    // copy constructor is deleted
-    constexpr small_string_buffer(const small_string_buffer& other,
-                                  [[maybe_unused]] const Allocator& /*unused*/) noexcept = delete;
+    constexpr small_string_buffer(const small_string_buffer& other) : _core(other._core) {
+        clone_the_external_buffer_if_need();
+    }
+
+    constexpr small_string_buffer(const small_string_buffer& other, [[maybe_unused]] const Allocator& allocator)
+        : _core(other._core, allocator) {
+        clone_the_external_buffer_if_need();
+    }
+
     // move constructor
     constexpr small_string_buffer(small_string_buffer&& other, [[maybe_unused]] const Allocator& /*unused*/) noexcept
-        : _core(other._core) {
-        // set the other's external to 0, to avoid double free
-        other._core.zero_init = 0;
-        Assert(check_the_allocator(), "the pmr default allocator is not allowed to be used in small_string");
+        : _core(std::move(other._core)) {
+        // // set the other's external to 0, to avoid double free
+        // other._core.internal.is_internal = 0;
+        // other._core.internal.internal_size = 0;
+        // if (NullTerminated) {
+        //     other._core.internal.data[0] = '\0';
+        // }
+        Assert(
+          check_the_allocator(),
+          "the pmr default allocator is not allowed to be used in small_string");  // very important, check the
+                                                                                   // allocator incorrect injected into.
     }
 
     ~small_string_buffer() noexcept {
@@ -1159,10 +1260,11 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     // copy constructor
-    constexpr basic_small_string(const basic_small_string& other)
-        : basic_small_string(initialized_later{}, other.size(), other.get_allocator()) {
-        std::memcpy(data(), other.data(), other.size());
-    }
+
+    constexpr basic_small_string(const basic_small_string& other) : buffer_type(other) {}
+
+    constexpr basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& allocator)
+        : buffer_type(other, allocator) {}
 
     constexpr basic_small_string(const basic_small_string& other, size_type pos,
                                  [[maybe_unused]] const Allocator& allocator = Allocator())
@@ -2649,7 +2751,7 @@ template <typename Char, template <typename, template <class, bool> class, class
 inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
-    return lhs.size() == rhs.size() and lhs.compare(rhs) == 0;
+    return lhs.size() == rhs.size() and std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
 
 // small_string != small_string
