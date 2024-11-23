@@ -262,7 +262,9 @@ struct malloc_core
     static_assert(sizeof(external_core) == 8);
     union
     {
-        int64_t zero_init = 0;  // make sure the struct be zero initialized
+        int64_t body;        // use a int64 to assign or swap, for the atomic operation and best performance
+        Char init_slice[8];  // just set init[7] = 0, the small_string will be initialized, and set init[0] =0, can
+                             // handle NullTerminated
         internal_core internal;
         external_core external;
     };
@@ -702,16 +704,26 @@ struct malloc_core
     }
 
     auto swap(malloc_core& other) noexcept -> void {
-        auto temp = other.zero_init;
-        other.zero_init = zero_init;
-        zero_init = temp;
+        auto temp_body = other.body;
+        other.body = body;
+        body = temp_body;
+    }
+
+    [[gnu::always_inline]] void fastest_zero_init() {
+        init_slice[7] = 0;
+        if constexpr (NullTerminated) {
+            init_slice[0] = 0;
+        }
     }
 
     // constructor
-    constexpr malloc_core([[maybe_unused]] const std::allocator<Char>& unused = std::allocator<Char>{}) noexcept {}
-    constexpr malloc_core(const malloc_core& other) noexcept : zero_init(other.zero_init) {}
+    constexpr malloc_core([[maybe_unused]] const std::allocator<Char>& unused = std::allocator<Char>{}) noexcept {
+        fastest_zero_init();
+    }
+    constexpr malloc_core(const malloc_core& other) noexcept : body(other.body) {}
     constexpr malloc_core(const malloc_core& other, [[maybe_unused]] const std::allocator<Char>& unused) noexcept
-        : zero_init(other.zero_init) {}
+        : body(other.body) {}
+    constexpr malloc_core(malloc_core&& gone) noexcept : body(gone.body) { gone.fastest_zero_init(); }
 };  // struct malloc_core
 
 static_assert(sizeof(malloc_core<char, true>) == 8, "malloc_core should be same as a pointer");
@@ -738,6 +750,9 @@ struct pmr_core : public malloc_core<Char, NullTerminated>
 
     constexpr pmr_core(const pmr_core& other, const std::pmr::polymorphic_allocator<Char>& allocator) noexcept
         : malloc_core<Char, NullTerminated>(other), pmr_allocator(allocator) {}
+
+    constexpr pmr_core(pmr_core&& gone) noexcept
+        : malloc_core<Char, NullTerminated>(std::move(gone)), pmr_allocator(gone.pmr_allocator) {}
 
 };  // struct malloc_core_and_pmr_allocator
 
@@ -1126,9 +1141,13 @@ class small_string_buffer
 
     // move constructor
     constexpr small_string_buffer(small_string_buffer&& other, [[maybe_unused]] const Allocator& /*unused*/) noexcept
-        : _core(other._core) {
-        // set the other's external to 0, to avoid double free
-        other._core.zero_init = 0;
+        : _core(std::move(other._core)) {
+        // // set the other's external to 0, to avoid double free
+        // other._core.internal.is_internal = 0;
+        // other._core.internal.internal_size = 0;
+        // if (NullTerminated) {
+        //     other._core.internal.data[0] = '\0';
+        // }
         Assert(
           check_the_allocator(),
           "the pmr default allocator is not allowed to be used in small_string");  // very important, check the
