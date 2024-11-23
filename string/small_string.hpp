@@ -1277,6 +1277,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         auto* buffer = buffer_type::get_buffer();
         memset(buffer, ch, count);
+        // do not use resize, to avoid the if checking
         buffer_type::set_size(count);
         if constexpr (NullTerminated) {
             buffer[count] = '\0';
@@ -1294,9 +1295,13 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     template <bool Safe = true>
     auto assign(const basic_small_string& str, size_type pos, size_type count = npos) -> basic_small_string& {
+        auto other_size = str.size();
+        if (pos > other_size) [[unlikely]] {
+            throw std::out_of_range("assign: input pos is out of range");
+        }
         if (this == &str) [[unlikely]] {
             // erase the other part
-            count = std::min(count, str.size() - pos);
+            count = std::min(count, other_size - pos);
             auto* buffer = buffer_type::get_buffer();
             std::memmove(buffer, buffer + pos, count);
             buffer_type::set_size(count);
@@ -1305,7 +1310,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             }
             return *this;
         }
-        return assign<Safe>(str.data() + pos, std::min(count, str.size() - pos));
+        return assign<Safe>(str.data() + pos, std::min(count, other_size - pos));
     }
 
     auto assign(basic_small_string&& gone) noexcept -> basic_small_string& {
@@ -1324,7 +1329,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             this->template buffer_reserve<buffer_type::NeedTerminated::No, false>(count);
         }
         auto* buffer = buffer_type::get_buffer();
-        memcpy(buffer, s, count);
+        // use memmove to handle the overlap
+        std::memmove(buffer, s, count);
         buffer_type::set_size(count);
         if constexpr (NullTerminated) {
             buffer[count] = '\0';
@@ -1378,7 +1384,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
                 throw std::out_of_range("at: pos is out of range");
             }
         }
-        return *(data() + pos);
+        return *(buffer_type::get_buffer() + pos);
     }
 
     template <bool Safe = true>
@@ -1398,7 +1404,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
                 throw std::out_of_range("operator []: pos is out of range");
             }
         }
-        return *(data() + pos);
+        return *(buffer_type::get_buffer() + pos);
     }
 
     template <bool Safe = true>
