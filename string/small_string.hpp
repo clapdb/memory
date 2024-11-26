@@ -781,7 +781,7 @@ class small_string_buffer
 
     using core_type = Core<Char, NullTerminated>;
 
-    enum class NeedTerminated : bool
+    enum class Need0 : bool
     {
         Yes = true,
         No = false
@@ -922,7 +922,7 @@ class small_string_buffer
     }
 
     // this funciion will not change the size, but the capacity or delta
-    template <NeedTerminated Need0 = NeedTerminated::Yes>
+    template <Need0 Need0 = Need0::Yes>
     void allocate_more(size_type new_append_size) noexcept {
         size_type old_delta = _core.idle_capacity();
 
@@ -946,7 +946,7 @@ class small_string_buffer
         // copy the old data to the new buffer
         std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
         // set the '\0' at the end of the buffer if needed;
-        if constexpr (NullTerminated and Need0 == NeedTerminated::Yes) {
+        if constexpr (NullTerminated and Need0 == Need0::Yes) {
             reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
         }
         // deallocate the old buffer
@@ -963,7 +963,7 @@ class small_string_buffer
     }
 
    public:
-    template <NeedTerminated Need0, bool NeedCopy>
+    template <Need0 Need0, bool NeedCopy>
     constexpr auto buffer_reserve(size_type new_cap) -> void {
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
@@ -983,7 +983,7 @@ class small_string_buffer
                 // copy the old data to the new buffer
                 std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
             }
-            if constexpr (NullTerminated and Need0 == NeedTerminated::Yes and NeedCopy) {
+            if constexpr (NullTerminated and Need0 == Need0::Yes and NeedCopy) {
                 reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
             }
             // deallocate the old buffer
@@ -1381,7 +1381,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     template <bool Safe = true>
     auto assign(size_type count, Char ch) -> basic_small_string& {
         if constexpr (Safe) {
-            this->template buffer_reserve<buffer_type::NeedTerminated::No, false>(count);
+            this->template buffer_reserve<buffer_type::Need0::No, false>(count);
         }
         auto* buffer = buffer_type::get_buffer();
         memset(buffer, ch, count);
@@ -1434,7 +1434,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     template <bool Safe = true>
     auto assign(const Char* s, size_type count) -> basic_small_string& {
         if constexpr (Safe) {
-            this->template buffer_reserve<buffer_type::NeedTerminated::No, false>(count);
+            this->template buffer_reserve<buffer_type::Need0::No, false>(count);
         }
         auto* buffer = buffer_type::get_buffer();
         // use memmove to handle the overlap
@@ -1455,7 +1455,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     auto assign(InputIt first, InputIt last) -> basic_small_string& {
         auto count = std::distance(first, last);
         if constexpr (Safe) {
-            this->template buffer_reserve<buffer_type::NeedTerminated::No, false>(count);
+            this->template buffer_reserve<buffer_type::Need0::No, false>(count);
         }
         std::copy(first, last, begin());
         buffer_type::set_size(count);
@@ -1605,7 +1605,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     constexpr auto reserve(size_type new_cap) -> void {
-        this->template buffer_reserve<buffer_type::NeedTerminated::Yes, true>(new_cap);
+        this->template buffer_reserve<buffer_type::Need0::Yes, true>(new_cap);
     }
 
     // it was a just exported function, should not be called frequently, it was a little bit slow in some case.
@@ -1658,7 +1658,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
 
         if constexpr (Safe) {
-            this->template allocate_more<buffer_type::NeedTerminated::No>(count);
+            this->template allocate_more<buffer_type::Need0::No>(count);
         }
         auto old_size = size();
         if (index < old_size) [[likely]] {
@@ -1666,10 +1666,10 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             std::memmove(data() + index + count, c_str() + index, old_size - index);
         }
         std::memset(data() + index, ch, count);
-        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[old_size + count] = '\0';
         }
+        buffer_type::increase_size(count);
         return *this;
     }
 
@@ -1692,7 +1692,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // check if the capacity is enough
         if constexpr (Safe) {
-            this->template allocate_more<buffer_type::NeedTerminated::No>(count);
+            this->template allocate_more<buffer_type::Need0::No>(count);
         }
         // by now, the capacity is enough
         // memmove the data to the new position
@@ -1701,10 +1701,10 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // set the new data
         std::memcpy(data() + index, str, count);
-        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[old_size + count] = '\0';
         }
+        buffer_type::increase_size(count);
         return *this;
     }
 
@@ -1744,7 +1744,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         size_type index = pos - begin();
         if constexpr (Safe) {
-            this->template allocate_more<buffer_type::NeedTerminated::No>(count);
+            this->template allocate_more<buffer_type::Need0::No>(count);
         }
         // by now, the capacity is enough
         if (index < size()) [[likely]] {
@@ -1753,10 +1753,10 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // copy the new data
         std::copy(first, last, data() + index);
-        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
+        buffer_type::increase_size(count);
         return const_cast<iterator>(pos);
     }
 
@@ -1821,7 +1821,14 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     template <bool Safe = true>
     [[gnu::always_inline]] inline void push_back(Char c) {
-        append<Safe>(1, c);
+        if constexpr (Safe) {
+            this->template allocate_more<buffer_type::Need0::No>(1);
+        }
+        data()[size()] = c;
+        if constexpr (NullTerminated) {
+            data()[size() + 1] = '\0';
+        }
+        buffer_type::increase_size(1);
     }
 
     void pop_back() {
@@ -1832,22 +1839,30 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
     template <bool Safe = true>
     constexpr auto append(size_type count, Char c) -> basic_small_string& {
+        if (count == 0) [[unlikely]] {
+            // do nothing
+            return *this;
+        }
         if constexpr (Safe) {
-            buffer_type::allocate_more(count);
+            this->template allocate_more<buffer_type::Need0::No>(count);
         }
         // by now, the capacity is enough
         std::memset(end(), c, count);
-        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
+        buffer_type::increase_size(count);
         return *this;
     }
 
     template <bool Safe = true>
     constexpr auto append(const basic_small_string& other) -> basic_small_string& {
+        if (other.empty()) [[unlikely]] {
+            // do nothing
+            return *this;
+        }
         if constexpr (Safe) {
-            this->template allocate_more<buffer_type::NeedTerminated::No>(other.size());
+            this->template allocate_more<buffer_type::Need0::No>(other.size());
         }
         // by now, the capacity is enough
         // size() function maybe slower than while the size is larger than 4k, so store it.
@@ -1863,23 +1878,33 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     template <bool Safe = true>
     constexpr auto append(const basic_small_string& other, size_type pos,
                           size_type count = npos) -> basic_small_string& {
-        if (count == npos) {
-            count = other.size() - pos;
+        // fmt::print("other = {}, size = {}, pos = {}, count = {}\n", other, other.size(), pos, count);
+        if (pos > other.size()) [[unlikely]] {
+            throw std::out_of_range("append: pos is out of range");
         }
-        return append<Safe>(other.substr(pos, count));
+        if (count == 0) [[unlikely]] {
+            // do nothing
+            return *this;
+        }
+        count = std::min(count, other.size() - pos);
+        return append<Safe>(other.c_str() + pos, count);
     }
 
     template <bool Safe = true>
     constexpr auto append(const Char* s, size_type count) -> basic_small_string& {
+        if (count == 0) [[unlikely]] {
+            // do nothing
+            return *this;
+        }
         if constexpr (Safe) {
-            buffer_type::allocate_more(count);
+            this->template allocate_more<buffer_type::Need0::No>(count);
         }
 
         std::memcpy(end(), s, count);
-        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
+        buffer_type::increase_size(count);
         return *this;
     }
 
@@ -1897,14 +1922,18 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         static_assert(std::is_same_v<typename std::iterator_traits<InputIt>::value_type, Char>,
                       "the value type of the input iterator is not the same as the char type");
         size_type count = std::distance(first, last);
+        if (count == 0) [[unlikely]] {
+            // do nothing
+            return *this;
+        }
         if constexpr (Safe) {
-            this->template allocate_more<buffer_type::NeedTerminated::No>(count);
+            this->template allocate_more<buffer_type::Need0::No>(count);
         }
         std::copy(first, last, end());
-        buffer_type::increase_size(count);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
         }
+        buffer_type::increase_size(count);
         return *this;
     }
 
@@ -1927,7 +1956,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         if (count == npos) {
             count = s.size() - pos;
         }
-        return append<Safe>(s.substr(pos, count));
+        return append<Safe>(s.data() + pos, count);
     }
 
     template <bool Safe = true>
@@ -2167,7 +2196,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             return;
         }
         if (count > cap) {
-            this->template buffer_reserve<buffer_type::NeedTerminated::No, true>(count);
+            this->template buffer_reserve<buffer_type::Need0::No, true>(count);
         }
         std::memset(data() + size(), '\0', count - size());
         buffer_type::set_size(count);
