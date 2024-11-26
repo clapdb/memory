@@ -1099,11 +1099,17 @@ class small_string_buffer
             case 9:
             case 10:
                 // shift core, allocate the shift external buffer, and copy it.
-                _core.external.c_str_ptr =
-                  directly_allocate_new_buffer_and_copy<false>((4UL << flag), _core.external.size_shift.external_size);
+                if constexpr (NullTerminated) {
+                    // copy the data and '\0'
+                    _core.external.c_str_ptr = directly_allocate_new_buffer_and_copy<false>(
+                      (4UL << flag), _core.external.size_shift.external_size + 1);
+                } else {
+                    _core.external.c_str_ptr = directly_allocate_new_buffer_and_copy<false>(
+                      (4UL << flag), _core.external.size_shift.external_size);
+                }
                 return;
             case 11:
-                // the size is 4096, the external_size is 0, so the buffer is full
+                // the size is 4096, the external_size is 0, so the buffer is full, the NullTerminated was not true.
                 Assert(_core.external.size_shift.external_size == 0, "the size should be 0");
                 _core.external.c_str_ptr = directly_allocate_new_buffer_and_copy<false>(4096, 4096);
                 return;
@@ -2152,15 +2158,16 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     auto resize(size_type count) -> void {
-        if (count <= size()) {
+        auto [cap, old_size] = buffer_type::get_capacity_and_size();
+        if (count <= old_size) {
             buffer_type::set_size(count);
             if constexpr (NullTerminated) {
                 data()[count] = '\0';
             }
             return;
         }
-        if (count > capacity()) {
-            reserve(count);
+        if (count > cap) {
+            this->template buffer_reserve<buffer_type::NeedTerminated::No, true>(count);
         }
         std::memset(data() + size(), '\0', count - size());
         buffer_type::set_size(count);
@@ -2553,9 +2560,10 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // fmt::print("erase with pos: {}, current size : {} \n", pos, current_size);
         erase(0, pos);
-        if (count < current_size) {
+        if (count < current_size - pos) {
             resize(count);
         }
+        // or just return *this
         return std::move(*this);
     }
 
