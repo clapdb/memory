@@ -3519,7 +3519,7 @@ TEST_CASE("small_string::replace") {
     CHECK_EQ(empty_str, "abcghijkl4567890");
     // just replace the right part
     str.replace(15, 3, "xxxx");
-    CHECK_EQ(str, "abcghijkl4567890xxxx");
+    CHECK_EQ(str, "abcghijkl456789xxxx");
 }
 
 // small_string section
