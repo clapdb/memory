@@ -710,10 +710,10 @@ struct malloc_core
     }
 
     [[gnu::always_inline]] void fastest_zero_init() {
-        init_slice[7] = 0;
         if constexpr (NullTerminated) {
             init_slice[0] = 0;
         }
+        init_slice[7] = 0;
     }
 
     // constructor
