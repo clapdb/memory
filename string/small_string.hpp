@@ -1781,15 +1781,23 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // calc the real count
         size_type real_count = std::min(count, old_size - index);
+        if (real_count == 0) [[unlikely]] {
+            // do nothing
+            return *this;
+        }
+        auto new_size = old_size - real_count;
+        Assert(old_size >= index + real_count, "old size should be greater or equal than the index + real count");
+        auto right_size = old_size - index - real_count;
         // if the count is greater than 0, then move right part of  the data to the new position
-        if (real_count > 0) {
+        char* buffer_ptr = buffer_type::get_buffer();
+        if (right_size > 0) {
             // memmove the data to the new position
-            std::memmove(data() + index, c_str() + index + real_count, old_size - index - real_count);
+            std::memmove(buffer_ptr + index, buffer_ptr + index + real_count, static_cast<size_type>(right_size));
         }
         // set the new size
-        buffer_type::set_size(old_size - real_count);
+        buffer_type::set_size(new_size);
         if constexpr (NullTerminated) {
-            data()[old_size - real_count] = '\0';
+            buffer_ptr[new_size] = '\0';
         }
         return *this;
     }
@@ -1947,95 +1955,84 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     // replace [pos, pos+count] with count2 times of ch
     template <bool Safe = true>
     auto replace(size_type pos, size_type count, size_type count2, Char ch) -> basic_small_string& {
+        auto [cap, old_size] = buffer_type::get_capacity_and_size();
         // check the pos is not out of range
-        if (pos > size()) [[unlikely]] {
+        if (pos > old_size) [[unlikely]] {
             throw std::out_of_range("replace: pos is out of range");
         }
-        // then check if pos+count is the out of range
-        if (count >= size() or pos + count >= size()) {  // to avoid count overflow from size_type
-            // no right part to move, just append the new string
-            append<Safe>(count2, ch);
+        if (count2 == 0) [[unlikely]] {
+            // just erase the data
+            return erase(pos, count);
+        }
+        count = std::min(count, old_size - pos);
+
+        if ((count >= old_size - pos) and count2 <= (cap - pos)) {
+            // copy the data to pos, and no need to move the right part
+            std::memset(buffer_type::get_buffer() + pos, ch, count2);
+            auto new_size = pos + count2;
+            buffer_type::set_size(new_size);
+            if (NullTerminated) {
+                buffer_type::get_buffer()[new_size] = '\0';
+            }
             return *this;
         }
 
-        if (count2 == 0) [[unlikely]] {
-            // just delete the right part
-            return erase(pos, count);
+        if (count == count2) {
+            // just replace
+            std::memset(buffer_type::get_buffer() + pos, ch, count2);
         }
-        // else, there is right part, maybe need to move
-        // check the size, if the pos + count is greater than the cap, we need to reserve
-        uint64_t new_size = size() - count + count2;  // to avoid overflow from size_type
-        if (new_size > max_size()) [[unlikely]] {
-            throw std::length_error("the new capacity is too large");
-        }
-        // to make sure the capacity is enough
-        if (new_size > capacity()) {
-            this->template buffer_reserve<buffer_type::NeedTerminated::No, true>(new_size);
-        }
-        // by now, the capacity is enough
-        // check if need do some memmove
-        if (count != count2) {
-            // move the right part to the new position, and the size will not be zero
 
-            // the memmove will handle the overlap automatically
-            std::memmove(data() + pos + count2, c_str() + pos + count, size() - pos - count);
-        }
-        // by now, the buffer is ready
-        std::memset(data() + pos, ch, count2);
-        buffer_type::set_size(new_size);
-        if constexpr (NullTerminated) {
-            data()[new_size] = '\0';
-        }
+        // else, the count != count2, need to move the right part
+        // init a new string
+        basic_small_string ret{initialized_later{}, old_size - count + count2, buffer_type::get_allocator()};
+        Char* p = ret.data();
+        // copy the left party
+        std::memcpy(p, data(), pos);
+        p += pos;
+        std::memset(p, ch, count2);
+        p += count2;
+        std::copy(begin() + pos + count, end(), p);
         return *this;
     }
 
     // replace [pos, pos+count] with the range [cstr, cstr + count2]
     template <bool Safe = true>
-    auto replace(size_type pos, size_type count, const Char* cstr, size_type count2) -> basic_small_string& {
-        // check the pos is not out of range
-        auto old_size = size();
+    auto replace(size_type pos, size_type count, const Char* str, size_type count2) -> basic_small_string& {
+        auto [cap, old_size] = buffer_type::get_capacity_and_size();
         if (pos > old_size) [[unlikely]] {
             throw std::out_of_range("replace: pos is out of range");
         }
         if (count2 == 0) [[unlikely]] {
-            // just delete the right part
             return erase(pos, count);
         }
+        count = std::min(count, old_size - pos);
 
-        if (pos + count >= old_size) {
-            // no right part to move
-            uint64_t new_size = pos + count2;  // to avoid overflow from size_type
-            if (new_size > max_size()) [[unlikely]] {
-                throw std::length_error("the new capacity is too large");
+        if ((count >= old_size - pos) and count2 <= (cap - pos)) {  // count == npos still >= old_size - pos.
+            // copy the data to pos, and no need to move the right part
+            std::memcpy(buffer_type::get_buffer() + pos, str, count2);
+            auto new_size = pos + count2;
+            buffer_type::set_size(new_size);
+            if (NullTerminated) {
+                buffer_type::get_buffer()[new_size] = '\0';
             }
-            // just append the new string
-            append<Safe>(cstr, count2);
             return *this;
         }
-        // else, there is right part, maybe need to move
-        // check the size, if the pos + count is greater than the cap, we need to reserve
-        uint64_t new_size = old_size - count + count2;  // to avoid overflow from size_type
-        if (new_size > max_size()) [[unlikely]] {
-            throw std::length_error("the new capacity is too large");
+        if (count == count2) {
+            // just replace
+            std::memcpy(buffer_type::get_buffer() + pos, str, count2);
         }
-        auto cap = capacity();
-        if (new_size > cap) {
-            // because count2 is not 0, so
-            this->template buffer_reserve<buffer_type::NeedTerminated::No, true>(new_size);
-        }
-        // by now, the capacity is enough
-        // check if need do some memmove
-        if (count != count2) {
-            // move the right part to the new position, and the size will not be zero
-            std::memmove(data() + pos + count2, c_str() + pos + count, old_size - pos - count);
-            // the memmove will handle the overlap automatically
-        }
-        // by now, the buffer is ready
-        std::memcpy(data() + pos, cstr, count2);
-        buffer_type::set_size(new_size);
-        if constexpr (NullTerminated) {
-            data()[new_size] = '\0';
-        }
+        // else, the count != count2, need to move the right part
+        // init a new string
+        basic_small_string ret{initialized_later{}, old_size - count + count2, buffer_type::get_allocator()};
+        Char* p = ret.data();
+        // copy the left party
+        std::memcpy(p, data(), pos);
+        p += pos;
+        // copy the new data
+        std::memcpy(p, str, count2);
+        p += count2;
+        std::copy(begin() + pos + count, end(), p);
+        *this = std::move(ret);
         return *this;
     }
 
@@ -2076,44 +2073,47 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         static_assert(std::is_same_v<typename std::iterator_traits<InputIt>::value_type, Char>,
                       "the value type of the input iterator is not the same as the char type");
         Assert(first2 <= last2, "the range is valid");
+        auto pos = std::distance(begin(), first);
         auto count = std::distance(first, last);
         if (count < 0) [[unlikely]] {
             throw std::invalid_argument("the range is invalid");
         }
         auto count2 = std::distance(first2, last2);
-        if (last == end()) {
-            // no right part to move, just append the new string
-            append(first2, last2);
+        if (count2 == 0) [[unlikely]] {
+            // just delete the right part
+            return erase(first, last);
+        }
+
+        auto [cap, old_size] = buffer_type::get_capacity_and_size();
+        
+        if (last == end() and count2 <= (cap - pos)) {
+            // copy the data to pos, and no need to move the right part
+            std::copy(first2, last2, data() + pos);
+            auto new_size = pos + count2;
+            buffer_type::set_size(new_size);
+            if (NullTerminated) {
+                buffer_type::get_buffer()[new_size] = '\0';
+            }
             return *this;
         }
 
-        if (count2 == 0) [[unlikely]] {
-            // just delete the right part
-            return erase(begin(), first);
+        if (count == count2) {
+            // just replace
+            std::copy(first2, last2, data() + pos);
         }
-        // else, there is right part, maybe need to move
-        uint64_t new_size = size() - count + count2;  // to avoid overflow from size_type
-        if (new_size > max_size()) [[unlikely]] {
-            throw std::length_error("the new capacity is too large");
-        }
-        if (new_size > capacity()) {
-            reserve(new_size);
-        }
-        // by now, the capacity is enough
-        // check if need do some memmove
-        if (count != count2) {
-            // move the right part to the new position, and the size will not be zero
 
-            // move the [last, end] -> [first + count2, end() - last + count2]
-            // the memmove will handle the overlap automatically
-            std::memmove(first + count2, last, end() - last);
-        }
-        // the buffer is ready
-        std::copy(first2, last2, first);
-        buffer_type::set_size(new_size);
-        if constexpr (NullTerminated) {
-            data()[new_size] = '\0';
-        }
+        // else, the count != count2, need to move the right part
+        // init a new string
+        basic_small_string ret{initialized_later{}, old_size - count + count2, buffer_type::get_allocator()};
+        Char* p = ret.data();
+        // copy the left party
+        std::copy(begin(), first, p);
+        p += pos;
+        // copy the new data
+        std::copy(first2, last2, p);
+        p += count2;
+        std::copy(last, end(), p);
+        *this = std::move(ret);
         return *this;
     }
 
