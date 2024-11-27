@@ -2234,58 +2234,30 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     // search
-    constexpr auto find(const Char* needle, size_type pos, size_type other_size) const -> size_type {
-        auto const size = this->size();
-        if (pos + other_size > size || other_size + pos < pos) {
-            // check overflow
+    constexpr auto find(const Char* str, size_type pos, size_type count) const -> size_type {
+        auto current_size = buffer_type::size();
+        if (count == 0) [[unlikely]] {
+            return pos <= current_size ? pos : npos;
+        }
+        if (pos >= current_size) [[unlikely]] {
             return npos;
         }
-        if (other_size == 0) {
-            return pos;
-        }
 
-        // Don't use std::search, use a Boyer-Moore-like trick by comparing
-        // the last characters first
-        auto const haystack = data();
-        auto const nsize_1 = other_size - 1;
-        auto const lastNeedle = needle[nsize_1];
+        const auto elem0 = str[0];
+        const auto* data_ptr = buffer_type::get_buffer();
+        const auto* first_ptr = data_ptr + pos;
+        const auto* const last_ptr = data_ptr + current_size;
+        auto len = current_size - pos;
 
-        // Boyer-Moore skip value for the last char in the needle. Zero is
-        // not a valid value; skip will be computed the first time it's
-        // needed.
-        size_type skip = 0;
-        const Char* i = haystack + pos;
-        auto iEnd = haystack + size - nsize_1;
-
-        while (i < iEnd) {
-            // Boyer-Moore: match the last element in the needle
-            while (i[nsize_1] != lastNeedle) {
-                if (++i == iEnd) {
-                    return npos;
-                }
+        while (len >= count) {
+            first_ptr = traits_type::find(first_ptr, len - count + 1, elem0);
+            if (first_ptr == nullptr) {
+                return npos;
             }
-            // Here we know that the last char matches
-            // Continue in pedestrian mode
-            for (size_type j = 0;;) {
-                Assert(j < other_size, "find index can not overflow the size");
-                if (i[j] != needle[j]) {
-                    // Not found, we can skip
-                    // Compute the skip value lazily
-                    if (skip == 0) {
-                        skip = 1;
-                        while (skip <= nsize_1 && needle[nsize_1 - skip] != lastNeedle) {
-                            ++skip;
-                        }
-                    }
-                    i += skip;
-                    break;
-                }
-                // Check if done searching
-                if (++j == other_size) {
-                    // Yay
-                    return size_type(i - haystack);
-                }
+            if (traits_type::compare(first_ptr, str, count) == 0) {
+                return size_type(first_ptr - data_ptr);
             }
+            len = last_ptr - ++first_ptr;
         }
         return npos;
     }
