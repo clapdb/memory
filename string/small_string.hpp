@@ -2310,22 +2310,17 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         return found == nullptr ? npos : size_type(found - c_str());
     }
 
-    [[nodiscard]] constexpr auto rfind(const Char* needle, size_type pos, size_type other_size) const -> size_type {
-        if (other_size > size()) [[unlikely]] {
-            return npos;
-        }
-        pos = std::min(pos, size() - other_size);
-        if (other_size == 0) [[unlikely]] {
-            return pos;
-        }
-        const_iterator i{begin() + pos};
-        for (;; --i) {
-            if (traits_type::eq(*i, *needle) && traits_type::compare(&*i, needle, other_size) == 0) {
-                return size_type(i - begin());
-            }
-            if (i == begin()) {
-                break;
-            }
+    [[nodiscard]] constexpr auto rfind(const Char* str, size_type pos, size_type str_length) const -> size_type {
+        auto current_size = buffer_type::size();
+        if (str_length <= current_size) [[likely]] {
+            pos = std::min(pos, current_size - str_length);
+            const auto* buffer_ptr = buffer_type::get_buffer();
+            do {
+                if (traits_type::compare(buffer_ptr + pos, str, str_length) == 0) {
+                    return pos;
+                }
+            } while (pos-- > 0);
+
         }
         return npos;
     }
@@ -2347,28 +2342,26 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     [[nodiscard]] constexpr auto rfind(Char ch, size_type pos = npos) const -> size_type {
         auto current_size = size();
-        if (current_size == 0) [[unlikely]]
-            return npos;
-        pos = std::min(pos, current_size - 1);
-        while (pos > 0) {
-            if (traits_type::eq(at(pos), ch)) {
-                return pos;
-            }
-            --pos;
+        const auto* buffer_ptr = buffer_type::get_buffer();
+        if (current_size > 0) [[likely]] {
+           if (--current_size > pos) {
+               current_size = pos;
+           }
+           for (++current_size; current_size-- > 0;) {
+               if (traits_type::eq(buffer_ptr[current_size], ch)) {
+                   return current_size;
+               }
+           }
         }
-        // pos == 0
-        return traits_type::eq(at(0), ch) ? 0 : npos;
+        return npos;
     }
 
     [[nodiscard]] constexpr auto find_first_of(const Char* str, size_type pos, size_type count) const -> size_type {
-        if (pos > size() || count == 0) [[unlikely]] {
-            return npos;
-        }
-        const_iterator i{begin() + pos};
-        const_iterator finish{end()};
-        for (; i != finish; ++i) {
-            if (traits_type::find(str, count, *i) != nullptr) {
-                return size_type(i - begin());
+        auto current_size = this->size();
+        auto buffer_ptr = buffer_type::get_buffer();
+        for (; count > 0 && pos < current_size; ++pos) {
+            if (traits_type::find(str, count, buffer_ptr[pos]) != nullptr) {
+                return pos;
             }
         }
         return npos;
@@ -2394,13 +2387,9 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto find_first_not_of(const Char* str, size_type pos, size_type count) const -> size_type {
-        if (pos < size()) {
-            const_iterator i(begin() + pos);
-            const_iterator finish(end());
-            for (; i != finish; ++i) {
-                if (traits_type::find(str, count, *i) == nullptr) {
-                    return size_type(i - begin());
-                }
+        for (; pos < size(); ++pos) {
+            if (traits_type::find(str, count, at(pos)) == nullptr) {
+                return pos;
             }
         }
         return npos;
@@ -2427,17 +2416,20 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto find_last_of(const Char* str, size_type pos, size_type count) const -> size_type {
-        if (buffer_type::size() > 0 and count > 0) {
-            pos = std::min(pos, size() - 1);
-            const_iterator i(begin() + pos);
-            for (;; --i) {
-                if (traits_type::find(str, count, *i) != nullptr) {
-                    return size_type(i - begin());
-                }
-                if (i == begin()) {
-                    break;
-                }
+        auto current_size = this->size();
+        if (pos > current_size) [[unlikely]] {
+            throw std::out_of_range("find_last_of: pos is out of range");
+        }
+        const auto* buffer_ptr = buffer_type::get_buffer();
+        if (current_size && count) [[likely]] {
+            if (--current_size > pos) {
+                current_size = pos;
             }
+            do {
+                if (traits_type::find(str, count, buffer_ptr[current_size]) != nullptr) {
+                    return current_size;
+                }
+            } while (current_size-- != 0);
         }
         return npos;
     }
@@ -2463,17 +2455,16 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto find_last_not_of(const Char* str, size_type pos, size_type count) const -> size_type {
-        if (not empty()) [[likely]] {
-            pos = std::min(pos, size() - 1);
-            const_iterator i(begin() + pos);
-            for (;; --i) {
-                if (traits_type::find(str, count, *i) == nullptr) {
-                    return size_type(i - begin());
-                }
-                if (i == begin()) {
-                    break;
-                }
+        auto current_size = buffer_type::size();
+        if (current_size > 0) {
+            if (--current_size > pos) {
+                current_size = pos;
             }
+            do {
+                if (traits_type::find(str, count, at(current_size)) == nullptr) {
+                    return current_size;
+                }
+            } while (current_size-- != 0);
         }
         return npos;
     }
