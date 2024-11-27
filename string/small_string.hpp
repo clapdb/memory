@@ -2359,8 +2359,10 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto find_first_not_of(const Char* str, size_type pos, size_type count) const -> size_type {
-        for (; pos < size(); ++pos) {
-            if (traits_type::find(str, count, at(pos)) == nullptr) {
+        auto current_size = this->size();
+        const auto* buffer_ptr = buffer_type::get_buffer();
+        for (; pos < current_size; ++pos) {
+            if (traits_type::find(str, count, buffer_ptr[pos]) == nullptr) {
                 return pos;
             }
         }
