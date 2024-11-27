@@ -2417,9 +2417,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     [[nodiscard]] constexpr auto find_last_of(const Char* str, size_type pos, size_type count) const -> size_type {
         auto current_size = this->size();
-        if (pos > current_size) [[unlikely]] {
-            throw std::out_of_range("find_last_of: pos is out of range");
-        }
         const auto* buffer_ptr = buffer_type::get_buffer();
         if (current_size && count) [[likely]] {
             if (--current_size > pos) {
