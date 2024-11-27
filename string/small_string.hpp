@@ -2361,25 +2361,37 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto find_first_of(const Char* str, size_type pos, size_type count) const -> size_type {
-        return find(str, pos, count);
+        if (pos > size() || count == 0) [[unlikely]] {
+            return npos;
+        }
+        const_iterator i{begin() + pos};
+        const_iterator finish{end()};
+        for (; i != finish; ++i) {
+            if (traits_type::find(str, count, *i) != nullptr) {
+                return size_type(i - begin());
+            }
+        }
+        return npos;
     }
 
     [[nodiscard]] constexpr auto find_first_of(const Char* str, size_type pos = 0) const -> size_type {
-        return find(str, pos, traits_type::length(str));
+        return find_first_of(str, pos, traits_type::length(str));
     }
 
     [[nodiscard]] constexpr auto find_first_of(const basic_small_string& other, size_type pos = 0) const -> size_type {
-        return find(other.c_str(), pos, other.size());
+        return find_first_of(other.c_str(), pos, other.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
     [[nodiscard]] constexpr auto find_first_of(const StringViewLike& view, size_type pos = 0) const -> size_type {
-        return find(view.data(), pos, view.size());
+        return find_first_of(view.data(), pos, view.size());
     }
 
-    [[nodiscard]] constexpr auto find_first_of(Char ch, size_type pos = 0) const -> size_type { return find(ch, pos); }
+    [[nodiscard]] constexpr auto find_first_of(Char ch, size_type pos = 0) const -> size_type {
+        return find_first_of(&ch, pos, 1);
+    }
 
     [[nodiscard]] constexpr auto find_first_not_of(const Char* str, size_type pos, size_type count) const -> size_type {
         if (pos < size()) {
@@ -2415,27 +2427,39 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto find_last_of(const Char* str, size_type pos, size_type count) const -> size_type {
-        return rfind(str, pos, count);
+        if (buffer_type::size() > 0 and count > 0) {
+            pos = std::min(pos, size() - 1);
+            const_iterator i(begin() + pos);
+            for (;; --i) {
+                if (traits_type::find(str, count, *i) != nullptr) {
+                    return size_type(i - begin());
+                }
+                if (i == begin()) {
+                    break;
+                }
+            }
+        }
+        return npos;
     }
 
     [[nodiscard]] constexpr auto find_last_of(const Char* str, size_type pos = npos) const -> size_type {
-        return rfind(str, pos, traits_type::length(str));
+        return find_last_of(str, pos, traits_type::length(str));
     }
 
     [[nodiscard]] constexpr auto find_last_of(const basic_small_string& other,
                                               size_type pos = npos) const -> size_type {
-        return rfind(other.c_str(), pos, other.size());
+        return find_last_of(other.c_str(), pos, other.size());
     }
 
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
     [[nodiscard]] constexpr auto find_last_of(const StringViewLike& view, size_type pos = npos) const -> size_type {
-        return rfind(view.data(), pos, view.size());
+        return find_last_of(view.data(), pos, view.size());
     }
 
     [[nodiscard]] constexpr auto find_last_of(Char ch, size_type pos = npos) const -> size_type {
-        return rfind(ch, pos);
+        return find_last_of(&ch, pos, 1);
     }
 
     [[nodiscard]] constexpr auto find_last_not_of(const Char* str, size_type pos, size_type count) const -> size_type {
