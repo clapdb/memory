@@ -839,7 +839,7 @@ class small_string_buffer
     // set the buf_size and str_size to the right place
     inline static auto allocate_new_external_buffer(
       struct buffer_type_and_size type_and_size, size_type old_str_size,
-      std::pmr::polymorphic_allocator<Char>* allocator_ptr = nullptr) noexcept -> core_type::external_core {
+      std::pmr::polymorphic_allocator<Char>* allocator_ptr = nullptr) noexcept -> typename core_type::external_core {
         // make sure the old_str_size <= new_buffer_size
         Assert(old_str_size <= calculate_buffer_real_capacity(type_and_size),
                "old_str_size should be less than the real capacity of the new buffer");
@@ -898,6 +898,7 @@ class small_string_buffer
                         .idle_flag = {.idle = delta, .flag = kIsDelta}};
             }
         }
+        __builtin_unreachable();
     }
 
    protected:
@@ -933,7 +934,7 @@ class small_string_buffer
     }
 
     // this funciion will not change the size, but the capacity or delta
-    template <Need0 Need0 = Need0::Yes>
+    template <Need0 Term = Need0::Yes>
     void allocate_more(size_type new_append_size) noexcept {
         size_type old_delta = _core.idle_capacity();
 
@@ -957,7 +958,7 @@ class small_string_buffer
         // copy the old data to the new buffer
         std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
         // set the '\0' at the end of the buffer if needed;
-        if constexpr (NullTerminated and Need0 == Need0::Yes) {
+        if constexpr (NullTerminated and Term == Need0::Yes) {
             reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
         }
         // deallocate the old buffer
@@ -974,7 +975,7 @@ class small_string_buffer
     }
 
    public:
-    template <Need0 Need0, bool NeedCopy>
+    template <Need0 Term, bool NeedCopy>
     constexpr auto buffer_reserve(size_type new_cap) -> void {
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
@@ -994,7 +995,7 @@ class small_string_buffer
                 // copy the old data to the new buffer
                 std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
             }
-            if constexpr (NullTerminated and Need0 == Need0::Yes and NeedCopy) {
+            if constexpr (NullTerminated and Term == Need0::Yes and NeedCopy) {
                 reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
             }
             // deallocate the old buffer
@@ -2131,7 +2132,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
 
         auto [cap, old_size] = buffer_type::get_capacity_and_size();
-        
+
         if (last == end() and count2 <= (cap - pos)) {
             // copy the data to pos, and no need to move the right part
             std::copy(first2, last2, data() + pos);
@@ -2303,7 +2304,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
                     return pos;
                 }
             } while (pos-- > 0);
-
         }
         return npos;
     }
@@ -2327,14 +2327,14 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         auto current_size = size();
         const auto* buffer_ptr = buffer_type::get_buffer();
         if (current_size > 0) [[likely]] {
-           if (--current_size > pos) {
-               current_size = pos;
-           }
-           for (++current_size; current_size-- > 0;) {
-               if (traits_type::eq(buffer_ptr[current_size], ch)) {
-                   return current_size;
-               }
-           }
+            if (--current_size > pos) {
+                current_size = pos;
+            }
+            for (++current_size; current_size-- > 0;) {
+                if (traits_type::eq(buffer_ptr[current_size], ch)) {
+                    return current_size;
+                }
+            }
         }
         return npos;
     }
@@ -3101,3 +3101,19 @@ using small_byte_string = basic_small_string<char, small_string_buffer, pmr_core
 static_assert(sizeof(small_string) == 16, "small_string should be same as a pointer");
 
 }  // namespace stdb::memory::pmr
+
+namespace std {
+
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+struct hash<stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>>
+{
+    using argument_type = stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>;
+    using result_type = std::size_t;
+
+    auto operator()(const argument_type& str) const noexcept -> result_type {
+        return std::hash<std::basic_string_view<Char, Traits>>{}(str);
+    }
+};
+
+}  // namespace std
