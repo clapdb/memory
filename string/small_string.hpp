@@ -839,7 +839,7 @@ class small_string_buffer
     // set the buf_size and str_size to the right place
     inline static auto allocate_new_external_buffer(
       struct buffer_type_and_size type_and_size, size_type old_str_size,
-      std::pmr::polymorphic_allocator<Char>* allocator_ptr = nullptr) noexcept -> core_type::external_core {
+      std::pmr::polymorphic_allocator<Char>* allocator_ptr = nullptr) noexcept -> typename core_type::external_core {
         // make sure the old_str_size <= new_buffer_size
         Assert(old_str_size <= calculate_buffer_real_capacity(type_and_size),
                "old_str_size should be less than the real capacity of the new buffer");
@@ -898,6 +898,7 @@ class small_string_buffer
                         .idle_flag = {.idle = delta, .flag = kIsDelta}};
             }
         }
+        __builtin_unreachable();
     }
 
    protected:
@@ -933,7 +934,7 @@ class small_string_buffer
     }
 
     // this funciion will not change the size, but the capacity or delta
-    template <Need0 Need0 = Need0::Yes>
+    template <Need0 Term = Need0::Yes>
     void allocate_more(size_type new_append_size) noexcept {
         size_type old_delta = _core.idle_capacity();
 
@@ -957,7 +958,7 @@ class small_string_buffer
         // copy the old data to the new buffer
         std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
         // set the '\0' at the end of the buffer if needed;
-        if constexpr (NullTerminated and Need0 == Need0::Yes) {
+        if constexpr (NullTerminated and Term == Need0::Yes) {
             reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
         }
         // deallocate the old buffer
@@ -974,7 +975,7 @@ class small_string_buffer
     }
 
    public:
-    template <Need0 Need0, bool NeedCopy>
+    template <Need0 Term, bool NeedCopy>
     constexpr auto buffer_reserve(size_type new_cap) -> void {
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
@@ -994,7 +995,7 @@ class small_string_buffer
                 // copy the old data to the new buffer
                 std::memcpy(reinterpret_cast<Char*>(new_external.c_str_ptr), get_buffer(), old_size);
             }
-            if constexpr (NullTerminated and Need0 == Need0::Yes and NeedCopy) {
+            if constexpr (NullTerminated and Term == Need0::Yes and NeedCopy) {
                 reinterpret_cast<Char*>(new_external.c_str_ptr)[old_size] = '\0';
             }
             // deallocate the old buffer
