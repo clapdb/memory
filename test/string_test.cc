@@ -3522,6 +3522,21 @@ TEST_CASE("small_string::replace") {
     CHECK_EQ(str, "abcghijkl456789xxxx");
 }
 
+TEST_CASE("small_string::hash") {
+    small_string str("1234567890");
+    CHECK_EQ(std::hash<basic_small_string<char>>{}(str), std::hash<std::string>{}("1234567890"));
+
+    small_byte_string str1("1234567890");
+    CHECK_EQ(std::hash<basic_small_string<char>>{}(str1), std::hash<std::string>{}("1234567890"));
+
+    Arena arena(Arena::Options::GetDefaultOptions());
+    pmr::small_string str2("1234567890", arena.get_memory_resource());
+    CHECK_EQ(std::hash<basic_small_string<char>>{}(str2), std::hash<std::string>{}("1234567890"));
+
+    pmr::small_byte_string str3("1234567890", arena.get_memory_resource());
+    CHECK_EQ(std::hash<basic_small_string<char>>{}(str3), std::hash<std::string>{}("1234567890"));
+}
+
 // small_string section
 TEST_CASE("small_string::testAllClauses") {
     std::cout << "Starting small_string tests with seed: " << seed << std::endl;

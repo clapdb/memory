@@ -3101,3 +3101,19 @@ using small_byte_string = basic_small_string<char, small_string_buffer, pmr_core
 static_assert(sizeof(small_string) == 16, "small_string should be same as a pointer");
 
 }  // namespace stdb::memory::pmr
+
+namespace std {
+
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+struct hash<stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>>
+{
+    using argument_type = stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>;
+    using result_type = std::size_t;
+
+    auto operator()(const argument_type& str) const noexcept -> result_type {
+        return std::hash<std::basic_string_view<Char, Traits>>{}(str);
+    }
+};
+
+}  // namespace std
