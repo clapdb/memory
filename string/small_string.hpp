@@ -2131,7 +2131,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
 
         auto [cap, old_size] = buffer_type::get_capacity_and_size();
-        
+
         if (last == end() and count2 <= (cap - pos)) {
             // copy the data to pos, and no need to move the right part
             std::copy(first2, last2, data() + pos);
@@ -2303,7 +2303,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
                     return pos;
                 }
             } while (pos-- > 0);
-
         }
         return npos;
     }
@@ -2327,14 +2326,14 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         auto current_size = size();
         const auto* buffer_ptr = buffer_type::get_buffer();
         if (current_size > 0) [[likely]] {
-           if (--current_size > pos) {
-               current_size = pos;
-           }
-           for (++current_size; current_size-- > 0;) {
-               if (traits_type::eq(buffer_ptr[current_size], ch)) {
-                   return current_size;
-               }
-           }
+            if (--current_size > pos) {
+                current_size = pos;
+            }
+            for (++current_size; current_size-- > 0;) {
+                if (traits_type::eq(buffer_ptr[current_size], ch)) {
+                    return current_size;
+                }
+            }
         }
         return npos;
     }

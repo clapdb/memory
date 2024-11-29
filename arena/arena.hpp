@@ -111,7 +111,7 @@ concept VariantWithString =
  */
 template <typename T>
 concept Creatable = Constructable<T> || (std::is_standard_layout<T>::value && std::is_trivial<T>::value) ||
-                    std::is_constructible_v<T, pmr::polymorphic_allocator<T>> || VariantWithString<T>;
+                    std::is_constructible_v<T, std::pmr::polymorphic_allocator<T>> || VariantWithString<T>;
 
 /*
  * TriviallyDestructible concept requires T just has default destructor.
@@ -675,7 +675,7 @@ class Arena
     template <typename T, typename... Args>
     [[gnu::always_inline]] inline static auto Construct(void* ptr, Arena& arena, Args&&... args) noexcept -> T* {
         // placement new make the new Object T is in the ptr-> memory.
-        if constexpr (std::is_constructible_v<T, Args..., ::pmr::polymorphic_allocator<T>>) {
+        if constexpr (std::is_constructible_v<T, Args..., std::pmr::polymorphic_allocator<T>>) {
             return new (ptr) T(std::forward<Args>(args)..., arena.get_memory_resource());
         } else if constexpr (std::is_constructible_v<T, Arena&, Args...>) {
             return new (ptr) T(arena, std::forward<Args>(args)...);
