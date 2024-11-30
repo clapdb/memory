@@ -9,8 +9,6 @@
  * Beijing Jinyi Data Technology Co., Ltd.
  */
 
-
-
 #pragma once
 #include <fmt/core.h>
 #include <sys/types.h>
@@ -26,6 +24,7 @@
 #include <memory>
 #include <memory_resource>
 #include <stdexcept>
+#include <string_view>
 #include <type_traits>
 
 #include "align/align.hpp"
@@ -186,7 +185,7 @@ struct malloc_core
         // 0~7
         uint8_t internal_size : 4;
         // 0000 , ths higher 4 bits is 0, means is_internal is 0
-        uint8_t is_internal : 4;
+        uint8_t is_external : 4;
         // consteval means it will be evaluated at compile time
         [[nodiscard, gnu::always_inline]] static consteval auto capacity() noexcept -> size_type {
             if constexpr (not NullTerminated) {
@@ -285,7 +284,7 @@ struct malloc_core
     constexpr static uint8_t kDeltaCore = static_cast<uint8_t>(CoreType::Delta);
 
     [[nodiscard]] auto get_core_type() -> uint8_t {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return kInterCore;
@@ -307,7 +306,7 @@ struct malloc_core
     }
 
     [[nodiscard, gnu::always_inline]] inline auto is_external() const noexcept -> bool {
-        return internal.is_internal != 0;
+        return internal.is_external != 0;
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto capacity_from_buffer_header() const noexcept -> size_type {
@@ -347,7 +346,7 @@ struct malloc_core
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto capacity() const noexcept -> size_type {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return internal_core::capacity();
@@ -379,7 +378,7 @@ struct malloc_core
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto size() const noexcept -> size_type {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return internal.size();
@@ -410,7 +409,7 @@ struct malloc_core
      * set_size, whithout cap changing
      */
     constexpr void set_size_and_idle(size_type new_size) noexcept {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         Assert(new_size <= capacity(), "set_size can not overflow the buffer's limit");
         if constexpr (NullTerminated) {
             switch (flag) {
@@ -482,7 +481,7 @@ struct malloc_core
 
     constexpr void increase_size_and_idle(size_type size_to_increase) noexcept {
         Assert(size_to_increase <= idle_capacity(), "increase_size can not overflow the buffer's limit");
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         if constexpr (NullTerminated) {
             switch (flag) {
                 case 0:
@@ -549,7 +548,7 @@ struct malloc_core
 
     constexpr void decrease_size_and_idle(size_type size_to_decrease) noexcept {
         Assert(size_to_decrease <= size(), "decrease_size can not be less than the current size");
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         if constexpr (NullTerminated) {
             switch (flag) {
                 case 0:
@@ -611,7 +610,7 @@ struct malloc_core
     }
 
     [[nodiscard]] constexpr auto get_capacity_and_size() const noexcept -> capacity_and_size<size_type> {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return {internal_core::capacity(), internal.size()};
@@ -647,7 +646,7 @@ struct malloc_core
     }
 
     [[nodiscard]] constexpr auto idle_capacity() const noexcept -> size_type {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return internal.idle_capacity();
@@ -690,8 +689,32 @@ struct malloc_core
         return is_external() ? reinterpret_cast<Char*>(external.c_str_ptr) : internal.data;
     }
 
+    [[nodiscard, gnu::always_inline]] inline auto get_string_view() const noexcept -> std::string_view {
+        auto flag = internal.is_external;
+        switch (flag) {
+            case 0:
+                return std::string_view(internal.data, internal.internal_size);
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+                return std::string_view(reinterpret_cast<Char*>(external.c_str_ptr), external.size_shift.external_size);
+            case 11:
+                return std::string_view(reinterpret_cast<Char*>(external.c_str_ptr), 4096);
+            default:
+                return std::string_view(reinterpret_cast<Char*>(external.c_str_ptr), size_from_buffer_header());
+        }
+        __builtin_unreachable();  // unreachable
+    }
+
     [[nodiscard, gnu::always_inline]] constexpr auto end_ptr() noexcept -> Char* {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return &internal.data[internal.internal_size];
@@ -1096,7 +1119,7 @@ class small_string_buffer
      */
     [[gnu::always_inline]] inline void clone_the_external_buffer_if_need() {
         // copy the core done, then allocate the external buffer if need
-        uint16_t flag = _core.internal.is_internal;
+        uint16_t flag = _core.internal.is_external;
         switch (flag) {
             case 0:
                 return;  // internal core, do nothing, no need
@@ -1220,6 +1243,10 @@ class small_string_buffer
         if constexpr (NullTerminated) {
             reinterpret_cast<Char*>(get_buffer())[Size] = '\0';
         }
+    }
+
+    [[nodiscard, gnu::always_inline]] constexpr inline auto get_string_view() const noexcept -> std::string_view {
+        return _core.get_string_view();
     }
 
 };  // class small_string_buffer
@@ -2596,8 +2623,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     // convert to std::basic_string_view, to support C++11 compatibility. and it's noexcept.
     // and small_string can be converted to std::basic_string_view implicity, so third party String can be converted
     // from small_string.
-    operator std::basic_string_view<Char, Traits>() const noexcept {
-        return std::basic_string_view<Char, Traits>(data(), size());
+    [[nodiscard, gnu::always_inline]] inline operator std::basic_string_view<Char, Traits>() const noexcept {
+        return buffer_type::get_string_view();
     }
 };  // class basic_small_string
 
