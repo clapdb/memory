@@ -186,7 +186,7 @@ struct malloc_core
         // 0~7
         uint8_t internal_size : 4;
         // 0000 , ths higher 4 bits is 0, means is_internal is 0
-        uint8_t is_internal : 4;
+        uint8_t is_external : 4;
         // consteval means it will be evaluated at compile time
         [[nodiscard, gnu::always_inline]] static consteval auto capacity() noexcept -> size_type {
             if constexpr (not NullTerminated) {
@@ -285,7 +285,7 @@ struct malloc_core
     constexpr static uint8_t kDeltaCore = static_cast<uint8_t>(CoreType::Delta);
 
     [[nodiscard]] auto get_core_type() -> uint8_t {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return kInterCore;
@@ -307,7 +307,7 @@ struct malloc_core
     }
 
     [[nodiscard, gnu::always_inline]] inline auto is_external() const noexcept -> bool {
-        return internal.is_internal != 0;
+        return internal.is_external != 0;
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto capacity_from_buffer_header() const noexcept -> size_type {
@@ -347,7 +347,7 @@ struct malloc_core
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto capacity() const noexcept -> size_type {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return internal_core::capacity();
@@ -379,7 +379,7 @@ struct malloc_core
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto size() const noexcept -> size_type {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return internal.size();
@@ -410,7 +410,7 @@ struct malloc_core
      * set_size, whithout cap changing
      */
     constexpr void set_size_and_idle(size_type new_size) noexcept {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         Assert(new_size <= capacity(), "set_size can not overflow the buffer's limit");
         if constexpr (NullTerminated) {
             switch (flag) {
@@ -482,7 +482,7 @@ struct malloc_core
 
     constexpr void increase_size_and_idle(size_type size_to_increase) noexcept {
         Assert(size_to_increase <= idle_capacity(), "increase_size can not overflow the buffer's limit");
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         if constexpr (NullTerminated) {
             switch (flag) {
                 case 0:
@@ -549,7 +549,7 @@ struct malloc_core
 
     constexpr void decrease_size_and_idle(size_type size_to_decrease) noexcept {
         Assert(size_to_decrease <= size(), "decrease_size can not be less than the current size");
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         if constexpr (NullTerminated) {
             switch (flag) {
                 case 0:
@@ -611,7 +611,7 @@ struct malloc_core
     }
 
     [[nodiscard]] constexpr auto get_capacity_and_size() const noexcept -> capacity_and_size<size_type> {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return {internal_core::capacity(), internal.size()};
@@ -647,7 +647,7 @@ struct malloc_core
     }
 
     [[nodiscard]] constexpr auto idle_capacity() const noexcept -> size_type {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return internal.idle_capacity();
@@ -691,7 +691,7 @@ struct malloc_core
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto end_ptr() noexcept -> Char* {
-        auto flag = internal.is_internal;
+        auto flag = internal.is_external;
         switch (flag) {
             case 0:
                 return &internal.data[internal.internal_size];
@@ -1096,7 +1096,7 @@ class small_string_buffer
      */
     [[gnu::always_inline]] inline void clone_the_external_buffer_if_need() {
         // copy the core done, then allocate the external buffer if need
-        uint16_t flag = _core.internal.is_internal;
+        uint16_t flag = _core.internal.is_external;
         switch (flag) {
             case 0:
                 return;  // internal core, do nothing, no need
