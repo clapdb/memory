@@ -9,8 +9,6 @@
  * Beijing Jinyi Data Technology Co., Ltd.
  */
 
-
-
 #pragma once
 #include <fmt/core.h>
 #include <sys/types.h>
@@ -26,6 +24,7 @@
 #include <memory>
 #include <memory_resource>
 #include <stdexcept>
+#include <string_view>
 #include <type_traits>
 
 #include "align/align.hpp"
@@ -690,6 +689,30 @@ struct malloc_core
         return is_external() ? reinterpret_cast<Char*>(external.c_str_ptr) : internal.data;
     }
 
+    [[nodiscard, gnu::always_inline]] inline auto get_string_view() const noexcept -> std::string_view {
+        auto flag = internal.is_external;
+        switch (flag) {
+            case 0:
+                return std::string_view(internal.data, internal.internal_size);
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+                return std::string_view(reinterpret_cast<Char*>(external.c_str_ptr), external.size_shift.external_size);
+            case 11:
+                return std::string_view(reinterpret_cast<Char*>(external.c_str_ptr), 4096);
+            default:
+                return std::string_view(reinterpret_cast<Char*>(external.c_str_ptr), size_from_buffer_header());
+        }
+        __builtin_unreachable();  // unreachable
+    }
+
     [[nodiscard, gnu::always_inline]] constexpr auto end_ptr() noexcept -> Char* {
         auto flag = internal.is_external;
         switch (flag) {
@@ -1220,6 +1243,10 @@ class small_string_buffer
         if constexpr (NullTerminated) {
             reinterpret_cast<Char*>(get_buffer())[Size] = '\0';
         }
+    }
+
+    [[nodiscard, gnu::always_inline]] constexpr inline auto get_string_view() const noexcept -> std::string_view {
+        return _core.get_string_view();
     }
 
 };  // class small_string_buffer
@@ -2596,8 +2623,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     // convert to std::basic_string_view, to support C++11 compatibility. and it's noexcept.
     // and small_string can be converted to std::basic_string_view implicity, so third party String can be converted
     // from small_string.
-    operator std::basic_string_view<Char, Traits>() const noexcept {
-        return std::basic_string_view<Char, Traits>(data(), size());
+    [[nodiscard, gnu::always_inline]] inline operator std::basic_string_view<Char, Traits>() const noexcept {
+        return buffer_type::get_string_view();
     }
 };  // class basic_small_string
 
