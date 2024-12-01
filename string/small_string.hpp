@@ -3099,6 +3099,29 @@ using small_byte_string =
 static_assert(sizeof(small_string) == 8, "small_string should be same as a pointer");
 static_assert(sizeof(small_byte_string) == 8, "small_byte_string should be same as a pointer");
 
+template <typename String, typename T>
+auto to_small_string(T value) -> String {
+    auto size = fmt::format("{}", value);
+    String formatted{String::initialized_later, size};
+    fmt::format_to(formatted.data(), "{}", value);
+    return formatted;
+}
+
+template <typename String>
+auto to_small_string(const char* value) -> String {
+    return String{value};
+}
+
+template <typename String>
+auto to_small_string(const std::string& value) -> String {
+    return String{value};
+}
+
+template <typename String>
+auto to_small_string(std::string_view view) -> String {
+    return String{view};
+}
+
 }  // namespace stdb::memory
 
 // decl the formatter of small_string
