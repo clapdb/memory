@@ -1296,6 +1296,11 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         buffer_type::initial_allocate(type_and_size, new_string_size);
     }
 
+    static constexpr auto create_uninitialized_string(size_type new_string_size, const Allocator& allocator = Allocator())
+        -> basic_small_string {
+        return basic_small_string(initialized_later{}, new_string_size, allocator);
+    }
+
     constexpr explicit basic_small_string([[maybe_unused]] const Allocator& allocator = Allocator()) noexcept
         : buffer_type(allocator) {}
 
@@ -3102,7 +3107,7 @@ static_assert(sizeof(small_byte_string) == 8, "small_byte_string should be same 
 template <typename String, typename T>
 auto to_small_string(T value) -> String {
     auto size = fmt::format("{}", value);
-    String formatted{String::initialized_later, size};
+    auto formatted = String::create_uninitialized_string(size.size());
     fmt::format_to(formatted.data(), "{}", value);
     return formatted;
 }
