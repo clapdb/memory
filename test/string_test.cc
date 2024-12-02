@@ -3577,7 +3577,11 @@ TEST_CASE("to_small_string") {
     auto small_byte_str5 = to_small_string<small_byte_string>(str5);
     CHECK_EQ(small_byte_str5, "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123");
 
-    std::string str6("1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234");
+
+    auto small_str_int = to_small_string<small_string>(1234567890);
+    CHECK_EQ(small_str_int, "1234567890");
+    auto small_byte_str_int = to_small_string<small_byte_string>(1234567890);
+    CHECK_EQ(small_byte_str_int, "1234567890");
 }
 
 // small_string section
