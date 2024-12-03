@@ -909,13 +909,13 @@ class small_string_buffer
                       .capacity = new_buffer_size - 1 - static_cast<size_type>(sizeof(capacity_and_size<size_type>)),
                       .size = old_str_size};
                     *head = buffer_header;
-                    delta = std::min<size_type>(buffer_header.capacity - buffer_header.size, kDeltaMax);
+                    delta = static_cast<uint16_t>(std::min<size_type>(buffer_header.capacity - buffer_header.size, kDeltaMax));
                 } else {
                     capacity_and_size<size_type> buffer_header = {
                       .capacity = new_buffer_size - static_cast<size_type>(sizeof(capacity_and_size<size_type>)),
                       .size = old_str_size};
                     *head = buffer_header;
-                    delta = std::min<size_type>(buffer_header.capacity - buffer_header.size, kDeltaMax);
+                    delta = static_cast<uint16_t>(std::min<size_type>(buffer_header.capacity - buffer_header.size, kDeltaMax));
                 }
                 return {.c_str_ptr = reinterpret_cast<int64_t>(head + 1),
                         .idle_flag = {.idle = delta, .flag = kIsDelta}};
