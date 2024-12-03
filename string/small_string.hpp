@@ -1453,7 +1453,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         if (this == &str) [[unlikely]] {
             // erase the other part
-            count = std::min(count, other_size - pos);
+            count = std::min<size_type>(count, other_size - pos);
             auto* buffer = buffer_type::get_buffer();
             std::memmove(buffer, buffer + pos, count);
             buffer_type::set_size(count);
@@ -1462,7 +1462,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             }
             return *this;
         }
-        return assign<Safe>(str.data() + pos, std::min(count, other_size - pos));
+        return assign<Safe>(str.data() + pos, std::min<size_type>(count, other_size - pos));
     }
 
     auto assign(basic_small_string&& gone) noexcept -> basic_small_string& {
@@ -1525,7 +1525,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         requires(std::is_convertible_v<const StringViewLike&, const Char*> and
                  not std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>>)
     auto assign(const StringViewLike& s, size_type pos, size_type n = npos) -> basic_small_string& {
-        return assign<Safe>(s + pos, std::min(n, s.size() - pos));
+        return assign<Safe>(s + pos, std::min<size_type>(n, s.size() - pos));
     }
 
     // element access
@@ -2535,7 +2535,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // make sure the count1 is valid, if count1 > size() - pos1, set count1 = size() - pos1
         count1 = std::min(count1, size() - pos1);
-        auto r = traits_type::compare(c_str() + pos1, str, std::min(count1, count2));
+        auto r = traits_type::compare(c_str() + pos1, str, std::min<size_type>(count1, count2));
         return r != 0 ? r : count1 > count2 ? 1 : count1 < count2 ? -1 : 0;
     }
 
@@ -2545,7 +2545,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     [[nodiscard]] constexpr auto compare(const StringViewLike& view) const noexcept -> int {
         auto this_size = size();
         auto view_size = view.size();
-        auto r = traits_type::compare(c_str(), view.data(), std::min(this_size, view_size));
+        auto r = traits_type::compare(c_str(), view.data(), std::min<size_type>(this_size, view_size));
         return r != 0 ? r : this_size > view_size ? 1 : this_size < view_size ? -1 : 0;
     }
 
@@ -2564,7 +2564,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         if (pos2 > view.size()) [[unlikely]] {
             throw std::out_of_range("compare: pos2 is out of range");
         }
-        count2 = std::min(count2, view.size() - pos2);
+        count2 = std::min<size_type>(count2, view.size() - pos2);
         return compare(pos1, count1, view.data() + pos2, count2);
     }
 
@@ -2608,7 +2608,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             throw std::out_of_range("substr: pos is out of range");
         }
 
-        return basic_small_string{data() + pos, std::min(count, current_size - pos), get_allocator()};
+        return basic_small_string{data() + pos, std::min<size_type>(count, current_size - pos), get_allocator()};
     }
 
     [[nodiscard]] constexpr auto substr(size_type pos = 0, size_type count = npos) && -> basic_small_string {
@@ -2880,7 +2880,7 @@ template <typename Char, template <typename, template <class, bool> class, class
 inline auto operator<=>(const std::basic_string<Char, Traits, STDAllocator>& lhs,
                         const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> std::strong_ordering {
-    return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) <=> 0;
+    return 0 <=> rhs.compare(0, rhs.size(), lhs.data(), lhs.size());
 }
 
 // small_string <=> Char*
@@ -2897,8 +2897,27 @@ template <typename Char, template <typename, template <class, bool> class, class
 inline auto operator<=>(const Char* lhs,
                         const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> std::strong_ordering {
-    auto r = Traits::compare(lhs, rhs.data(), std::min(Traits::length(lhs), rhs.size()));
-    return r != 0 ? r <=> 0 : rhs.size() <=> Traits::length(lhs);
+    auto rhs_size = rhs.size();
+    auto lhs_size = Traits::length(lhs);
+    auto r = Traits::compare(lhs, rhs.data(), std::min<decltype(rhs_size)>(lhs_size, rhs_size));
+    return r != 0 ? r <=> 0 : lhs_size <=> rhs_size;
+}
+
+// small_string <=> std::string_view
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator<=>(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                        std::string_view rhs) noexcept -> std::strong_ordering {
+    return lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) <=> 0;
+}
+
+// std::string_view <=> small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator<=>(std::string_view lhs,
+                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
+    -> std::strong_ordering {
+    return 0 <=> rhs.compare(0, rhs.size(), lhs.data(), lhs.size());
 }
 
 // small_string == basic_string
@@ -2906,7 +2925,7 @@ template <typename Char, template <typename, template <class, bool> class, class
           template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
 inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
                        const std::basic_string<Char, Traits, STDAllocator>& rhs) noexcept -> bool {
-    return lhs.size() == rhs.size() and lhs.compare(0, lhs.size(), rhs.data(), rhs.size()) == 0;
+    return lhs.size() == rhs.size() and std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
 
 // basic_string == small_string
@@ -2915,7 +2934,7 @@ template <typename Char, template <typename, template <class, bool> class, class
 inline auto operator==(const std::basic_string<Char, Traits, STDAllocator>& lhs,
                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
-    return rhs == lhs;
+    return lhs.size() == rhs.size() and std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
 
 // small_string == Char*
@@ -2924,7 +2943,7 @@ template <typename Char, template <typename, template <class, bool> class, class
 inline auto operator==(const Char* lhs,
                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
-    return rhs.size() == Traits::length(lhs) and rhs.compare(lhs) == 0;
+    return rhs.size() == Traits::length(lhs) and std::equal(rhs.begin(), rhs.end(), lhs);
 }
 
 // small_string == Char*
@@ -2932,7 +2951,23 @@ template <typename Char, template <typename, template <class, bool> class, class
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
 inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
                        const Char* rhs) noexcept -> bool {
-    return rhs == lhs;
+    return lhs.size() == Traits::length(rhs) and std::equal(lhs.begin(), lhs.end(), rhs);
+}
+
+// small_string == std::string_view
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                       std::string_view rhs) noexcept -> bool {
+    return lhs.size() == rhs.size() and std::equal(lhs.begin(), lhs.end(), rhs.begin());
+}
+
+// std::string_view == small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator==(std::string_view lhs,
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept -> bool { 
+    return lhs.size() == rhs.size() and std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
 
 // small_string != basic_string
@@ -2969,6 +3004,23 @@ inline auto operator!=(const Char* lhs,
     return !(lhs == rhs);
 }
 
+// small_string != std::string_view
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator!=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                       std::string_view rhs) noexcept -> bool {
+    return !(lhs == rhs);
+}
+
+// std::string_view != small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator!=(std::string_view lhs,
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept -> bool {
+    return !(lhs == rhs);
+}
+
+
 // small_string < basic_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
@@ -3003,6 +3055,22 @@ inline auto operator<(const Char* lhs,
     return rhs.compare(lhs) > 0;
 }
 
+// small_string < std::string_view
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator<(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                      std::string_view rhs) noexcept -> bool {
+    return lhs.compare(rhs) < 0;
+}
+
+// std::string_view < small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator<(std::string_view lhs,
+                      const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept -> bool {
+    return rhs.compare(lhs) > 0;
+}
+
 // basic_string > small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
@@ -3027,6 +3095,22 @@ template <typename Char, template <typename, template <class, bool> class, class
 inline auto operator>(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
                       const Char* rhs) noexcept -> bool {
     return lhs.compare(rhs) > 0;
+}
+
+// small_string > std::string_view
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator>(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                      std::string_view rhs) noexcept -> bool {
+    return lhs.compare(rhs) > 0;
+}
+
+// std::string_view > small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator>(std::string_view lhs,
+                      const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept -> bool {
+    return rhs.compare(lhs) < 0;
 }
 
 // small_string <= basic_string
@@ -3063,6 +3147,22 @@ inline auto operator<=(const Char* lhs,
     return !(lhs > rhs);
 }
 
+// small_string <= std::string_view
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator<=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                       std::string_view rhs) noexcept -> bool {
+    return !(lhs > rhs);
+}
+
+// std::string_view <= small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator<=(std::string_view lhs,
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept -> bool {
+    return !(lhs > rhs);
+}
+
 // basic_string >= small_string
 template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, class STDAllocator, bool NullTerminated>
@@ -3094,6 +3194,22 @@ template <typename Char, template <typename, template <class, bool> class, class
 inline auto operator>=(const Char* lhs,
                        const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept
   -> bool {
+    return !(lhs < rhs);
+}
+
+// small_string >= std::string_view
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator>=(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+                       std::string_view rhs) noexcept -> bool {
+    return !(lhs < rhs);
+}
+
+// std::string_view >= small_string
+template <typename Char, template <typename, template <class, bool> class, class T, class A, bool N> class Buffer,
+          template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated>
+inline auto operator>=(std::string_view lhs,
+                       const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& rhs) noexcept -> bool {
     return !(lhs < rhs);
 }
 

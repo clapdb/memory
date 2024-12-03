@@ -22,11 +22,14 @@
 #include <algorithm>  // for for_each
 #include <atomic>     // for atomic, __atomic_base
 #include <chrono>     // for duration, system_clock, system_clock::t...
+#include <compare>
 #include <cstddef>    // for size_t
 #include <cstdlib>
 #include <iostream>  // for cout
 #include <iterator>  // for move_iterator, make_move_iterator, oper...
 #include <list>      // for list, operator==, _List_iterator, _List...
+#include <memory>
+#include <memory_resource>
 #include <random>    // for mt19937, uniform_int_distribution
 #include <sstream>   // for operator<<, basic_istream, basic_string...
 #include <thread>
@@ -3582,6 +3585,370 @@ TEST_CASE("to_small_string") {
     CHECK_EQ(small_str_int, "1234567890");
     auto small_byte_str_int = to_small_string<small_byte_string>(1234567890);
     CHECK_EQ(small_byte_str_int, "1234567890");
+}
+
+template<typename S, typename Allocator>
+void operator_of_cmp(Allocator& allocator) {
+    std::string std_string1 {"1234567890"};
+    std::string_view std_string_view1 {"1234567890"};
+    S str1("1234567890", allocator);
+    S str2("1234567890", allocator);
+    S str3("1234567", allocator);
+    S str4("12345678900", allocator);
+    S str5{"87654", allocator};
+
+    std::string std_string3 {"1234567"};
+    std::string std_string4 {"12345678900"};
+    std::string std_string5 {"87654"};
+
+    std::string_view std_string_view3 {"1234567"};
+    std::string_view std_string_view4 {"12345678900"};
+    std::string_view std_string_view5 {"87654"};
+
+    // EQ
+    {
+        CHECK_EQ(str1 == str2, true);
+        CHECK_EQ(str1 == std_string1, true);
+        CHECK_EQ(std_string1 == str1, true);
+        CHECK_EQ(str1 == std_string_view1, true);
+        CHECK_EQ(std_string_view1 == str1, true);
+        CHECK_EQ(str1 == "1234567890", true);
+        CHECK_EQ("1234567890" == str1, true);
+
+        CHECK_EQ(str1 == str3, false);
+        CHECK_EQ(str3 == str1, false);
+        CHECK_EQ(str1 == std_string3, false);
+        CHECK_EQ(std_string3 == str1, false);
+        CHECK_EQ(str1 == std_string_view3, false);
+        CHECK_EQ(std_string_view3 == str1, false);
+        CHECK_EQ(str1 == "1234567", false);
+        CHECK_EQ("1234567" == str1, false);
+
+        CHECK_EQ(str1 == str4, false);
+        CHECK_EQ(str4 == str1, false);
+        CHECK_EQ(str1 == std_string4, false);
+        CHECK_EQ(std_string4 == str1, false);
+        CHECK_EQ(str1 == std_string_view4, false);
+        CHECK_EQ(std_string_view4 == str1, false);
+        CHECK_EQ(str1 == "12345678900", false);
+        CHECK_EQ("12345678900" == str1, false);
+
+        CHECK_EQ(str1 == str5, false);
+        CHECK_EQ(str5 == str1, false);
+        CHECK_EQ(str1 == std_string5, false);
+        CHECK_EQ(std_string5 == str1, false);
+        CHECK_EQ(str1 == std_string_view5, false);
+        CHECK_EQ(std_string_view5 == str1, false);
+        CHECK_EQ(str1 == "87654", false);
+        CHECK_EQ("87654" == str1, false);
+    }
+
+    // NEQ
+    {
+        CHECK_EQ(str1 != str2, false);
+        CHECK_EQ(str2 != str1, false);
+        CHECK_EQ(str1 != std_string1, false);
+        CHECK_EQ(std_string1 != str1, false);
+        CHECK_EQ(str1 != std_string_view1, false);
+        CHECK_EQ(std_string_view1 != str1, false);
+        CHECK_EQ(str1 != "1234567890", false);
+        CHECK_EQ("1234567890" != str1, false);
+
+        CHECK_EQ(str1 != str3, true);
+        CHECK_EQ(str3 != str1, true);
+        CHECK_EQ(str1 != std_string3, true);
+        CHECK_EQ(std_string3 != str1, true);
+        CHECK_EQ(str1 != std_string_view3, true);
+        CHECK_EQ(std_string_view3 != str1, true);
+        CHECK_EQ(str1 != "1234567", true);
+        CHECK_EQ("1234567" != str1, true);
+
+        CHECK_EQ(str1 != str4, true);
+        CHECK_EQ(str4 != str1, true);
+        CHECK_EQ(str1 != std_string4, true);
+        CHECK_EQ(std_string4 != str1, true);
+        CHECK_EQ(str1 != std_string_view4, true);
+        CHECK_EQ(std_string_view4 != str1, true);
+        CHECK_EQ(str1 != "12345678900", true);
+        CHECK_EQ("12345678900" != str1, true);
+
+        CHECK_EQ(str1 != str5, true);
+        CHECK_EQ(str5 != str1, true);
+        CHECK_EQ(str1 != std_string5, true);
+        CHECK_EQ(std_string5 != str1, true);
+        CHECK_EQ(str1 != std_string_view5, true);
+        CHECK_EQ(std_string_view5 != str1, true);
+        CHECK_EQ(str1 != "87654", true);
+        CHECK_EQ("87654" != str1, true);
+    }
+    
+    // <
+    {
+        /// same < same
+        CHECK_EQ(str1 < str2, false);
+        CHECK_EQ(str2 < str1, false);
+        CHECK_EQ(str1 < std_string1, false);
+        CHECK_EQ(std_string1 < str1, false);
+        CHECK_EQ(str1 < std_string_view1, false);
+        CHECK_EQ(std_string_view1 < str1, false);
+        CHECK_EQ(str1 < "1234567890", false);
+        CHECK_EQ("1234567890" < str1, false);
+
+        /// with 3
+        CHECK_EQ(str1 < str3, false);
+        CHECK_EQ(str3 < str1, true);
+        CHECK_EQ(str1 < std_string3, false);
+        CHECK_EQ(std_string3 < str1, true);
+        CHECK_EQ(str1 < std_string_view3, false);
+        CHECK_EQ(std_string_view3 < str1, true);
+        CHECK_EQ(str1 < "1234567", false);
+        CHECK_EQ("1234567" < str1, true);
+
+        // with 4
+        CHECK_EQ(str1 < str4, true);
+        CHECK_EQ(str4 < str1, false);
+
+        CHECK_EQ(str1 < std_string4, true);
+        CHECK_EQ(std_string4 < str1, false);
+
+        CHECK_EQ(str1 < std_string_view4, true);
+        CHECK_EQ(std_string_view4 < str1, false);
+
+        CHECK_EQ(str1 < "12345678900", true);
+        CHECK_EQ("12345678900" < str1, false);
+
+        // with 5
+        CHECK_EQ(str1 < str5, true);
+        CHECK_EQ(str5 < str1, false);
+
+        CHECK_EQ(str1 < std_string5, true);
+        CHECK_EQ(std_string5 < str1, false);
+
+        CHECK_EQ(str1 < std_string_view5, true);
+        CHECK_EQ(std_string_view5 < str1, false);
+
+        CHECK_EQ(str1 < "87654", true);
+        CHECK_EQ("87654" < str1, false);
+    }
+
+    // >
+    {
+        /// same > same
+        CHECK_EQ(str1 > str2, false);
+        CHECK_EQ(str2 > str1, false);
+
+        CHECK_EQ(str1 > std_string1, false);
+        CHECK_EQ(std_string1 > str1, false);
+
+        CHECK_EQ(str1 > std_string_view1, false);
+        CHECK_EQ(std_string_view1 > str1, false);
+
+        CHECK_EQ(str1 > "1234567890", false);
+        CHECK_EQ("1234567890" > str1, false);
+        
+        /// with 3
+        CHECK_EQ(str1 > str3, true);
+        CHECK_EQ(str3 > str1, false);
+
+        CHECK_EQ(str1 > std_string3, true);
+        CHECK_EQ(std_string3 > str1, false);
+
+        CHECK_EQ(str1 > std_string_view3, true);
+        CHECK_EQ(std_string_view3 > str1, false);
+
+        CHECK_EQ(str1 > "1234567", true);
+        CHECK_EQ("1234567" > str1, false);
+
+        /// with 4
+        CHECK_EQ(str1 > str4, false);
+        CHECK_EQ(str4 > str1, true);
+
+        CHECK_EQ(str1 > std_string4, false);
+        CHECK_EQ(std_string4 > str1, true);
+
+        CHECK_EQ(str1 > std_string_view4, false);
+        CHECK_EQ(std_string_view4 > str1, true);
+
+        CHECK_EQ(str1 > "12345678900", false);
+        CHECK_EQ("12345678900" > str1, true);
+
+        // with 5
+        CHECK_EQ(str1 > str5, false);
+        CHECK_EQ(str5 > str1, true);
+
+        CHECK_EQ(str1 > std_string5, false);
+        CHECK_EQ(std_string5 > str1, true);
+
+        CHECK_EQ(str1 > std_string_view5, false);
+        CHECK_EQ(std_string_view5 > str1, true);
+
+        CHECK_EQ(str1 > "87654", false);
+        CHECK_EQ("87654" > str1, true);
+    }
+
+    // <
+    {
+        // with same
+        CHECK_EQ(str1 < str2, false);
+        CHECK_EQ(str2 < str1, false);
+        CHECK_EQ(str1 < std_string1, false);
+        CHECK_EQ(std_string1 < str1, false);
+        CHECK_EQ(str1 < std_string_view1, false);
+        CHECK_EQ(std_string_view1 < str1, false);
+        CHECK_EQ(str1 < "1234567890", false);
+        CHECK_EQ("1234567890" < str1, false);
+
+        // with 3
+        CHECK_EQ(str1 < str3, false);
+        CHECK_EQ(str3 < str1, true);
+        CHECK_EQ(str1 < std_string3, false);
+        CHECK_EQ(std_string3 < str1, true);
+        CHECK_EQ(str1 < std_string_view3, false);
+        CHECK_EQ(std_string_view3 < str1, true);
+        CHECK_EQ(str1 < "1234567", false);
+        CHECK_EQ("1234567" < str1, true);
+
+        // with 4
+        CHECK_EQ(str1 < str4, true);
+        CHECK_EQ(str4 < str1, false);
+        CHECK_EQ(str1 < std_string4, true);
+        CHECK_EQ(std_string4 < str1, false);
+        CHECK_EQ(str1 < std_string_view4, true);
+        CHECK_EQ(std_string_view4 < str1, false);
+        CHECK_EQ(str1 < "12345678900", true);
+        CHECK_EQ("12345678900" < str1, false);
+
+        // with 5
+        CHECK_EQ(str1 < str5, true);
+        CHECK_EQ(str5 < str1, false);
+        CHECK_EQ(str1 < std_string5, true);
+        CHECK_EQ(std_string5 < str1, false);
+        CHECK_EQ(str1 < std_string_view5, true);
+        CHECK_EQ(std_string_view5 < str1, false);
+        CHECK_EQ(str1 < "87654", true);
+        CHECK_EQ("87654" < str1, false);
+    }
+
+    // >= 
+    {
+        // with same
+        CHECK_EQ(str1 >= str2, true);
+        CHECK_EQ(str2 >= str1, true);
+        CHECK_EQ(str1 >= std_string1, true);
+        CHECK_EQ(std_string1 >= str1, true);
+        CHECK_EQ(str1 >= std_string_view1, true);
+        CHECK_EQ(std_string_view1 >= str1, true);
+        CHECK_EQ(str1 >= "1234567890", true);
+        CHECK_EQ("1234567890" >= str1, true);
+
+        // with 3
+        CHECK_EQ(str1 >= str3, true);
+        CHECK_EQ(str3 >= str1, false);
+        CHECK_EQ(str1 >= std_string3, true);
+        CHECK_EQ(std_string3 >= str1, false);
+        CHECK_EQ(str1 >= std_string_view3, true);
+        CHECK_EQ(std_string_view3 >= str1, false);
+        CHECK_EQ(str1 >= "1234567", true);
+        CHECK_EQ("1234567" >= str1, false);
+
+        // with 4
+        CHECK_EQ(str1 >= str4, false);
+        CHECK_EQ(str4 >= str1, true);
+
+        CHECK_EQ(str1 >= std_string4, false);
+        CHECK_EQ(std_string4 >= str1, true);
+
+        CHECK_EQ(str1 >= std_string_view4, false);
+        CHECK_EQ(std_string_view4 >= str1, true);
+
+        CHECK_EQ(str1 >= "12345678900", false);
+        CHECK_EQ("12345678900" >= str1, true);
+
+        // with 5
+        CHECK_EQ(str1 >= str5, false);
+        CHECK_EQ(str5 >= str1, true);
+
+        CHECK_EQ(str1 >= std_string5, false);
+        CHECK_EQ(std_string5 >= str1, true);
+
+        CHECK_EQ(str1 >= std_string_view5, false);
+        CHECK_EQ(std_string_view5 >= str1, true);
+
+        CHECK_EQ(str1 >= "87654", false);
+        CHECK_EQ("87654" >= str1, true);
+    }
+
+    // <=>
+    {
+        // with same
+        CHECK_EQ(str1 <=> str2, std::strong_ordering::equal);
+        CHECK_EQ(str2 <=> str1, std::strong_ordering::equal);
+        CHECK_EQ(str1 <=> std_string1, std::strong_ordering::equal);
+        CHECK_EQ(std_string1 <=> str1, std::strong_ordering::equal);
+        CHECK_EQ(str1 <=> std_string_view1, std::strong_ordering::equal);
+        CHECK_EQ(std_string_view1 <=> str1, std::strong_ordering::equal);
+
+        // with 3
+        CHECK_EQ(str1 <=> str3, std::strong_ordering::greater);
+        CHECK_EQ(str3 <=> str1, std::strong_ordering::less);
+        CHECK_EQ(str1 <=> std_string3, std::strong_ordering::greater);
+        CHECK_EQ(std_string3 <=> str1, std::strong_ordering::less);
+        CHECK_EQ(str1 <=> std_string_view3, std::strong_ordering::greater);
+        CHECK_EQ(std_string_view3 <=> str1, std::strong_ordering::less);
+        CHECK_EQ(str1 <=> "1234567", std::strong_ordering::greater);
+        auto r = "1234567" <=> str1;
+        CHECK_EQ(r, std::strong_ordering::less);
+
+        // with 4
+        CHECK_EQ(str1 <=> str4, std::strong_ordering::less);
+        CHECK_EQ(str4 <=> str1, std::strong_ordering::greater);
+        
+        CHECK_EQ(str1 <=> std_string4, std::strong_ordering::less);
+        CHECK_EQ(std_string4 <=> str1, std::strong_ordering::greater);
+
+        CHECK_EQ(str1 <=> std_string_view4, std::strong_ordering::less);
+        CHECK_EQ(std_string_view4 <=> str1, std::strong_ordering::greater);
+
+        CHECK_EQ(str1 <=> "12345678900", std::strong_ordering::less);
+        CHECK_EQ("12345678900" <=> str1, std::strong_ordering::greater);
+
+        // with 5
+        CHECK_EQ(str1 <=> str5, std::strong_ordering::less);
+        CHECK_EQ(str5 <=> str1, std::strong_ordering::greater);
+
+        CHECK_EQ(str1 <=> std_string5, std::strong_ordering::less);
+        CHECK_EQ(std_string5 <=> str1, std::strong_ordering::greater);
+
+        CHECK_EQ(str1 <=> std_string_view5, std::strong_ordering::less);
+        CHECK_EQ(std_string_view5 <=> str1, std::strong_ordering::greater);
+        
+        CHECK_EQ(str1 <=> "87654", std::strong_ordering::less);
+        CHECK_EQ("87654" <=> str1, std::strong_ordering::greater);
+    }
+
+}
+
+
+TEST_CASE("small_string::cmp") {
+    std::allocator<char> allocator;
+    operator_of_cmp<small_string>(allocator);
+}
+
+TEST_CASE("small_byte_string::cmp") {
+    std::allocator<char> allocator;
+    operator_of_cmp<small_byte_string>(allocator);
+}
+
+TEST_CASE("pmr::small_string::cmp") {
+    Arena arena(Arena::Options::GetDefaultOptions());
+    std::pmr::polymorphic_allocator<char> allocator(arena.get_memory_resource());
+    operator_of_cmp<pmr::small_string>(allocator);
+}
+
+TEST_CASE("pmr::small_byte_string::cmp") {
+    Arena arena(Arena::Options::GetDefaultOptions());
+    std::pmr::polymorphic_allocator<char> allocator(arena.get_memory_resource());
+    operator_of_cmp<pmr::small_byte_string>(allocator);
 }
 
 // small_string section
