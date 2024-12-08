@@ -1301,7 +1301,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         return basic_small_string(initialized_later{}, new_string_size, allocator);
     }
 
-    constexpr explicit basic_small_string([[maybe_unused]] const Allocator& allocator = Allocator()) noexcept
+    constexpr basic_small_string([[maybe_unused]] const Allocator& allocator = Allocator()) noexcept
         : buffer_type(allocator) {}
 
     constexpr basic_small_string(size_type count, Char ch, [[maybe_unused]] const Allocator& allocator = Allocator())
