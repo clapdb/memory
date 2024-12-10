@@ -1997,8 +1997,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     template <class StringViewLike, bool Safe = true>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    constexpr auto append(const StringViewLike& s, size_type pos, size_type count = npos) -> basic_small_string& {
-        if (count == npos) {
+    constexpr auto append(const StringViewLike& s, size_t pos, size_t count = npos) -> basic_small_string& {
+        if (count == npos or count + pos > s.size()) {
             count = s.size() - pos;
         }
         return append<Safe>(s.data() + pos, count);
