@@ -2561,8 +2561,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     template <class StringViewLike>
         requires(std::is_convertible_v<const StringViewLike&, std::basic_string_view<Char>> &&
                  !std::is_convertible_v<const StringViewLike&, const Char*>)
-    [[nodiscard]] constexpr auto compare(size_type pos1, size_type count1, const StringViewLike& view, size_type pos2,
-                                         size_type count2 = npos) const -> int {
+    [[nodiscard]] constexpr auto compare(size_t pos1, size_t count1, const StringViewLike& view, size_t pos2,
+                                         size_t count2 = npos) const -> int {
         if (pos2 > view.size()) [[unlikely]] {
             throw std::out_of_range("compare: pos2 is out of range");
         }
@@ -2571,7 +2571,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto starts_with(std::basic_string_view<Char> view) const noexcept -> bool {
-        return size() >= view.size() && compare(0, view.size(), view) == 0;
+        return size() >= view.size() && compare(0, view.size(), view.data(), view.size()) == 0;
     }
 
     [[nodiscard]] constexpr auto starts_with(Char ch) const noexcept -> bool {
