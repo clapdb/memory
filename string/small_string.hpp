@@ -3158,8 +3158,8 @@ static_assert(sizeof(small_byte_string) == 8, "small_byte_string should be same 
 
 template <typename String, typename T>
 auto to_small_string(T value) -> String {
-    auto size = fmt::format("{}", value);
-    auto formatted = String::create_uninitialized_string(size.size());
+    auto size = fmt::formatted_size("{}", value);
+    auto formatted = String::create_uninitialized_string(size);
     fmt::format_to(formatted.data(), "{}", value);
     return formatted;
 }
@@ -3206,6 +3206,29 @@ using small_byte_string = basic_small_string<char, small_string_buffer, pmr_core
                                              std::pmr::polymorphic_allocator<char>, false>;
 
 static_assert(sizeof(small_string) == 16, "small_string should be same as a pointer");
+
+template <typename String, typename T>
+auto to_small_string(T value, std::pmr::polymorphic_allocator<char> allocator) -> String {
+    auto size = fmt::formatted_size("{}", value);
+    auto formatted = String::create_uninitialized_string(size, allocator);
+    fmt::format_to(formatted.data(), "{}", value);
+    return formatted;
+}
+
+template <typename String>
+auto to_small_string(const char* value, std::pmr::polymorphic_allocator<char> allocator) -> String {
+    return String{value, std::strlen(value), allocator};
+}
+
+template <typename String>
+auto to_small_string(const std::string& value, std::pmr::polymorphic_allocator<char> allocator) -> String {
+    return String{value, allocator};
+}
+
+template <typename String>
+auto to_small_string(std::string_view view, std::pmr::polymorphic_allocator<char> allocator) -> String {
+    return String{view, allocator};
+}
 
 }  // namespace stdb::memory::pmr
 
