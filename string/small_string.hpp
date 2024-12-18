@@ -1547,7 +1547,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
                 throw std::out_of_range("at: pos is out of range");
             }
         }
-        return *(c_str() + pos);
+        return *(data() + pos);
     }
 
     template <bool Safe = true>
@@ -1585,18 +1585,21 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         return buffer[size - 1];
     }
 
+    // enable if the NullTerminated is true
+    // make c_str() only available when NullTerminated is true
+    template<bool U = NullTerminated, typename = std::enable_if_t<U, std::true_type>>
     [[nodiscard, gnu::always_inline]] auto c_str() const noexcept -> const Char* { return buffer_type::get_buffer(); }
 
-    [[nodiscard, gnu::always_inline]] auto data() const noexcept -> const Char* { return c_str(); }
+    [[nodiscard, gnu::always_inline]] auto data() const noexcept -> const Char* { return buffer_type::get_buffer(); }
 
     [[nodiscard, gnu::always_inline]] auto data() noexcept -> Char* { return buffer_type::get_buffer(); }
 
     // Iterators
     [[nodiscard]] constexpr auto begin() noexcept -> iterator { return data(); }
 
-    [[nodiscard]] constexpr auto begin() const noexcept -> const_iterator { return c_str(); }
+    [[nodiscard]] constexpr auto begin() const noexcept -> const_iterator { return data(); }
 
-    [[nodiscard]] constexpr auto cbegin() const noexcept -> const_iterator { return c_str(); }
+    [[nodiscard]] constexpr auto cbegin() const noexcept -> const_iterator { return data(); }
 
     [[nodiscard]] constexpr auto end() noexcept -> iterator { return buffer_type::end(); }
 
@@ -1912,7 +1915,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         // by now, the capacity is enough
         // size() function maybe slower than while the size is larger than 4k, so store it.
         auto other_size = other.size();
-        std::memcpy(end(), other.c_str(), other_size);
+        std::memcpy(end(), other.data(), other_size);
         buffer_type::increase_size(other_size);
         if constexpr (NullTerminated) {
             data()[size()] = '\0';
@@ -2227,7 +2230,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         if ((count == npos) or (pos + count > current_size)) {
             count = current_size - pos;
         }
-        std::memcpy(dest, c_str() + pos, count);
+        std::memcpy(dest, data() + pos, count);
         return count;
     }
 
@@ -2313,7 +2316,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto find(const basic_small_string& other, size_t pos = 0) const -> size_t {
-        return find(other.c_str(), pos, other.size());
+        return find(other.data(), pos, other.size());
     }
 
     template <class StringViewLike>
@@ -2324,8 +2327,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto find(Char ch, size_t pos = 0) const -> size_t {
-        auto* found = traits_type::find(c_str() + pos, size() - pos, ch);
-        return found == nullptr ? npos : size_t(found - c_str());
+        auto* found = traits_type::find(data() + pos, size() - pos, ch);
+        return found == nullptr ? npos : size_t(found - data());
     }
 
     [[nodiscard]] constexpr auto rfind(const Char* str, size_t pos, size_t str_length) const -> size_t {
@@ -2347,7 +2350,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto rfind(const basic_small_string& other, size_t pos = 0) const -> size_t {
-        return rfind(other.c_str(), pos, other.size());
+        return rfind(other.data(), pos, other.size());
     }
 
     template <class StringViewLike>
@@ -2389,7 +2392,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     [[nodiscard]] constexpr auto find_first_of(const basic_small_string& other, size_t pos = 0) const -> size_t {
-        return find_first_of(other.c_str(), pos, other.size());
+        return find_first_of(other.data(), pos, other.size());
     }
 
     template <class StringViewLike>
@@ -2420,7 +2423,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     [[nodiscard]] constexpr auto find_first_not_of(const basic_small_string& other,
                                                    size_t pos = 0) const -> size_t {
-        return find_first_not_of(other.c_str(), pos, other.size());
+        return find_first_not_of(other.data(), pos, other.size());
     }
 
     template <class StringViewLike>
@@ -2456,7 +2459,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     [[nodiscard]] constexpr auto find_last_of(const basic_small_string& other,
                                               size_t pos = npos) const -> size_t {
-        return find_last_of(other.c_str(), pos, other.size());
+        return find_last_of(other.data(), pos, other.size());
     }
 
     template <class StringViewLike>
@@ -2491,7 +2494,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     [[nodiscard]] constexpr auto find_last_not_of(const basic_small_string& other,
                                                   size_t pos = npos) const -> size_t {
-        return find_last_not_of(other.c_str(), pos, other.size());
+        return find_last_not_of(other.data(), pos, other.size());
     }
 
     template <class StringViewLike>
@@ -2509,11 +2512,11 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     [[nodiscard]] constexpr auto compare(const basic_small_string& other) const noexcept -> int {
         auto this_size = size();
         auto other_size = other.size();
-        auto r = traits_type::compare(c_str(), other.c_str(), std::min(this_size, other_size));
+        auto r = traits_type::compare(data(), other.data(), std::min(this_size, other_size));
         return r != 0 ? r : this_size > other_size ? 1 : this_size < other_size ? -1 : 0;
     }
     [[nodiscard]] constexpr auto compare(size_t pos, size_t count, const basic_small_string& other) const -> int {
-        return compare(pos, count, other.c_str(), other.size());
+        return compare(pos, count, other.data(), other.size());
     }
     [[nodiscard]] constexpr auto compare(size_t pos1, size_t count1, const basic_small_string& other,
                                          size_t pos2, size_t count2 = npos) const -> int {
@@ -2521,7 +2524,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             throw std::out_of_range("compare: pos2 is out of range");
         }
         count2 = std::min(count2, other.size() - pos2);
-        return compare(pos1, count1, other.c_str() + pos2, count2);
+        return compare(pos1, count1, other.data() + pos2, count2);
     }
     [[nodiscard]] constexpr auto compare(const Char* str) const noexcept -> int {
         return compare(0, size(), str, traits_type::length(str));
@@ -2537,7 +2540,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // make sure the count1 is valid, if count1 > size() - pos1, set count1 = size() - pos1
         count1 = std::min<size_t>(count1, size() - pos1);
-        auto r = traits_type::compare(c_str() + pos1, str, std::min<size_t>(count1, count2));
+        auto r = traits_type::compare(data() + pos1, str, std::min<size_t>(count1, count2));
         return r != 0 ? r : count1 > count2 ? 1 : count1 < count2 ? -1 : 0;
     }
 
@@ -2547,7 +2550,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     [[nodiscard]] constexpr auto compare(const StringViewLike& view) const noexcept -> int {
         auto this_size = size();
         auto view_size = view.size();
-        auto r = traits_type::compare(c_str(), view.data(), std::min<size_t>(this_size, view_size));
+        auto r = traits_type::compare(data(), view.data(), std::min<size_t>(this_size, view_size));
         return r != 0 ? r : this_size > view_size ? 1 : this_size < view_size ? -1 : 0;
     }
 
