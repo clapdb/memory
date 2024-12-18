@@ -186,27 +186,6 @@ struct malloc_core
         uint8_t internal_size : 4;
         // 0000 , ths higher 4 bits is 0, means is_internal is 0
         uint8_t is_external : 4;
-        // consteval means it will be evaluated at compile time
-        [[nodiscard, gnu::always_inline]] static consteval auto capacity() noexcept -> size_type {
-            if constexpr (not NullTerminated) {
-                return sizeof(data);
-            } else {
-                return sizeof(data) - 1;
-            }
-        }
-
-        [[nodiscard, gnu::always_inline]] auto size() const noexcept -> size_type { return internal_size; }
-
-        [[nodiscard, gnu::always_inline]] auto idle_capacity() const noexcept -> size_type {
-            if constexpr (NullTerminated) {
-                return 6 - internal_size;  // the '\0' allocated 1 byte
-            } else {
-                return 7 - internal_size;
-                // or ~internal_size & 0x7U, who is faster?
-            }
-        }
-
-        [[gnu::always_inline]] void set_size(size_type new_size) noexcept { internal_size = new_size; }
     };  // struct internal_core
     static_assert(sizeof(internal_core) == 8);
 
@@ -279,6 +258,14 @@ struct malloc_core
         external_core external;
     };
 
+    consteval static inline auto internal_buffer_size() noexcept -> size_type {
+        if constexpr (NullTerminated) {
+            return sizeof(internal_core) - 2;
+        } else {
+            return sizeof(internal_core) - 1;
+        }
+    }
+
     constexpr static uint8_t kInterCore = static_cast<uint8_t>(CoreType::Internal);
     constexpr static uint8_t kShiftCore = static_cast<uint8_t>(CoreType::Shift);
     constexpr static uint8_t kDeltaCore = static_cast<uint8_t>(CoreType::Delta);
@@ -349,7 +336,7 @@ struct malloc_core
         auto flag = internal.is_external;
         switch (flag) {
             case 0:
-                return internal_core::capacity();
+                return internal_buffer_size();
             case 1:
             case 2:
             case 3:
@@ -381,7 +368,7 @@ struct malloc_core
         auto flag = internal.is_external;
         switch (flag) {
             case 0:
-                return internal.size();
+                return internal.internal_size;
             case 1:
             case 2:
             case 3:
@@ -408,13 +395,14 @@ struct malloc_core
     /**
      * set_size, whithout cap changing
      */
-    constexpr void set_size_and_idle(size_type new_size) noexcept {
+    constexpr void set_size_and_idle_and_set_term(size_type new_size) noexcept {
         auto flag = internal.is_external;
         Assert(new_size <= capacity(), "set_size can not overflow the buffer's limit");
         if constexpr (NullTerminated) {
             switch (flag) {
                 case 0:
                     internal.internal_size = new_size;
+                    internal.data[new_size] = '\0';
                     break;
                 case 1:
                 case 2:
@@ -427,6 +415,7 @@ struct malloc_core
                 case 9:
                 case 10:
                     external.size_shift.external_size = new_size;
+                    reinterpret_cast<Char*>(external.c_str_ptr)[new_size] = '\0';
                     break;
                 case 11:
                     Assert(false, "null terminated shift buffer should never has size = 4096");
@@ -437,6 +426,7 @@ struct malloc_core
                     header_ptr->size = new_size;
                     auto new_idle = header_ptr->capacity - new_size;
                     external.idle_flag.idle = std::min<size_type>(new_idle, kDeltaMax);
+                    reinterpret_cast<Char*>(external.c_str_ptr)[new_size] = '\0';
                     break;
             }
         } else {
@@ -479,13 +469,14 @@ struct malloc_core
         }
     }
 
-    constexpr void increase_size_and_idle(size_type size_to_increase) noexcept {
+    constexpr void increase_size_and_idle_and_set_term(size_type size_to_increase) noexcept {
         Assert(size_to_increase <= idle_capacity(), "increase_size can not overflow the buffer's limit");
         auto flag = internal.is_external;
         if constexpr (NullTerminated) {
             switch (flag) {
                 case 0:
                     internal.internal_size += size_to_increase;
+                    internal.data[internal.internal_size] = '\0';
                     break;
                 case 1:
                 case 2:
@@ -498,6 +489,7 @@ struct malloc_core
                 case 9:
                 case 10:
                     external.size_shift.external_size += size_to_increase;
+                    reinterpret_cast<Char*>(external.c_str_ptr)[external.size_shift.external_size] = '\0';
                     break;
                 case 11:
                     Assert(false, "null terminated shift buffer should never has size = 4096");
@@ -506,6 +498,7 @@ struct malloc_core
                     capacity_and_size<size_type>* header_ptr =
                       reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1;
                     header_ptr->size += size_to_increase;
+                    reinterpret_cast<Char*>(external.c_str_ptr)[header_ptr->size] = '\0';
                     auto new_idle = header_ptr->capacity - header_ptr->size;
                     external.idle_flag.idle = std::min<size_type>(new_idle, kDeltaMax);
                     break;
@@ -546,13 +539,14 @@ struct malloc_core
         }
     }
 
-    constexpr void decrease_size_and_idle(size_type size_to_decrease) noexcept {
+    constexpr void decrease_size_and_idle_and_set_term(size_type size_to_decrease) noexcept {
         Assert(size_to_decrease <= size(), "decrease_size can not be less than the current size");
         auto flag = internal.is_external;
         if constexpr (NullTerminated) {
             switch (flag) {
                 case 0:
                     internal.internal_size -= size_to_decrease;
+                    internal.data[internal.internal_size] = '\0';
                     break;
                 case 1:
                 case 2:
@@ -565,6 +559,7 @@ struct malloc_core
                 case 9:
                 case 10:
                     external.size_shift.external_size -= size_to_decrease;
+                    reinterpret_cast<Char*>(external.c_str_ptr)[external.size_shift.external_size] = '\0';
                     break;
                 case 11:
                     Assert(false, "null terminated shift buffer should never has size = 4096");
@@ -573,6 +568,7 @@ struct malloc_core
                     capacity_and_size<size_type>* header_ptr =
                       reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1;
                     header_ptr->size -= size_to_decrease;
+                    reinterpret_cast<Char*>(external.c_str_ptr)[header_ptr->size] = '\0';
                     auto new_idle = header_ptr->capacity - header_ptr->size;
                     external.idle_flag.idle = std::min<size_type>(new_idle, kDeltaMax);
                     break;
@@ -613,7 +609,7 @@ struct malloc_core
         auto flag = internal.is_external;
         switch (flag) {
             case 0:
-                return {internal_core::capacity(), internal.size()};
+                return {internal_buffer_size(), internal.internal_size};
             case 1:
             case 2:
             case 3:
@@ -649,7 +645,7 @@ struct malloc_core
         auto flag = internal.is_external;
         switch (flag) {
             case 0:
-                return internal.idle_capacity();
+                return internal_buffer_size() - internal.internal_size;
             case 1:
             case 2:
             case 3:
@@ -870,7 +866,7 @@ class small_string_buffer
         auto new_buffer_size = type_and_size.buffer_size;
 
         switch (type) {
-            case CoreType::Internal:
+            case CoreType::Internal: [[unlikely]]
                 Assert(false, "the internal buffer should not be allocated in allocate_new_external_buffer");
                 __builtin_unreachable();
             case CoreType::Shift: {
@@ -1050,33 +1046,33 @@ class small_string_buffer
 
     // increase the size, and won't change the capacity, so the internal/exteral'type or ptr will not change
     // you should always call the allocate_new_external_buffer first, then call this function
-    void increase_size(size_type delta) noexcept {
+    [[gnu::always_inline]] inline void increase_size(size_type delta) noexcept {
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
 #endif
-        _core.increase_size_and_idle(delta);
+        _core.increase_size_and_idle_and_set_term(delta);
 #ifndef NDEBUG
         auto new_core_type = _core.get_core_type();
         Assert(origin_core_type == new_core_type, "the core type should not change");
 #endif
     }
 
-    void set_size(size_type new_size) noexcept {
+    [[gnu::always_inline]] inline void set_size(size_type new_size) noexcept {
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
 #endif
-        _core.set_size_and_idle(new_size);
+        _core.set_size_and_idle_and_set_term(new_size);
 #ifndef NDEBUG
         auto new_core_type = _core.get_core_type();
         Assert(origin_core_type == new_core_type, "the core type should not change");
 #endif
     }
 
-    void decrease_size(size_type delta) noexcept {
+    [[gnu::always_inline]] inline void decrease_size(size_type delta) noexcept {
 #ifndef NDEBUG
         auto origin_core_type = _core.get_core_type();
 #endif
-        _core.decrease_size_and_idle(delta);
+        _core.decrease_size_and_idle_and_set_term(delta);
 #ifndef NDEBUG
         auto new_core_type = _core.get_core_type();
         Assert(origin_core_type == new_core_type, "the core type should not change");
@@ -1084,8 +1080,8 @@ class small_string_buffer
     }
 
     constexpr static inline auto calculate_buffer_size(uint32_t size) noexcept -> buffer_type_and_size {
-        if (size <= core_type::internal_core::capacity()) [[unlikely]] {
-            return {.buffer_size = core_type::internal_core::capacity(), .core_type = CoreType::Internal};
+        if (size <= core_type::internal_buffer_size()) [[unlikely]] {
+            return {.buffer_size = core_type::internal_buffer_size(), .core_type = CoreType::Internal};
         }
         return calculate_new_buffer_size<NullTerminated>(size);
     }
@@ -1184,12 +1180,6 @@ class small_string_buffer
     // move constructor
     constexpr small_string_buffer(small_string_buffer&& other, [[maybe_unused]] const Allocator& /*unused*/) noexcept
         : _core(std::move(other._core)) {
-        // // set the other's external to 0, to avoid double free
-        // other._core.internal.is_internal = 0;
-        // other._core.internal.internal_size = 0;
-        // if (NullTerminated) {
-        //     other._core.internal.data[0] = '\0';
-        // }
         Assert(
           check_the_allocator(),
           "the pmr default allocator is not allowed to be used in small_string");  // very important, check the
@@ -1239,11 +1229,9 @@ class small_string_buffer
     constexpr void static_assign(Char ch) {
         static_assert(Size > 0 and Size <= InternalBufferConfig<NullTerminated>::MaxBufferSize,
                       "the size should be greater than 0");
+        //TODO(leo): combine the memset and set_size in same switch case
         memset(get_buffer(), ch, Size);
         set_size(Size);
-        if constexpr (NullTerminated) {
-            reinterpret_cast<Char*>(get_buffer())[Size] = '\0';
-        }
     }
 
     [[nodiscard, gnu::always_inline]] constexpr inline auto get_string_view() const noexcept -> std::string_view {
@@ -1432,9 +1420,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         memset(buffer, ch, count);
         // do not use resize, to avoid the if checking
         buffer_type::set_size(count);
-        if constexpr (NullTerminated) {
-            buffer[count] = '\0';
-        }
+        
         return *this;
     }
 
@@ -1458,9 +1444,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             auto* buffer = buffer_type::get_buffer();
             std::memmove(buffer, buffer + pos, count);
             buffer_type::set_size(count);
-            if constexpr (NullTerminated) {
-                buffer[count] = '\0';
-            }
             return *this;
         }
         return assign<Safe>(str.data() + pos, std::min<size_type>(count, other_size - pos));
@@ -1485,9 +1468,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         // use memmove to handle the overlap
         std::memmove(buffer, s, count);
         buffer_type::set_size(count);
-        if constexpr (NullTerminated) {
-            buffer[count] = '\0';
-        }
         return *this;
     }
 
@@ -1504,9 +1484,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         std::copy(first, last, begin());
         buffer_type::set_size(count);
-        if constexpr (NullTerminated) {
-            buffer_type::get_buffer()[count] = '\0';
-        }
         return *this;
     }
 
@@ -1567,12 +1544,12 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
                 throw std::out_of_range("operator []: pos is out of range");
             }
         }
-        return *(c_str() + pos);
+        return *(data() + pos);
     }
 
-    [[nodiscard]] constexpr auto front() noexcept -> reference { return *(Char*)data(); }
+    [[nodiscard]] constexpr auto front() noexcept -> reference { return *reinterpret_cast<Char*>(data()); }
 
-    [[nodiscard]] constexpr auto front() const noexcept -> const_reference { return *c_str(); }
+    [[nodiscard]] constexpr auto front() const noexcept -> const_reference { return *data(); }
 
     [[nodiscard]] constexpr auto back() noexcept -> reference {
         auto size = buffer_type::size();
@@ -1591,7 +1568,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     [[nodiscard, gnu::always_inline]] auto c_str() const noexcept -> const Char* { return buffer_type::get_buffer(); }
 
     [[nodiscard, gnu::always_inline]] auto data() const noexcept -> const Char* { return buffer_type::get_buffer(); }
-
     [[nodiscard, gnu::always_inline]] auto data() noexcept -> Char* { return buffer_type::get_buffer(); }
 
     // Iterators
@@ -1689,9 +1665,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
      */
     constexpr auto clear() noexcept -> void {
         buffer_type::set_size(0);
-        if constexpr (NullTerminated) {
-            data()[0] = '\0';
-        }
     }
 
     // 1
@@ -1709,14 +1682,12 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             this->template allocate_more<buffer_type::Need0::No>(count);
         }
         auto old_size = size();
+        auto* buffer = buffer_type::get_buffer();
         if (index < old_size) [[likely]] {
             // if index == old_size, do not need memmove
-            std::memmove(data() + index + count, c_str() + index, old_size - index);
+            std::memmove(buffer + index + count, buffer + index, old_size - index);
         }
-        std::memset(data() + index, ch, count);
-        if constexpr (NullTerminated) {
-            data()[old_size + count] = '\0';
-        }
+        std::memset(buffer + index, ch, count);
         buffer_type::increase_size(count);
         return *this;
     }
@@ -1744,14 +1715,12 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // by now, the capacity is enough
         // memmove the data to the new position
+        auto* buffer = buffer_type::get_buffer();
         if (index < old_size) [[likely]] {
-            std::memmove(data() + index + count, c_str() + index, old_size - index);
+            std::memmove(buffer + index + count, buffer + index, old_size - index);
         }
         // set the new data
-        std::memcpy(data() + index, str, count);
-        if constexpr (NullTerminated) {
-            data()[old_size + count] = '\0';
-        }
+        std::memcpy(buffer + index, str, count);
         buffer_type::increase_size(count);
         return *this;
     }
@@ -1801,9 +1770,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // copy the new data
         std::copy(first, last, data() + index);
-        if constexpr (NullTerminated) {
-            data()[size()] = '\0';
-        }
         buffer_type::increase_size(count);
         return const_cast<iterator>(pos);
     }
@@ -1850,9 +1816,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // set the new size
         buffer_type::set_size(new_size);
-        if constexpr (NullTerminated) {
-            buffer_ptr[new_size] = '\0';
-        }
         return *this;
     }
 
@@ -1873,18 +1836,13 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             this->template allocate_more<buffer_type::Need0::No>(1);
         }
         data()[size()] = c;
-        if constexpr (NullTerminated) {
-            data()[size() + 1] = '\0';
-        }
         buffer_type::increase_size(1);
     }
 
     void pop_back() {
         buffer_type::decrease_size(1);
-        if constexpr (NullTerminated) {
-            data()[size()] = '\0';
-        }
     }
+
     template <bool Safe = true>
     constexpr auto append(size_t count, Char c) -> basic_small_string& {
         if (count == 0) [[unlikely]] {
@@ -1896,9 +1854,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
         // by now, the capacity is enough
         std::memset(end(), c, count);
-        if constexpr (NullTerminated) {
-            data()[size()] = '\0';
-        }
         buffer_type::increase_size(count);
         return *this;
     }
@@ -1917,9 +1872,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         auto other_size = other.size();
         std::memcpy(end(), other.data(), other_size);
         buffer_type::increase_size(other_size);
-        if constexpr (NullTerminated) {
-            data()[size()] = '\0';
-        }
         return *this;
     }
 
@@ -1935,7 +1887,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             return *this;
         }
         count = std::min(count, other.size() - pos);
-        return append<Safe>(other.c_str() + pos, count);
+        return append<Safe>(other.data() + pos, count);
     }
 
     template <bool Safe = true>
@@ -1949,9 +1901,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         }
 
         std::memcpy(end(), s, count);
-        if constexpr (NullTerminated) {
-            data()[size()] = '\0';
-        }
         buffer_type::increase_size(count);
         return *this;
     }
@@ -1978,9 +1927,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             this->template allocate_more<buffer_type::Need0::No>(count);
         }
         std::copy(first, last, end());
-        if constexpr (NullTerminated) {
-            data()[size()] = '\0';
-        }
         buffer_type::increase_size(count);
         return *this;
     }
@@ -2054,9 +2000,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             std::memset(buffer_type::get_buffer() + pos, ch, count2);
             auto new_size = pos + count2;
             buffer_type::set_size(new_size);
-            if (NullTerminated) {
-                buffer_type::get_buffer()[new_size] = '\0';
-            }
             return *this;
         }
 
@@ -2095,9 +2038,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             std::memcpy(buffer_type::get_buffer() + pos, str, count2);
             auto new_size = pos + count2;
             buffer_type::set_size(new_size);
-            if (NullTerminated) {
-                buffer_type::get_buffer()[new_size] = '\0';
-            }
             return *this;
         }
         if (count == count2) {
@@ -2120,11 +2060,11 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     auto replace(size_t pos, size_t count, const basic_small_string& other) -> basic_small_string& {
-        return replace(pos, count, other.c_str(), other.size());
+        return replace(pos, count, other.data(), other.size());
     }
 
     auto replace(const_iterator first, const_iterator last, const basic_small_string& other) -> basic_small_string& {
-        return replace(static_cast<size_t>(first - begin()), static_cast<size_t>(last - first), other.c_str(), other.size());
+        return replace(static_cast<size_t>(first - begin()), static_cast<size_t>(last - first), other.data(), other.size());
     }
 
     auto replace(size_t pos, size_t count, const basic_small_string& other, size_t pos2,
@@ -2174,9 +2114,6 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
             std::copy(first2, last2, data() + pos);
             auto new_size = pos + count2;
             buffer_type::set_size(new_size);
-            if (NullTerminated) {
-                buffer_type::get_buffer()[new_size] = '\0';
-            }
             return *this;
         }
 
@@ -2237,43 +2174,37 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     auto resize(size_t count) -> void {
         Assert(count < std::numeric_limits<size_type>::max(), "count is too large");
         auto [cap, old_size] = buffer_type::get_capacity_and_size();
-        if (count <= old_size) {
+
+        if (count <= old_size) [[likely]] {
+            // if count == old_size, just set the size
             buffer_type::set_size(count);
-            if constexpr (NullTerminated) {
-                data()[count] = '\0';
-            }
             return;
         }
         if (count > cap) {
             this->template buffer_reserve<buffer_type::Need0::No, true>(count);
         }
-        std::memset(data() + size(), '\0', count - size());
+        std::memset(data() + old_size, '\0', count - size());
         buffer_type::set_size(count);
-        if constexpr (NullTerminated) {
-            data()[count] = '\0';
-        }
         return;
     }
 
     auto resize(size_t count, Char ch) -> void {
         // if the count is less than the size, just set the size
-        if (count <= size()) {
+        Assert(count < std::numeric_limits<size_type>::max(), "count is too large");
+        auto [cap, old_size] = buffer_type::get_capacity_and_size();
+
+        if (count <= old_size) [[likely]] {
+            // if count == old_size, just set the size
             buffer_type::set_size(count);
-            if constexpr (NullTerminated) {
-                data()[count] = '\0';
-            }
             return;
         }
-        if (count > capacity()) {
+        if (count > cap) {
             // if the count is greater than the size, need to reserve
-            reserve(count);
+            this->template buffer_reserve<buffer_type::Need0::No, true>(count);
         }
         // by now, the capacity is enough
-        std::memset(data() + size(), ch, count - size());
+        std::memset(data() + old_size, ch, count - old_size);
         buffer_type::set_size(count);
-        if constexpr (NullTerminated) {
-            data()[count] = '\0';
-        }
         return;
     }
 
