@@ -23,15 +23,15 @@
 #include <atomic>     // for atomic, __atomic_base
 #include <chrono>     // for duration, system_clock, system_clock::t...
 #include <compare>
-#include <cstddef>    // for size_t
+#include <cstddef>  // for size_t
 #include <cstdlib>
 #include <iostream>  // for cout
 #include <iterator>  // for move_iterator, make_move_iterator, oper...
 #include <list>      // for list, operator==, _List_iterator, _List...
 #include <memory>
 #include <memory_resource>
-#include <random>    // for mt19937, uniform_int_distribution
-#include <sstream>   // for operator<<, basic_istream, basic_string...
+#include <random>   // for mt19937, uniform_int_distribution
+#include <sstream>  // for operator<<, basic_istream, basic_string...
 #include <thread>
 #include <type_traits>  // for is_same
 #include <vector>       // for vector
@@ -3560,26 +3560,31 @@ TEST_CASE("to_small_string") {
     CHECK_EQ(small_str2, "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
 
     auto small_byte_str2 = to_small_string<small_byte_string>(str2);
-    CHECK_EQ(small_byte_str2, "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
+    CHECK_EQ(small_byte_str2,
+             "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
 
     std::string str3("1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
     auto small_str3 = to_small_string<small_string>(str3);
     CHECK_EQ(small_str3, "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
     auto small_byte_str3 = to_small_string<small_byte_string>(str3);
-    CHECK_EQ(small_byte_str3, "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
+    CHECK_EQ(small_byte_str3,
+             "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901");
 
     std::string str4("12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012");
     auto small_str4 = to_small_string<small_string>(str4);
-    CHECK_EQ(small_str4, "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012");
+    CHECK_EQ(small_str4,
+             "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012");
     auto small_byte_str4 = to_small_string<small_byte_string>(str4);
-    CHECK_EQ(small_byte_str4, "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012");
+    CHECK_EQ(small_byte_str4,
+             "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012");
 
     std::string str5("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123");
     auto small_str5 = to_small_string<small_string>(str5);
-    CHECK_EQ(small_str5, "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123");
+    CHECK_EQ(small_str5,
+             "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123");
     auto small_byte_str5 = to_small_string<small_byte_string>(str5);
-    CHECK_EQ(small_byte_str5, "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123");
-
+    CHECK_EQ(small_byte_str5,
+             "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123");
 
     auto small_str_int = to_small_string<small_string>(1234567890);
     CHECK_EQ(small_str_int, "1234567890");
@@ -3587,23 +3592,23 @@ TEST_CASE("to_small_string") {
     CHECK_EQ(small_byte_str_int, "1234567890");
 }
 
-template<typename S, typename Allocator>
+template <typename S, typename Allocator>
 void operator_of_cmp(Allocator& allocator) {
-    std::string std_string1 {"1234567890"};
-    std::string_view std_string_view1 {"1234567890"};
+    std::string std_string1{"1234567890"};
+    std::string_view std_string_view1{"1234567890"};
     S str1("1234567890", allocator);
     S str2("1234567890", allocator);
     S str3("1234567", allocator);
     S str4("12345678900", allocator);
     S str5{"87654", allocator};
 
-    std::string std_string3 {"1234567"};
-    std::string std_string4 {"12345678900"};
-    std::string std_string5 {"87654"};
+    std::string std_string3{"1234567"};
+    std::string std_string4{"12345678900"};
+    std::string std_string5{"87654"};
 
-    std::string_view std_string_view3 {"1234567"};
-    std::string_view std_string_view4 {"12345678900"};
-    std::string_view std_string_view5 {"87654"};
+    std::string_view std_string_view3{"1234567"};
+    std::string_view std_string_view4{"12345678900"};
+    std::string_view std_string_view5{"87654"};
 
     // EQ
     {
@@ -3681,7 +3686,7 @@ void operator_of_cmp(Allocator& allocator) {
         CHECK_EQ(str1 != "87654", true);
         CHECK_EQ("87654" != str1, true);
     }
-    
+
     // <
     {
         /// same < same
@@ -3745,7 +3750,7 @@ void operator_of_cmp(Allocator& allocator) {
 
         CHECK_EQ(str1 > "1234567890", false);
         CHECK_EQ("1234567890" > str1, false);
-        
+
         /// with 3
         CHECK_EQ(str1 > str3, true);
         CHECK_EQ(str3 > str1, false);
@@ -3829,7 +3834,7 @@ void operator_of_cmp(Allocator& allocator) {
         CHECK_EQ("87654" < str1, false);
     }
 
-    // >= 
+    // >=
     {
         // with same
         CHECK_EQ(str1 >= str2, true);
@@ -3902,7 +3907,7 @@ void operator_of_cmp(Allocator& allocator) {
         // with 4
         CHECK_EQ(str1 <=> str4, std::strong_ordering::less);
         CHECK_EQ(str4 <=> str1, std::strong_ordering::greater);
-        
+
         CHECK_EQ(str1 <=> std_string4, std::strong_ordering::less);
         CHECK_EQ(std_string4 <=> str1, std::strong_ordering::greater);
 
@@ -3921,13 +3926,11 @@ void operator_of_cmp(Allocator& allocator) {
 
         CHECK_EQ(str1 <=> std_string_view5, std::strong_ordering::less);
         CHECK_EQ(std_string_view5 <=> str1, std::strong_ordering::greater);
-        
+
         CHECK_EQ(str1 <=> "87654", std::strong_ordering::less);
         CHECK_EQ("87654" <=> str1, std::strong_ordering::greater);
     }
-
 }
-
 
 TEST_CASE("small_string::cmp") {
     std::allocator<char> allocator;

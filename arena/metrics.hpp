@@ -295,8 +295,8 @@ struct ArenaMetricsCookie
     local_arena_metrics.space_wasted += space_wasted;
 }
 [[gnu::always_inline]] inline auto metrics_probe_on_arena_destruction([[maybe_unused]] Arena* arena, void* cookie,
-                                                                      uint64_t space_used,
-                                                                      uint64_t space_wasted) -> void* {
+                                                                      uint64_t space_used, uint64_t space_wasted)
+  -> void* {
     ++local_arena_metrics.destruct_count;
     local_arena_metrics.space_used += space_used;
     local_arena_metrics.space_wasted += space_wasted;

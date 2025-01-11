@@ -397,8 +397,8 @@ if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset()
             __builtin_unreachable();
         }
 
-        static auto create(std::pmr::polymorphic_allocator<Char>& allocator, const Char* data,
-                           size_t* size) -> RefCounted* {
+        static auto create(std::pmr::polymorphic_allocator<Char>& allocator, const Char* data, size_t* size)
+          -> RefCounted* {
             const size_t effectiveSize = *size;
             auto result = create(allocator, size);
             if (effectiveSize > 0) [[likely]] {
@@ -408,8 +408,8 @@ if (!checked_muladd(&capacityBytes, capacityBytes, sizeof(Char), getDataOffset()
         }
 
         static auto reallocate(std::pmr::polymorphic_allocator<Char>& allocator, Char* const data,
-                               const size_t currentSize, const size_t currentCapacity,
-                               size_t* newCapacity) -> RefCounted* {
+                               const size_t currentSize, const size_t currentCapacity, size_t* newCapacity)
+          -> RefCounted* {
             Assert(*newCapacity > 0 && *newCapacity > currentSize,
                    "arena_string_core reallocate failed, newCapacity should ge than currentSize");
             /*
