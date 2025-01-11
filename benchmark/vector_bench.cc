@@ -123,17 +123,6 @@ void push_back_small_str() {
     benchmark::DoNotOptimize(vec);
 }
 
-template <template <typename> typename Vec>
-void push_back_small_str() {
-    memory::string input("hello world");
-    Vec<memory::string> vec;
-    vec.reserve(times);
-    for (size_t i = 0; i < times; ++i) {
-        vec.push_back(input);
-    }
-    benchmark::DoNotOptimize(vec);
-}
-
 void push_back_small_str_unsafe() {
     memory::string input("hello world");
     stdb_vector<memory::string> vec;
@@ -151,20 +140,6 @@ void push_back_median_str() {
       "1223141234123453214132142314123421421412sdfsadbbagasdfgasfsdfasfasfdsafasfasfsadfasbaabasabababbaabaabab");
     assert(input.size() < 250 and input.size() > 30);
     Vec<memory::string, std::allocator<memory::string>> vec;
-    vec.reserve(times);
-    for (size_t i = 0; i < times; ++i) {
-        vec.push_back(input);
-    }
-    benchmark::DoNotOptimize(vec);
-}
-
-template <template <typename> typename Vec>
-void push_back_median_str() {
-    memory::string input(
-      "hello world! for testing! "
-      "1223141234123453214132142314123421421412sdfsadbbagasdfgasfsdfasfasfdsafasfasfsadfasbaabasabababbaabaabab");
-    assert(input.size() < 250 and input.size() > 30);
-    Vec<memory::string> vec;
     vec.reserve(times);
     for (size_t i = 0; i < times; ++i) {
         vec.push_back(input);
@@ -200,28 +175,6 @@ void push_back_large_str() {
       "123456789012345678901234567890123456789012345678901234567890");
     assert(input.size() > 400);
     Vec<memory::string, std::allocator<memory::string>> vec;
-    vec.reserve(times);
-    for (size_t i = 0; i < times; ++i) {
-        vec.push_back(input);
-    }
-    benchmark::DoNotOptimize(vec);
-}
-
-template <template <typename> typename Vec>
-void push_back_large_str() {
-    memory::string input(
-      "123456789012345678901234567890123456789012345678901234567890"
-      "123456789012345678901234567890123456789012345678901234567890"
-      "123456789012345678901234567890123456789012345678901234567890"
-      "123456789012345678901234567890123456789012345678901234567890"
-      "123456789012345678901234567890123456789012345678901234567890"
-      "123456789012345678901234567890123456789012345678901234567890"
-      "123456789012345678901234567890123456789012345678901234567890"
-      "123456789012345678901234567890123456789012345678901234567890"
-      "123456789012345678901234567890123456789012345678901234567890"
-      "123456789012345678901234567890123456789012345678901234567890");
-    assert(input.size() > 400);
-    Vec<memory::string> vec;
     vec.reserve(times);
     for (size_t i = 0; i < times; ++i) {
         vec.push_back(input);

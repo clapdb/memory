@@ -226,77 +226,77 @@ TEST_CASE_FIXTURE(BlockTest, "BlockTest.ResetwithCleanupTest") {
 
 TEST_CASE("AlignTest") {
     SUBCASE("AlignUpToTest8") {
-        CHECK_EQ(AlignUpTo<8>(15), 16ULL);
-        CHECK_EQ(AlignUpTo<8>(1), 8ULL);
-        CHECK_EQ(AlignUpTo<8>(32), 32ULL);
-        CHECK_EQ(AlignUpTo<8>(255), 256ULL);
-        CHECK_EQ(AlignUpTo<8>(1024), 1024ULL);
+        CHECK_EQ(AlignUpTo<8>(15UL), 16ULL);
+        CHECK_EQ(AlignUpTo<8>(1UL), 8ULL);
+        CHECK_EQ(AlignUpTo<8>(32UL), 32ULL);
+        CHECK_EQ(AlignUpTo<8>(255UL), 256ULL);
+        CHECK_EQ(AlignUpTo<8>(1024UL), 1024ULL);
     }
 
     SUBCASE("AlignUpToTest16") {
-        CHECK_EQ(AlignUpTo<16>(15), 16ULL);
-        CHECK_EQ(AlignUpTo<16>(1), 16ULL);
-        CHECK_EQ(AlignUpTo<16>(32), 32ULL);
-        CHECK_EQ(AlignUpTo<16>(255), 256ULL);
-        CHECK_EQ(AlignUpTo<16>(1024), 1024ULL);
+        CHECK_EQ(AlignUpTo<16>(15UL), 16ULL);
+        CHECK_EQ(AlignUpTo<16>(1UL), 16ULL);
+        CHECK_EQ(AlignUpTo<16>(32UL), 32ULL);
+        CHECK_EQ(AlignUpTo<16>(255UL), 256ULL);
+        CHECK_EQ(AlignUpTo<16>(1024UL), 1024ULL);
     }
 
     SUBCASE("AlignUpToTest32") {
-        CHECK_EQ(AlignUpTo<32>(15), 32ULL);
-        CHECK_EQ(AlignUpTo<32>(1), 32ULL);
-        CHECK_EQ(AlignUpTo<32>(31), 32ULL);
-        CHECK_EQ(AlignUpTo<32>(32), 32ULL);
-        CHECK_EQ(AlignUpTo<32>(255), 256ULL);
-        CHECK_EQ(AlignUpTo<32>(1024), 1024ULL);
+        CHECK_EQ(AlignUpTo<32>(15UL), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(1UL), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(31UL), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(32UL), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(255UL), 256ULL);
+        CHECK_EQ(AlignUpTo<32>(1024UL), 1024ULL);
     }
 
     SUBCASE("AlignUpToTest64") {
-        CHECK_EQ(AlignUpTo<64>(15), 64ULL);
-        CHECK_EQ(AlignUpTo<64>(1), 64ULL);
-        CHECK_EQ(AlignUpTo<64>(32), 64ULL);
-        CHECK_EQ(AlignUpTo<64>(63), 64ULL);
-        CHECK_EQ(AlignUpTo<64>(255), 256ULL);
-        CHECK_EQ(AlignUpTo<64>(1024), 1024ULL);
+        CHECK_EQ(AlignUpTo<64>(15UL), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(1UL), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(32UL), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(63UL), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(255UL), 256ULL);
+        CHECK_EQ(AlignUpTo<64>(1024UL), 1024ULL);
     }
 
     SUBCASE("AlignUpToTest128") {
-        CHECK_EQ(AlignUpTo<128>(15), 128ULL);
-        CHECK_EQ(AlignUpTo<128>(1), 128ULL);
-        CHECK_EQ(AlignUpTo<128>(32), 128ULL);
-        CHECK_EQ(AlignUpTo<128>(63), 128ULL);
-        CHECK_EQ(AlignUpTo<128>(255), 256ULL);
-        CHECK_EQ(AlignUpTo<128>(1024), 1024ULL);
+        CHECK_EQ(AlignUpTo<128>(15UL), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(1UL), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(32UL), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(63UL), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(255UL), 256ULL);
+        CHECK_EQ(AlignUpTo<128>(1024UL), 1024ULL);
     }
 
     SUBCASE("AlignUpToTest256") {
-        CHECK_EQ(AlignUpTo<256>(15), 256ULL);
-        CHECK_EQ(AlignUpTo<256>(1), 256ULL);
-        CHECK_EQ(AlignUpTo<256>(32), 256ULL);
-        CHECK_EQ(AlignUpTo<256>(63), 256ULL);
-        CHECK_EQ(AlignUpTo<256>(255), 256ULL);
-        CHECK_EQ(AlignUpTo<256>(1024), 1024ULL);
-        CHECK_EQ(AlignUpTo<256>(4096), 4096ULL);
+        CHECK_EQ(AlignUpTo<256>(15UL), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(1UL), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(32UL), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(63UL), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(255UL), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(1024UL), 1024ULL);
+        CHECK_EQ(AlignUpTo<256>(4096UL), 4096ULL);
     }
 
     SUBCASE("AlignUpToTest512") {
-        CHECK_EQ(AlignUpTo<512>(15), 512ULL);
-        CHECK_EQ(AlignUpTo<512>(1), 512ULL);
-        CHECK_EQ(AlignUpTo<512>(32), 512ULL);
-        CHECK_EQ(AlignUpTo<512>(63), 512ULL);
-        CHECK_EQ(AlignUpTo<512>(255), 512ULL);
-        CHECK_EQ(AlignUpTo<512>(1024), 1024ULL);
-        CHECK_EQ(AlignUpTo<512>(4096), 4096ULL);
+        CHECK_EQ(AlignUpTo<512>(15UL), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(1UL), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(32UL), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(63UL), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(255UL), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(1024UL), 1024ULL);
+        CHECK_EQ(AlignUpTo<512>(4096UL), 4096ULL);
     }
 
     SUBCASE("AlignUpToTest4k") {
-        CHECK_EQ(AlignUpTo<4096>(15), 4096ULL);
-        CHECK_EQ(AlignUpTo<4096>(1), 4096ULL);
-        CHECK_EQ(AlignUpTo<4096>(32), 4096ULL);
-        CHECK_EQ(AlignUpTo<4096>(63), 4096ULL);
-        CHECK_EQ(AlignUpTo<4096>(255), 4096ULL);
-        CHECK_EQ(AlignUpTo<4096>(1024), 4096ULL);
-        CHECK_EQ(AlignUpTo<4096>(4096), 4096ULL);
-        CHECK_EQ(AlignUpTo<4096>(4099), 8192ULL);
+        CHECK_EQ(AlignUpTo<4096>(15UL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(1UL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(32UL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(63UL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(255UL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(1024UL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(4096UL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(4099UL), 8192ULL);
     }
 
     // test without on_arena_* trigger
@@ -888,8 +888,8 @@ class mock_hook
         return _cookie;
     }
     void arena_allocate_hook(const std::type_info* /*unused*/, uint64_t /*unused*/, void* /*unused*/) { allocated++; }
-    auto arena_destruction_hook(Arena* /*unused*/, void* /*unused*/, uint64_t /*unused*/,
-                                uint64_t /*unused*/) -> void* {
+    auto arena_destruction_hook(Arena* /*unused*/, void* /*unused*/, uint64_t /*unused*/, uint64_t /*unused*/)
+      -> void* {
         destructed++;
         return _cookie;
     }

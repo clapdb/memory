@@ -119,8 +119,8 @@ inline auto checkedRealloc(void* ptr, size_t size) -> void* {
  * jemalloc, realloc() almost always ends up doing a copy, because
  * there is little fragmentation / slack space to take advantage of.
  */
-inline auto smartRealloc(void* ptr, const size_t currentSize, const size_t currentCapacity,
-                         const size_t newCapacity) -> void* {
+inline auto smartRealloc(void* ptr, const size_t currentSize, const size_t currentCapacity, const size_t newCapacity)
+  -> void* {
     Assert(ptr != nullptr, "smartRealloc ptr should not be nullptr");
     Assert(currentSize <= currentCapacity && currentCapacity < newCapacity,
            "realloc should make sure "
@@ -156,8 +156,8 @@ constexpr auto isLittleEndian() noexcept -> bool { return std::endian::native ==
 namespace string_detail {
 
 template <class InIt, class OutIt>
-inline auto copy_n(InIt begin, typename std::iterator_traits<InIt>::difference_type n,
-                   OutIt dest) noexcept -> std::pair<InIt, OutIt> {
+inline auto copy_n(InIt begin, typename std::iterator_traits<InIt>::difference_type n, OutIt dest) noexcept
+  -> std::pair<InIt, OutIt> {
     for (; n != 0; --n, ++begin, ++dest) {
         *dest = *begin;
     }
@@ -1171,11 +1171,10 @@ class basic_string
     // traits_type::char_type, which won't compare as equal when determining
     // which overload the implementation is referring to.
     template <typename TP>
-    auto operator=(TP chr) ->
-      typename std::enable_if<
-        std::is_convertible<TP, typename basic_string<E, T, A, Storage>::value_type>::value &&
-          !std::is_same<typename std::decay<TP>::type, typename basic_string<E, T, A, Storage>::value_type>::value,
-        basic_string<E, T, A, Storage>&>::type = delete;
+    auto operator=(TP chr) -> typename std::enable_if<
+      std::is_convertible<TP, typename basic_string<E, T, A, Storage>::value_type>::value &&
+        !std::is_same<typename std::decay<TP>::type, typename basic_string<E, T, A, Storage>::value_type>::value,
+      basic_string<E, T, A, Storage>&>::type = delete;
 
     auto operator=(std::initializer_list<value_type> init_list) -> basic_string& {
         return assign(init_list.begin(), init_list.end());
@@ -1509,15 +1508,15 @@ class basic_string
     }
 
    private:
-    auto replaceImplDiscr(iterator i1, iterator i2, const value_type* s, size_type n,
-                          std::integral_constant<int, 2>) -> basic_string&;
+    auto replaceImplDiscr(iterator i1, iterator i2, const value_type* s, size_type n, std::integral_constant<int, 2>)
+      -> basic_string&;
 
-    auto replaceImplDiscr(iterator i1, iterator i2, size_type n2, value_type c,
-                          std::integral_constant<int, 1>) -> basic_string&;
+    auto replaceImplDiscr(iterator i1, iterator i2, size_type n2, value_type c, std::integral_constant<int, 1>)
+      -> basic_string&;
 
     template <class InputIter>
-    auto replaceImplDiscr(iterator i1, iterator i2, InputIter b, InputIter e,
-                          std::integral_constant<int, 0>) -> basic_string&;
+    auto replaceImplDiscr(iterator i1, iterator i2, InputIter b, InputIter e, std::integral_constant<int, 0>)
+      -> basic_string&;
 
    private:
     template <class FwdIterator>
@@ -1835,8 +1834,8 @@ inline auto basic_string<E, T, A, S>::append(const basic_string& str) -> basic_s
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::append(const basic_string& str, const size_type pos,
-                                             size_type n) -> basic_string<E, T, A, S>& {
+inline auto basic_string<E, T, A, S>::append(const basic_string& str, const size_type pos, size_type n)
+  -> basic_string<E, T, A, S>& {
     const size_type sz = str.size();
     enforce<std::out_of_range>(pos <= sz, "");
     procrustes(n, sz - pos);
@@ -1884,8 +1883,8 @@ inline auto basic_string<E, T, A, S>::append(size_type n, value_type c) -> basic
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::assign(const basic_string& str, const size_type pos,
-                                             size_type n) -> basic_string<E, T, A, S>& {
+inline auto basic_string<E, T, A, S>::assign(const basic_string& str, const size_type pos, size_type n)
+  -> basic_string<E, T, A, S>& {
     const size_type sz = str.size();
     enforce<std::out_of_range>(pos <= sz, "");
     procrustes(n, sz - pos);
@@ -2239,9 +2238,8 @@ inline auto basic_string<E, T, A, S>::find_first_not_of(const value_type* str, s
 }
 
 template <typename E, class T, class A, class S>
-inline auto basic_string<E, T, A, S>::find_last_not_of(const value_type* str, size_type pos,
-                                                       size_type n) const noexcept ->
-  typename basic_string<E, T, A, S>::size_type {
+inline auto basic_string<E, T, A, S>::find_last_not_of(const value_type* str, size_type pos, size_type n) const noexcept
+  -> typename basic_string<E, T, A, S>::size_type {
     if (!this->empty()) {
         pos = std::min(pos, size() - 1);
         const_iterator i(begin() + pos);
@@ -2260,8 +2258,8 @@ inline auto basic_string<E, T, A, S>::find_last_not_of(const value_type* str, si
 // non-member functions
 // C++11 21.4.8.1/1
 template <typename E, class T, class A, class S>
-inline auto operator+(const basic_string<E, T, A, S>& lhs,
-                      const basic_string<E, T, A, S>& rhs) -> basic_string<E, T, A, S> {
+inline auto operator+(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs)
+  -> basic_string<E, T, A, S> {
     basic_string<E, T, A, S> result(lhs.get_allocator());
     result.reserve(lhs.size() + rhs.size());
     result.append(lhs).append(rhs);
@@ -2382,8 +2380,8 @@ inline auto operator+(basic_string<E, T, A, S>&& lhs, E rhs) -> basic_string<E, 
 }
 
 template <typename E, class T, class A, class S>
-inline auto operator<=>(const basic_string<E, T, A, S>& lhs,
-                        const basic_string<E, T, A, S>& rhs) noexcept -> std::strong_ordering {
+inline auto operator<=>(const basic_string<E, T, A, S>& lhs, const basic_string<E, T, A, S>& rhs) noexcept
+  -> std::strong_ordering {
     // return lhs.size() == rhs.size() && lhs.compare(rhs) == 0;
     auto const cmp = lhs.compare(rhs);
     if (cmp < 0) {
@@ -2579,8 +2577,8 @@ constexpr typename basic_string<E1, T, A, S>::size_type basic_string<E1, T, A, S
 // basic_string compatibility routines
 
 template <typename E, class T, class A, class S, class A2>
-inline auto operator<=>(const basic_string<E, T, A, S>& lhs,
-                        const std::basic_string<E, T, A2>& rhs) noexcept -> std::strong_ordering {
+inline auto operator<=>(const basic_string<E, T, A, S>& lhs, const std::basic_string<E, T, A2>& rhs) noexcept
+  -> std::strong_ordering {
     const auto cmp = lhs.compare(0, lhs.size(), rhs.data(), rhs.size());
     if (cmp < 0) {
         return std::strong_ordering::less;
@@ -2594,8 +2592,8 @@ inline auto operator<=>(const basic_string<E, T, A, S>& lhs,
 
 // swap the lhs and rhs
 template <typename E, class T, class A, class S, class A2>
-inline auto operator<=>(const std::basic_string<E, T, A2>& lhs,
-                        const basic_string<E, T, A, S>& rhs) noexcept -> std::strong_ordering {
+inline auto operator<=>(const std::basic_string<E, T, A2>& lhs, const basic_string<E, T, A, S>& rhs) noexcept
+  -> std::strong_ordering {
     const auto cmp = lhs.compare(0, lhs.size(), rhs.data(), rhs.size());
     if (cmp < 0) {
         return std::strong_ordering::less;
