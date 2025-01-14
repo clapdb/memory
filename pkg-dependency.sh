@@ -30,7 +30,8 @@ fbe_debian_packages=(
   cloc
   curl
   git
-  python2
+  python3
+  python3-pip
   lld
   #cmake version of ubuntu is also too low.
   cmake
@@ -59,9 +60,11 @@ fbe_darwin_packages=(
 
 case "$ID" in
 ubuntu | debian)
+  apt-get update -y
   apt-get install -y "${fbe_debian_packages[@]}"
   ;;
 fedora)
+  dnf update -y
   dnf install -y "${fbe_fedora_packages[@]}"
   ;;
 darwin)
