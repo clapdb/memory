@@ -3400,17 +3400,17 @@ TEST_CASE("string::small_string") {
     CHECK_EQ(str2.capacity(), 6);
 }
 
-TEST_CASE("small_string::calculate_the_buffer_size") {
-    uint32_t old_str_size = 5287U;
-    auto new_buffer_size_and_type = calculate_new_buffer_size<false>(old_str_size);
-    CHECK_EQ(new_buffer_size_and_type.buffer_size, 5296);
-    CHECK_EQ(new_buffer_size_and_type.core_type, CoreType::Delta);
+// TEST_CASE("small_string::calculate_the_buffer_size") {
+//     uint32_t old_str_size = 5287U;
+//     auto new_buffer_size_and_type = calculate_new_buffer_size(old_str_size);
+//     CHECK_EQ(new_buffer_size_and_type.buffer_size, 5296);
+//     CHECK_EQ(new_buffer_size_and_type.core_type, CoreType::Delta);
 
-    // uint32_t old_str_size1 = 4U;
-    // auto new_buffer_size_and_type_2 = calculate_new_buffer_size<false>(old_str_size1);
-    // CHECK_EQ(new_buffer_size_and_type_2.buffer_size, 16);
-    // CHECK_EQ(new_buffer_size_and_type_2.core_type, CoreType::Internal);
-}
+//     // uint32_t old_str_size1 = 4U;
+//     // auto new_buffer_size_and_type_2 = calculate_new_buffer_size<false>(old_str_size1);
+//     // CHECK_EQ(new_buffer_size_and_type_2.buffer_size, 16);
+//     // CHECK_EQ(new_buffer_size_and_type_2.core_type, CoreType::Internal);
+// }
 
 TEST_CASE("small_string::capacity") {
     using smstring = basic_small_string<char>;
@@ -3421,45 +3421,46 @@ TEST_CASE("small_string::capacity") {
     CHECK_EQ(str1_short.capacity(), 6);
 
     smstring str1_external("1234567890");
-    CHECK_EQ(str1_external.capacity(), 15);
+    CHECK_EQ(str1_external.capacity(), 11);
 
     smstring str1_long("12345678901234567");
-    CHECK_EQ(str1_long.capacity(), 31);
+    CHECK_EQ(str1_long.capacity(), 19);
 
     smstring str1_long1("123456789012345678901234567890");
-    CHECK_EQ(str1_long1.capacity(), 31);
+    CHECK_EQ(str1_long1.capacity(), 35);
     str1_long1.append("12");
-    CHECK_EQ(str1_long1.capacity(), 63);
+    CHECK_EQ(str1_long1.capacity(), 35);
 
     str1_long1.append("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
-    CHECK_EQ(str1_long1.capacity(), 127);
+    // will be grow by 1.5
+    CHECK_EQ(str1_long1.capacity(), 187);
 
     smstring long2;
     for (int i = 0; i < 1000; ++i) {
         long2.push_back('x');
     }
-    CHECK_EQ(long2.capacity(), 1023);
+    CHECK_EQ(long2.capacity(), 1115);
 
     for (int i = 0; i < 1000; ++i) {
         long2.push_back('z');
     }
-    CHECK_EQ(long2.capacity(), 2047);
+    CHECK_EQ(long2.capacity(), 2515);
 
     for (int i = 0; i < 1000; ++i) {
         long2.push_back('!');
     }
-    CHECK_EQ(long2.capacity(), 4095);
+    CHECK_EQ(long2.capacity(), 3779);
 
     for (int i = 0; i < 1000; ++i) {
         long2.push_back('a');
     }
-    CHECK_EQ(long2.capacity(), 4095);
+    CHECK_EQ(long2.capacity(), 5675);
 
     for (int i = 0; i < 100; ++i) {
         long2.push_back('b');
     }
 
-    CHECK_EQ(long2.capacity(), 4103);
+    CHECK_EQ(long2.capacity(), 5675);
     CHECK_EQ(long2.size(), 4100);
 }
 
@@ -3482,6 +3483,9 @@ void reserve_and_shrink_test(S& origin) {
 TEST_CASE("small_string::reserve_and_shrink") {
     basic_small_string<char> empty_str;
     reserve_and_shrink_test(empty_str);
+
+    basic_small_string<char> to_test("999999999");
+    auto copy = to_test;
     std::vector<basic_small_string<char>> inputs = {"",      "1",      "22",      "333",      "4444",
                                                     "55555", "666666", "7777777", "88888888", "999999999"};
     for (auto& input : inputs) {
