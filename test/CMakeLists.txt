@@ -25,7 +25,6 @@ add_executable(memory_test EXCLUDE_FROM_ALL ${TEST_SRC})
 list(APPEND TEST_FLAGS
   #-DBOOST_STACKTRACE_USE_BACKTRACE
   -DDOCTEST_CONFIG_SUPER_FAST_ASSERTS
-  -mavx2
 )
 
 ### include arena src
