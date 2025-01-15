@@ -2656,7 +2656,7 @@ inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allo
 template <typename Char,
           template <typename, template <class, bool> class, class T, class A, bool N, float G> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated, float Growth>
-inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& lhs,
+inline auto operator==(const basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated, Growth>& lhs,
                        std::string_view rhs) noexcept -> bool {
     return lhs.size() == rhs.size() and std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
