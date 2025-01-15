@@ -42,11 +42,14 @@
 #ifndef _MULTI_THREAD_TEST_
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #endif
-#include <immintrin.h>
 
 #include "arena/arenahelper.hpp"  // for ArenaFullManagedTag, ArenaManagedCr...
 #include "doctest/doctest.h"      // for binary_assert, CHECK_EQ, TestCase
 #include "string/string.hpp"
+
+#ifdef __amd64__
+#include <immintrin.h>
+#endif
 
 using stdb::memory::align::AlignUp;
 using stdb::memory::align::AlignUpTo;
@@ -225,6 +228,7 @@ TEST_CASE_FIXTURE(BlockTest, "BlockTest.ResetwithCleanupTest") {
 }
 
 TEST_CASE("AlignTest") {
+#if defined(__linux__)
     SUBCASE("AlignUpToTest8") {
         CHECK_EQ(AlignUpTo<8>(15UL), 16ULL);
         CHECK_EQ(AlignUpTo<8>(1UL), 8ULL);
@@ -298,6 +302,82 @@ TEST_CASE("AlignTest") {
         CHECK_EQ(AlignUpTo<4096>(4096UL), 4096ULL);
         CHECK_EQ(AlignUpTo<4096>(4099UL), 8192ULL);
     }
+#else
+    SUBCASE("AlignUpToTest8") {
+        CHECK_EQ(AlignUpTo<8>(15ULL), 16ULL);
+        CHECK_EQ(AlignUpTo<8>(1ULL), 8ULL);
+        CHECK_EQ(AlignUpTo<8>(32ULL), 32ULL);
+        CHECK_EQ(AlignUpTo<8>(255ULL), 256ULL);
+        CHECK_EQ(AlignUpTo<8>(1024ULL), 1024ULL);
+    }
+
+    SUBCASE("AlignUpToTest16") {
+        CHECK_EQ(AlignUpTo<16>(15ULL), 16ULL);
+        CHECK_EQ(AlignUpTo<16>(1ULL), 16ULL);
+        CHECK_EQ(AlignUpTo<16>(32ULL), 32ULL);
+        CHECK_EQ(AlignUpTo<16>(255ULL), 256ULL);
+        CHECK_EQ(AlignUpTo<16>(1024ULL), 1024ULL);
+    }
+
+    SUBCASE("AlignUpToTest32") {
+        CHECK_EQ(AlignUpTo<32>(15ULL), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(1ULL), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(31ULL), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(32ULL), 32ULL);
+        CHECK_EQ(AlignUpTo<32>(255ULL), 256ULL);
+        CHECK_EQ(AlignUpTo<32>(1024ULL), 1024ULL);
+    }
+
+    SUBCASE("AlignUpToTest64") {
+        CHECK_EQ(AlignUpTo<64>(15ULL), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(1ULL), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(32ULL), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(63ULL), 64ULL);
+        CHECK_EQ(AlignUpTo<64>(255ULL), 256ULL);
+        CHECK_EQ(AlignUpTo<64>(1024ULL), 1024ULL);
+    }
+
+    SUBCASE("AlignUpToTest128") {
+        CHECK_EQ(AlignUpTo<128>(15ULL), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(1ULL), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(32ULL), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(63ULL), 128ULL);
+        CHECK_EQ(AlignUpTo<128>(255ULL), 256ULL);
+        CHECK_EQ(AlignUpTo<128>(1024ULL), 1024ULL);
+    }
+
+    SUBCASE("AlignUpToTest256") {
+        CHECK_EQ(AlignUpTo<256>(15ULL), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(1ULL), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(32ULL), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(63ULL), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(255ULL), 256ULL);
+        CHECK_EQ(AlignUpTo<256>(1024ULL), 1024ULL);
+        CHECK_EQ(AlignUpTo<256>(4096ULL), 4096ULL);
+    }
+
+    SUBCASE("AlignUpToTest512") {
+        CHECK_EQ(AlignUpTo<512>(15ULL), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(1ULL), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(32ULL), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(63ULL), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(255ULL), 512ULL);
+        CHECK_EQ(AlignUpTo<512>(1024ULL), 1024ULL);
+        CHECK_EQ(AlignUpTo<512>(4096ULL), 4096ULL);
+    }
+
+    SUBCASE("AlignUpToTest4k") {
+        CHECK_EQ(AlignUpTo<4096>(15ULL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(1ULL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(32ULL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(63ULL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(255ULL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(1024ULL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(4096ULL), 4096ULL);
+        CHECK_EQ(AlignUpTo<4096>(4099ULL), 8192ULL);
+    }
+
+#endif
 
     // test without on_arena_* trigger
     SUBCASE("AlignUpTest") {
@@ -1329,10 +1409,17 @@ TEST_CASE("ArenaTest.MoveAssignmentTest") {
     (void)*obj_a1;
 }
  */
+#if defined(__amd64__)
 struct int256_t
 {
     __m256i val;
 };
+#else
+struct int256_t
+{
+    int64_t val[4];
+};
+#endif
 
 using int128_t = __int128_t;
 #define TYPES int8_t, int16_t, int32_t, int64_t, int128_t, int256_t

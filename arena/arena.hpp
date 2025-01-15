@@ -80,7 +80,7 @@ struct CleanupNode
 inline constexpr uint64_t kByteSize = 8;
 inline constexpr uint64_t kInt256Size = 32;
 inline constexpr uint64_t kByteSizeMask = kByteSize - 1;
-static constexpr uint64_t kCleanupNodeSize = AlignUpTo<kByteSize>(sizeof(memory::CleanupNode));
+static constexpr uint64_t kCleanupNodeSize = AlignUpTo<kByteSize>(static_cast<uint64_t>(sizeof(memory::CleanupNode)));
 
 /*
  * destructor closure of type T
@@ -328,7 +328,7 @@ class Arena
 
        protected:
         auto do_allocate(size_t bytes, size_t alignment) noexcept -> void* override {
-            return reinterpret_cast<char*>(_arena->allocateAligned(bytes, std::max(kByteSize, alignment)));
+            return reinterpret_cast<char*>(_arena->allocateAligned(bytes, std::max<uint64_t>(kByteSize, alignment)));
         }
 
         void do_deallocate([[maybe_unused]] void* /*unused*/, [[maybe_unused]] size_t /*unused*/,
@@ -689,6 +689,6 @@ class Arena
 };  // class Arena
 
 // the size of the Block's header.
-static constexpr uint64_t kBlockHeaderSize = AlignUpTo<kByteSize>(sizeof(memory::Arena::Block));
+static constexpr uint64_t kBlockHeaderSize = AlignUpTo<kByteSize>(static_cast<uint64_t>(sizeof(memory::Arena::Block)));
 
 }  // namespace stdb::memory
