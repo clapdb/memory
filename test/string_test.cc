@@ -3411,6 +3411,21 @@ TEST_CASE("string::small_string") {
 //     // CHECK_EQ(new_buffer_size_and_type_2.buffer_size, 16);
 //     // CHECK_EQ(new_buffer_size_and_type_2.core_type, CoreType::Internal);
 // }
+TEST_CASE("small_string::core_type") {
+    using smstring = basic_small_string<char>;
+    smstring str1_empty;
+    CHECK_EQ(str1_empty.get_core_type(), 0);
+
+    smstring str1_short("12345678");
+    CHECK_EQ(str1_short.get_core_type(), 1);
+
+    smstring str1_median(
+      "12345678901234567890123456789012345678901234567890123456789012345678901234567890,"
+      "12345678901234567890123456789012345678901234567890123456789012345678901234567890,"
+      "12345678901234567890123456789012345678901234567890123456789012345678901234567890,"
+      "12345678901234567890123456789012345678901234567890123456789012345678901234567890,");
+    CHECK_EQ(str1_median.get_core_type(), 2);
+}
 
 TEST_CASE("small_string::capacity") {
     using smstring = basic_small_string<char>;
@@ -3421,46 +3436,46 @@ TEST_CASE("small_string::capacity") {
     CHECK_EQ(str1_short.capacity(), 6);
 
     smstring str1_external("1234567890");
-    CHECK_EQ(str1_external.capacity(), 11);
+    CHECK_EQ(str1_external.capacity(), 15);
 
     smstring str1_long("12345678901234567");
-    CHECK_EQ(str1_long.capacity(), 19);
+    CHECK_EQ(str1_long.capacity(), 23);
 
     smstring str1_long1("123456789012345678901234567890");
-    CHECK_EQ(str1_long1.capacity(), 35);
+    CHECK_EQ(str1_long1.capacity(), 31);
     str1_long1.append("12");
-    CHECK_EQ(str1_long1.capacity(), 35);
+    CHECK_EQ(str1_long1.capacity(), 55);
 
     str1_long1.append("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890");
     // will be grow by 1.5
-    CHECK_EQ(str1_long1.capacity(), 187);
+    CHECK_EQ(str1_long1.capacity(), 183);
 
     smstring long2;
     for (int i = 0; i < 1000; ++i) {
         long2.push_back('x');
     }
-    CHECK_EQ(long2.capacity(), 1115);
+    CHECK_EQ(long2.capacity(), 1111);
 
     for (int i = 0; i < 1000; ++i) {
         long2.push_back('z');
     }
-    CHECK_EQ(long2.capacity(), 2515);
+    CHECK_EQ(long2.capacity(), 2511);
 
     for (int i = 0; i < 1000; ++i) {
         long2.push_back('!');
     }
-    CHECK_EQ(long2.capacity(), 3779);
+    CHECK_EQ(long2.capacity(), 3775);
 
     for (int i = 0; i < 1000; ++i) {
         long2.push_back('a');
     }
-    CHECK_EQ(long2.capacity(), 5675);
+    CHECK_EQ(long2.capacity(), 5671);
 
     for (int i = 0; i < 100; ++i) {
         long2.push_back('b');
     }
 
-    CHECK_EQ(long2.capacity(), 5675);
+    CHECK_EQ(long2.capacity(), 5671);
     CHECK_EQ(long2.size(), 4100);
 }
 
@@ -3946,6 +3961,11 @@ TEST_CASE("small_byte_string::cmp") {
     operator_of_cmp<small_byte_string>(allocator);
 }
 
+TEST_CASE("small_byte_string::size") {
+    small_byte_string str(256, '\0');
+    CHECK_EQ(str.size(), 256);
+}
+
 TEST_CASE("pmr::small_string::cmp") {
     Arena arena(Arena::Options::GetDefaultOptions());
     std::pmr::polymorphic_allocator<char> allocator(arena.get_memory_resource());
@@ -3978,7 +3998,6 @@ TEST_CASE("small_string::testAllClauses") {
             CHECK_EQ(c, r);
 
             auto localSeed = seed + count;
-            // auto localSeed = tmp_seed + count;
             rng = RandomT(localSeed);
             f_string(r);
             f_fbstring(c);

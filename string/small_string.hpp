@@ -35,13 +35,16 @@ enum class CoreType : uint8_t
 {
     // the core type is internal
     Internal = 0,
+    // the core type is short
+    Short = 1,
     // the flag is for mediam buffer
-    Median = 1,
+    Median = 2,
     // the flag is for long buffer
-    Long = 2
+    Long = 3
 };
 
 constexpr inline auto kIsInternal = static_cast<uint8_t>(CoreType::Internal);
+constexpr inline auto kIsShort = static_cast<uint8_t>(CoreType::Short);
 constexpr inline auto kIsMedian = static_cast<uint8_t>(CoreType::Median);
 constexpr inline auto kIsLong = static_cast<uint8_t>(CoreType::Long);
 
@@ -101,14 +104,20 @@ struct malloc_core
         // amd64 / x64 / aarch64 is all little endian, the
         int64_t c_str_ptr : 48;  // the pointer to c_str
 
+        // the cap <= 32, the size <= 256
+        struct cap_and_size
+        {
+            uint8_t cap : 5;    // cap * 8, max cap == 256/8 = 32
+            uint16_t size : 9;  // the size <= 256
+            uint8_t flag : 2;   // the flag must be 01
+        };
+
         struct idle_cap
         {
             // 12bits: size, just use 12 bits to store the size, the max size is 4095, if the size is 4096, the shift
             // will be 11, and the external_size will be 0
             uint16_t idle_or_ignore : 14;  // max idle size = 2**14 - 1
-            uint8_t flag : 2;  // flag is 01 or 10, 01 means the idle_or_ignore is the idle size, 10 means the
-                               // idle_or_ignore should be ignored
-            // the flag will never be 11, it is reserved
+            uint8_t flag : 2;              // the flag must be 10
         };  // struct size_and_shift
 
         static_assert(sizeof(idle_cap) == 2);
@@ -116,17 +125,17 @@ struct malloc_core
         union
         {
             idle_cap idle;
+            cap_and_size cap_size;
             uint16_t mask;
         };  // union size_or_mask
 
         [[nodiscard, gnu::always_inline]] auto get_buffer_ptr() const noexcept -> Char* {
-            auto flag = idle.flag;
-            Assert(flag > 0 and flag < 3, "the flag should never be 01 or 10");
-            auto* ptr = reinterpret_cast<Char*>(c_str_ptr);
-            // if the flag is 10, the idle_or_ignore is the idle size, so the size was also stored in the buffer head,
-            // so the ptr should be ptr - sizeof(size_type) * 2
-            // else the flag is 01, the idle_or_ignore is the size, so the ptr should be ptr - sizeof(size_type)
-            return ptr - sizeof(size_type) * flag;
+            Assert(idle.flag > 0, "the flag should be 01 / 10 / 11");
+            if (cap_size.flag == 1) [[likely]] {
+                return reinterpret_cast<Char*>(c_str_ptr);
+            } else {
+                return reinterpret_cast<Char*>(c_str_ptr) - sizeof(struct capacity_and_size<size_type>);
+            }
         }
     };  // struct external_core
 
@@ -148,19 +157,19 @@ struct malloc_core
         }
     }
 
-    consteval static inline auto median_buffer_header_size() noexcept -> size_type {
-        if constexpr (NullTerminated) {
-            return sizeof(size_type) + 1;
-        } else {
-            return sizeof(size_type);
-        }
-    }
-
-    consteval static inline auto long_buffer_header_size() noexcept -> size_type {
+    consteval static inline auto median_long_buffer_header_size() noexcept -> size_type {
         if constexpr (NullTerminated) {
             return sizeof(struct capacity_and_size<size_type>) + 1;
         } else {
             return sizeof(struct capacity_and_size<size_type>);
+        }
+    }
+
+    consteval static inline auto max_short_buffer_size() noexcept -> size_type {
+        if constexpr (NullTerminated) {
+            return 255;
+        } else {
+            return 256;
         }
     }
 
@@ -170,85 +179,103 @@ struct malloc_core
     }
 
     constexpr static uint8_t kInterCore = static_cast<uint8_t>(CoreType::Internal);
+    constexpr static uint8_t kShortCore = static_cast<uint8_t>(CoreType::Short);
     constexpr static uint8_t kMedianCore = static_cast<uint8_t>(CoreType::Median);
     constexpr static uint8_t kLongCore = static_cast<uint8_t>(CoreType::Long);
 
-    [[nodiscard]] auto get_core_type() -> uint8_t {
-        auto flag = internal.flag;
-        switch (flag) {
-            case 0:
-                return kInterCore;
-            case 1:
-            case 2:
-                return kMedianCore;
-            default:
-                Assert(false, "the flag should never be 11");
-                __builtin_unreachable();
-        }
-    }
+    [[nodiscard]] auto get_core_type() const -> uint8_t { return external.idle.flag; }
 
     [[nodiscard, gnu::always_inline]] inline auto is_external() const noexcept -> bool { return internal.flag != 0; }
 
-    [[nodiscard, gnu::always_inline]] constexpr auto capacity_from_buffer_header(uint8_t flag) const noexcept
-      -> size_type {
-        Assert(flag > 0 and flag < 3, "the flag should be 01 or 10");
+    [[nodiscard, gnu::always_inline]] constexpr auto capacity_from_buffer_header() const noexcept -> size_type {
+        Assert(external.idle.flag > 1, "the flag should be 10 / 11");
         // the capacity is stored in the buffer header, the capacity is 4 bytes, and it will handle NullTerminated in
         // allocate_new_external_buffer's logic
-        return *(reinterpret_cast<size_type*>(external.c_str_ptr) - flag);
+        return *(reinterpret_cast<size_type*>(external.c_str_ptr) - 2);
+    }
+
+    [[nodiscard, gnu::always_inline]] constexpr auto max_real_cap_from_buffer_header() const noexcept -> size_type {
+        if constexpr (NullTerminated) {
+            return capacity_from_buffer_header() - 1 - sizeof(struct capacity_and_size<size_type>);
+        } else {
+            return capacity_from_buffer_header() - sizeof(struct capacity_and_size<size_type>);
+        }
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto size_from_buffer_header() const noexcept -> size_type {
-        Assert(external.idle.flag == 2, "the flag should be 10");
+        Assert(external.idle.flag > 1, "the flag should be 10 / 11");
         return *(reinterpret_cast<size_type*>(external.c_str_ptr) - 1);
     }
 
     [[gnu::always_inline]] constexpr auto set_size_to_buffer_header(size_type new_size) noexcept -> void {
-        Assert(external.idle.flag == 2, "the flag should be 10");
+        Assert(external.idle.flag > 1, "the flag should be 10 / 11");
         // check the new_size is less than the capacity
-        Assert(new_size <= capacity_from_buffer_header(2), "the new size should be less than the capacity");
+        Assert(capacity_from_buffer_header() > 256, "the capacity should be more than 256");
+        Assert(new_size <= max_real_cap_from_buffer_header(), "the new size should be less than the capacity");
         *(reinterpret_cast<size_type*>(external.c_str_ptr) - 1) = new_size;
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto increase_size_to_buffer_header(size_type size_to_increase) noexcept
       -> size_type {
-        Assert(external.idle.flag == 2, "the flag should be 10");
+        Assert(external.idle.flag > 1, "the flag should be 10 / 11");
+        Assert(capacity_from_buffer_header() > 256, "the capacity should be no more than 32");
+        Assert(size_to_increase <= get_idle_capacity_from_buffer_header(),
+               "the size to increase should be less than the idle size");
         // check the new_size is less than the capacity
-        Assert(size_to_increase <= capacity_from_buffer_header(2), "the new size should be less than the capacity");
         return *(reinterpret_cast<size_type*>(external.c_str_ptr) - 1) += size_to_increase;
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto decrease_size_to_buffer_header(size_type size_to_decrease) noexcept
       -> size_type {
-        Assert(external.idle.flag == 2, "the flag should be 10");
+        Assert(external.idle.flag > 1, "the flag should be 10 / 11");
         // check the new_size is less than the capacity
-        Assert(size_to_decrease <= capacity_from_buffer_header(2), "the new size should be less than the capacity");
+        Assert(capacity_from_buffer_header() > 256, "the capacity should be more than 256");
+        Assert(size_to_decrease <= size_from_buffer_header(),
+               "the size to decrease should be less than the current size");
         return *(reinterpret_cast<size_type*>(external.c_str_ptr) - 1) -= size_to_decrease;
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto get_capacity_and_size_from_buffer_header() const noexcept
       -> capacity_and_size<size_type> {
-        Assert(external.idle.flag == 2, "the flag should be 10");
-        return {*(reinterpret_cast<size_type*>(external.c_str_ptr) - 2),
-                *(reinterpret_cast<size_type*>(external.c_str_ptr) - 1)};
+        Assert(external.idle.flag > 1, "the flag should be 10 / 11");
+        Assert(capacity_from_buffer_header() > 256, "the capacity should be more than 256");
+        Assert(size_from_buffer_header() <= max_real_cap_from_buffer_header(),
+               "the size should be less than the max real capacity");
+        return *(reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1);
+    }
+
+    [[nodiscard, gnu::always_inline]] constexpr auto get_idle_capacity_from_buffer_header() const noexcept
+      -> size_type {
+        Assert(external.idle.flag > 1, "the flag should be 10 / 11");
+        Assert(capacity_from_buffer_header() > 256, "the capacity should be more than 256");
+        auto [cap, size] = get_capacity_and_size_from_buffer_header();
+        if constexpr (NullTerminated) {
+            return cap - size - 1 - sizeof(struct capacity_and_size<size_type>);
+        } else {
+            return cap - size - sizeof(struct capacity_and_size<size_type>);
+        }
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto idle_capacity() const noexcept -> size_type {
         auto flag = external.idle.flag;
         switch (flag) {
-            case 0:
+            case 0:  // internal
                 return internal_buffer_size() - internal.internal_size;
-            case 1:
-                return external.idle.idle_or_ignore;
-            case 2: {
-                auto [cap, size] = get_capacity_and_size_from_buffer_header();
+            case 1: {  // short
+                Assert(external.cap_size.cap <= 32, "the cap should be no more than 32");
+                Assert(external.cap_size.size <= 256, "the size should be no more than 256");
                 if constexpr (NullTerminated) {
-                    return cap - size - sizeof(struct capacity_and_size<size_type>) - 1;
+                    return (external.cap_size.cap + 1) * 8 - external.cap_size.size - 1;
                 } else {
-                    return cap - size - sizeof(struct capacity_and_size<size_type>);
+                    return (external.cap_size.cap + 1) * 8 - external.cap_size.size;
                 }
             }
+            case 2:  // median
+                return external.idle.idle_or_ignore;
+            case 3:  // long
+                return get_idle_capacity_from_buffer_header();
             default:
-                Assert(false, "the flag should be 01 or 10");
+                Assert(false, "the flag should be just 01-03");
                 __builtin_unreachable();
         }
     }
@@ -258,23 +285,18 @@ struct malloc_core
         switch (flag) {
             case 0:
                 return internal_buffer_size();
-            case 1: {
+            case 1:
                 if constexpr (NullTerminated) {
-                    return capacity_from_buffer_header(1) - 1 - sizeof(size_type);
+                    return (external.cap_size.cap + 1) * 8 - 1;
                 } else {
-                    return capacity_from_buffer_header(1) - sizeof(size_type);
+                    return (external.cap_size.cap + 1) * 8;
                 }
-            }
-            case 2: {
-                if constexpr (NullTerminated) {
-                    return capacity_from_buffer_header(2) - 1 - sizeof(struct capacity_and_size<size_type>);
-                } else {
-                    return capacity_from_buffer_header(2) - sizeof(struct capacity_and_size<size_type>);
-                }
-            }
             default:
-                Assert(false, "the flag should be 01 or 10");
-                __builtin_unreachable();
+                if constexpr (NullTerminated) {
+                    return capacity_from_buffer_header() - 1 - sizeof(struct capacity_and_size<size_type>);
+                } else {
+                    return capacity_from_buffer_header() - sizeof(struct capacity_and_size<size_type>);
+                }
         }
     }
 
@@ -283,19 +305,10 @@ struct malloc_core
         switch (flag) {
             case 0:
                 return internal.internal_size;
-            case 1: {
-                auto cap = capacity_from_buffer_header(1);
-                if constexpr (NullTerminated) {
-                    return cap - external.idle.idle_or_ignore - 1 - sizeof(size_type);
-                } else {
-                    return cap - external.idle.idle_or_ignore - sizeof(size_type);
-                }
-            }
-            case 2:
-                return size_from_buffer_header();
+            case 1:
+                return external.cap_size.size;
             default:
-                Assert(false, "the flag should be 01 or 10");
-                __builtin_unreachable();
+                return size_from_buffer_header();
         }
     }
 
@@ -313,29 +326,30 @@ struct malloc_core
                 }
                 break;
             }
-            case 1: {
-                auto cap = capacity_from_buffer_header(1);
-                Assert(new_size <= cap, "the new size should be less than the capacity");
+            case 1:
+                Assert(new_size <= (external.cap_size.cap + 1) * 8 - (NullTerminated ? 1 : 0),
+                       "the new size should be less than the max real capacity");
+                external.cap_size.size = new_size;
                 if constexpr (NullTerminated) {
-                    external.idle.idle_or_ignore = cap - new_size - 1 - sizeof(size_type);
+                    reinterpret_cast<Char*>(external.c_str_ptr)[new_size] = '\0';
+                }
+                break;
+            case 2: {
+                set_size_to_buffer_header(new_size);
+                external.idle.idle_or_ignore = get_idle_capacity_from_buffer_header();
+                if constexpr (NullTerminated) {
                     // set the terminator
                     reinterpret_cast<Char*>(external.c_str_ptr)[new_size] = '\0';
-                } else {
-                    external.idle.idle_or_ignore = cap - new_size - sizeof(size_type);
                 }
                 break;
             }
-            case 2: {
+            case 3: {
                 set_size_to_buffer_header(new_size);
                 if constexpr (NullTerminated) {
                     // set the terminator
                     reinterpret_cast<Char*>(external.c_str_ptr)[new_size] = '\0';
                 }
-                break;
             }
-            default:
-                Assert(false, "the flag should be 01 or 10");
-                __builtin_unreachable();
         }
     }
 
@@ -352,14 +366,21 @@ struct malloc_core
                 break;
             case 1:
                 Assert(size_to_increase <= idle_capacity(), "the size to increase should be less than the idle size");
-                external.idle.idle_or_ignore -= size_to_increase;
+                external.cap_size.size += size_to_increase;
                 if constexpr (NullTerminated) {
-                    auto new_str_size =
-                      capacity_from_buffer_header(1) - external.idle.idle_or_ignore - 1 - sizeof(size_type);
-                    reinterpret_cast<Char*>(external.c_str_ptr)[new_str_size] = '\0';
+                    reinterpret_cast<Char*>(external.c_str_ptr)[external.cap_size.size] = '\0';
                 }
                 break;
             case 2: {
+                Assert(size_to_increase <= idle_capacity(), "the size to increase should be less than the idle size");
+                external.idle.idle_or_ignore -= size_to_increase;
+                [[maybe_unused]] auto new_str_size = increase_size_to_buffer_header(size_to_increase);
+                if constexpr (NullTerminated) {
+                    reinterpret_cast<Char*>(external.c_str_ptr)[new_str_size] = '\0';
+                }
+                break;
+            }
+            case 3: {
                 Assert(size_to_increase <= idle_capacity(), "the size to increase should be less than the idle size");
                 [[maybe_unused]] auto new_str_size = increase_size_to_buffer_header(size_to_increase);
                 if constexpr (NullTerminated) {
@@ -367,9 +388,6 @@ struct malloc_core
                 }
                 break;
             }
-            default:
-                Assert(false, "the flag should be 01 or 10");
-                __builtin_unreachable();
         }
     }
 
@@ -385,27 +403,32 @@ struct malloc_core
                 }
                 break;
             case 1:
-                Assert(size_to_decrease <= capacity_from_buffer_header(1) - external.idle.idle_or_ignore,
+                Assert(size_to_decrease <= external.cap_size.size,
                        "the size to decrease should be less than the current size");
-                external.idle.idle_or_ignore += size_to_decrease;
+                external.cap_size.size -= size_to_decrease;
                 if constexpr (NullTerminated) {
-                    auto new_str_size =
-                      capacity_from_buffer_header(1) - external.idle.idle_or_ignore - 1 - sizeof(size_type);
-                    reinterpret_cast<Char*>(external.c_str_ptr)[new_str_size] = '\0';
+                    reinterpret_cast<Char*>(external.c_str_ptr)[external.cap_size.size] = '\0';
                 }
                 break;
             case 2: {
                 Assert(size_to_decrease <= size_from_buffer_header(),
                        "the size to decrease should be less than the current size");
+                external.idle.idle_or_ignore += size_to_decrease;
                 [[maybe_unused]] auto new_str_size = decrease_size_to_buffer_header(size_to_decrease);
                 if constexpr (NullTerminated) {
                     reinterpret_cast<Char*>(external.c_str_ptr)[new_str_size] = '\0';
                 }
                 break;
             }
-            default:
-                Assert(false, "the flag should be 01 or 10");
-                __builtin_unreachable();
+            case 3: {
+                Assert(size_to_decrease <= size_from_buffer_header(),
+                       "the size to decrease should be less than the idle size");
+                [[maybe_unused]] auto new_str_size = decrease_size_to_buffer_header(size_to_decrease);
+                if constexpr (NullTerminated) {
+                    reinterpret_cast<Char*>(external.c_str_ptr)[new_str_size] = '\0';
+                }
+                break;
+            }
         }
     }
 
@@ -415,16 +438,15 @@ struct malloc_core
             case 0:
                 return {.capacity = internal_buffer_size(), .size = internal.internal_size};
             case 1: {
-                auto cap = capacity_from_buffer_header(1);
-                size_type real_cap;
                 if constexpr (NullTerminated) {
-                    real_cap = cap - 1 - sizeof(size_type);
+                    return {.capacity = static_cast<uint32_t>((external.cap_size.cap + 1) * 8UL) - 1,
+                            .size = external.cap_size.size};
                 } else {
-                    real_cap = cap - sizeof(size_type);
+                    return {.capacity = static_cast<uint32_t>((external.cap_size.cap + 1) * 8UL),
+                            .size = external.cap_size.size};
                 }
-                return {.capacity = real_cap, .size = static_cast<size_type>(real_cap - external.idle.idle_or_ignore)};
             }
-            case 2: {
+            default: {
                 auto [cap, size] = get_capacity_and_size_from_buffer_header();
                 size_type real_cap;
                 if constexpr (NullTerminated) {
@@ -434,9 +456,6 @@ struct malloc_core
                 }
                 return {.capacity = real_cap, .size = size};
             }
-            default:
-                Assert(false, "the flag should be 01 or 10");
-                __builtin_unreachable();
         }
     }
 
@@ -450,20 +469,9 @@ struct malloc_core
             case 0:
                 return std::string_view{internal.data, internal.internal_size};
             case 1:
-                if constexpr (NullTerminated) {
-                    return std::string_view{
-                      reinterpret_cast<Char*>(external.c_str_ptr),
-                      capacity_from_buffer_header(1) - external.idle.idle_or_ignore - 1 - sizeof(size_type)};
-                } else {
-                    return std::string_view{
-                      reinterpret_cast<Char*>(external.c_str_ptr),
-                      capacity_from_buffer_header(1) - external.idle.idle_or_ignore - sizeof(size_type)};
-                }
-            case 2:
-                return std::string_view{reinterpret_cast<Char*>(external.c_str_ptr), size_from_buffer_header()};
+                return std::string_view{reinterpret_cast<Char*>(external.c_str_ptr), external.cap_size.size};
             default:
-                Assert(false, "the flag should be 01 or 10");
-                __builtin_unreachable();
+                return std::string_view{reinterpret_cast<Char*>(external.c_str_ptr), size_from_buffer_header()};
         }
     }
 
@@ -472,20 +480,10 @@ struct malloc_core
         switch (flag) {
             case 0:
                 return &internal.data[internal.internal_size];
-            case 1: {
-                if constexpr (NullTerminated) {
-                    return reinterpret_cast<Char*>(external.c_str_ptr) + capacity_from_buffer_header(1) -
-                           sizeof(size_type) - external.idle.idle_or_ignore - 1;
-                } else {
-                    return reinterpret_cast<Char*>(external.c_str_ptr) + capacity_from_buffer_header(1) -
-                           sizeof(size_type) - external.idle.idle_or_ignore;
-                }
-            }
-            case 2:
-                return reinterpret_cast<Char*>(external.c_str_ptr) + size_from_buffer_header();
+            case 1:
+                return reinterpret_cast<Char*>(external.c_str_ptr) + external.cap_size.size;
             default:
-                Assert(false, "the flag should be 01 or 10");
-                __builtin_unreachable();
+                return reinterpret_cast<Char*>(external.c_str_ptr) + size_from_buffer_header();
         }
     }
 
@@ -551,7 +549,7 @@ struct pmr_core : public malloc_core<Char, NullTerminated>
 };  // struct malloc_core_and_pmr_allocator
 
 template <typename Char, template <typename, bool> typename Core, class Traits, class Allocator, bool NullTerminated,
-          float Growth = 1.5f>
+          float Growth = 1.5F>
 class small_string_buffer
 {
    protected:
@@ -593,29 +591,16 @@ class small_string_buffer
         }
     }
 
-    [[nodiscard, gnu::always_inline]] constexpr static inline auto calculate_median_real_idle_capacity(
-      struct buffer_type_and_size<size_type> type_and_size, size_type old_size) noexcept -> uint16_t {
+    [[nodiscard, gnu::always_inline]] constexpr static inline auto calculate_median_long_real_idle_capacity(
+      size_type buffer_size, size_type old_size) noexcept -> size_type {
         if constexpr (NullTerminated) {
-            Assert(type_and_size.buffer_size >= sizeof(size_type) + 1 + old_size,
+            Assert(buffer_size >= sizeof(struct capacity_and_size<size_type>) + 1 + old_size,
                    "the buffer_size should be no less than the size of the buffer header and the old size");
-            return type_and_size.buffer_size - sizeof(size_type) - 1 - old_size;
+            return buffer_size - sizeof(struct capacity_and_size<size_type>) - 1 - old_size;
         } else {
-            Assert(type_and_size.buffer_size >= sizeof(size_type) + old_size,
+            Assert(buffer_size >= sizeof(struct capacity_and_size<size_type>) + old_size,
                    "the buffer_size should be no less than the size of the buffer header and the old size");
-            return type_and_size.buffer_size - sizeof(size_type) - old_size;
-        }
-    }
-
-    [[nodiscard, gnu::always_inline]] constexpr static inline auto calculate_long_real_idle_capacity(
-      struct buffer_type_and_size<size_type> type_and_size, size_type old_size) noexcept -> size_type {
-        if constexpr (NullTerminated) {
-            Assert(type_and_size.buffer_size >= sizeof(struct capacity_and_size<size_type>) + 1 + old_size,
-                   "the buffer_size should be no less than the size of the buffer header and the old size");
-            return type_and_size.buffer_size - sizeof(struct capacity_and_size<size_type>) - 1 - old_size;
-        } else {
-            Assert(type_and_size.buffer_size >= sizeof(struct capacity_and_size<size_type>) + old_size,
-                   "the buffer_size should be no less than the size of the buffer header and the old size");
-            return type_and_size.buffer_size - sizeof(struct capacity_and_size<size_type>) - old_size;
+            return buffer_size - sizeof(struct capacity_and_size<size_type>) - old_size;
         }
     }
 
@@ -628,6 +613,23 @@ class small_string_buffer
         auto new_buffer_size = type_and_size.buffer_size;
 
         switch (type) {
+            case CoreType::Internal: {
+                Assert(false, "the internal buffer should not be allocated");
+                __builtin_unreachable();
+            }
+            case CoreType::Short: {
+                Assert(type_and_size.buffer_size % 8 == 0, "the buffer_size should be aligned to 8");
+                void* buf = nullptr;
+                if constexpr (core_type::use_std_allocator::value) {
+                    buf = std::malloc(new_buffer_size);
+                } else {
+                    buf = allocator_ptr->allocate(new_buffer_size);
+                }
+                return {.c_str_ptr = reinterpret_cast<int64_t>(buf),
+                        .cap_size = {.cap = static_cast<uint8_t>(type_and_size.buffer_size / 8 - 1),
+                                     .size = static_cast<uint16_t>(old_str_size),
+                                     .flag = kIsShort}};
+            }
             case CoreType::Median: {
                 void* buf = nullptr;
                 if constexpr (core_type::use_std_allocator::value) {
@@ -635,10 +637,12 @@ class small_string_buffer
                 } else {
                     buf = allocator_ptr->allocate(new_buffer_size);
                 }
-                auto* head = reinterpret_cast<size_type*>(buf);
-                *head = new_buffer_size;
+                auto* head = reinterpret_cast<capacity_and_size<size_type>*>(buf);
+                head->capacity = new_buffer_size;
+                head->size = old_str_size;
                 return {.c_str_ptr = reinterpret_cast<int64_t>(head + 1),
-                        .idle = {.idle_or_ignore = calculate_median_real_idle_capacity(type_and_size, old_str_size),
+                        .idle = {.idle_or_ignore = static_cast<uint16_t>(
+                                   calculate_median_long_real_idle_capacity(new_buffer_size, old_str_size)),
                                  .flag = kIsMedian}};
             }
             case CoreType::Long: {
@@ -652,11 +656,8 @@ class small_string_buffer
                 head->capacity = new_buffer_size;
                 head->size = old_str_size;
                 return {.c_str_ptr = reinterpret_cast<int64_t>(head + 1),
-                        .idle = {.idle_or_ignore = 0, .flag = kIsLong}};  // ignore, so just use 0
+                        .idle = {.idle_or_ignore = 0, .flag = kIsLong}};
             }
-            default:
-                Assert(false, "the core_type should be median or long");
-                __builtin_unreachable();
         }
     }
 
@@ -666,11 +667,18 @@ class small_string_buffer
         if (size <= core_type::internal_buffer_size()) [[unlikely]] {
             return {.buffer_size = core_type::internal_buffer_size(), .core_type = CoreType::Internal};
         }
+        if (size <= core_type::max_short_buffer_size()) [[likely]] {
+            if constexpr (NullTerminated) {
+                return {.buffer_size = align::AlignUpTo<8>(size + 1), .core_type = CoreType::Short};
+            } else {
+                return {.buffer_size = align::AlignUpTo<8>(size), .core_type = CoreType::Short};
+            }
+        }
         if (size <= core_type::max_median_buffer_size()) [[likely]] {  // faster than 3-way compare
-            return {.buffer_size = align::AlignUpTo<8>(size + core_type::median_buffer_header_size()),
+            return {.buffer_size = align::AlignUpTo<8>(size + core_type::median_long_buffer_header_size()),
                     .core_type = CoreType::Median};
         }
-        return {.buffer_size = align::AlignUpTo<8>(size + core_type::long_buffer_header_size()),
+        return {.buffer_size = align::AlignUpTo<8>(size + core_type::median_long_buffer_header_size()),
                 .core_type = CoreType::Long};
     }
 
@@ -679,29 +687,75 @@ class small_string_buffer
       -> buffer_type_and_size<size_type> {
         return calculate_new_buffer_size(size * growth);
     }
-    [[nodiscard]] auto get_core_type() -> uint8_t { return _core.get_core_type(); }
+
+    [[nodiscard]] auto get_core_type() const -> uint8_t { return _core.get_core_type(); }
 
     // the fastest initial_allocate, do not calculate the type or size, just allocate the buffer
     // caller should make sure the type_and_size is correct
     constexpr void initial_allocate(buffer_type_and_size<size_type> cap_and_type, size_type size) noexcept {
-        if (cap_and_type.core_type == CoreType::Internal) [[unlikely]] {
-            // still be a internal_core
-            // just set the internal_size
-            _core.internal.internal_size = size;
-            if constexpr (NullTerminated) {
-                // set the '\0' at the end of the buffer
-                _core.internal.data[size] = '\0';
+        auto type = cap_and_type.core_type;
+        auto new_buffer_size = cap_and_type.buffer_size;
+        switch (type) {
+            case CoreType::Internal:
+                _core.internal.flag = kIsInternal;
+                _core.internal.internal_size = size;
+                if constexpr (NullTerminated) {
+                    _core.internal.data[size] = '\0';
+                }
+                break;
+            case CoreType::Short: {
+                Assert(new_buffer_size % 8 == 0, "the buffer_size should be aligned to 8");
+                void* buf = nullptr;
+                if constexpr (core_type::use_std_allocator::value) {
+                    buf = std::malloc(new_buffer_size);
+                } else {
+                    buf = _core.pmr_allocator.allocate(new_buffer_size);
+                }
+                if constexpr (NullTerminated) {
+                    reinterpret_cast<Char*>(buf)[size] = '\0';
+                }
+                _core.external = {.c_str_ptr = reinterpret_cast<int64_t>(buf),
+                                  .cap_size = {.cap = static_cast<uint8_t>(new_buffer_size / 8 - 1),
+                                               .size = static_cast<uint16_t>(size),
+                                               .flag = kIsShort}};
+                break;
             }
-            return;
-        }
-        if constexpr (core_type::use_std_allocator::value) {
-            _core.external = allocate_new_external_buffer(cap_and_type, size);
-        } else {
-            _core.external = allocate_new_external_buffer(cap_and_type, size, &_core.pmr_allocator);
-        }
-        if constexpr (NullTerminated) {
-            // set the '\0' at the end of the buffer
-            reinterpret_cast<Char*>(_core.external.c_str_ptr)[size] = '\0';
+            case CoreType::Median: {
+                void* buf = nullptr;
+                if constexpr (core_type::use_std_allocator::value) {
+                    buf = std::malloc(new_buffer_size);
+                } else {
+                    buf = _core.pmr_allocator.allocate(new_buffer_size);
+                }
+                auto* head = reinterpret_cast<capacity_and_size<size_type>*>(buf);
+                head->capacity = new_buffer_size;
+                head->size = size;
+                if constexpr (NullTerminated) {
+                    reinterpret_cast<Char*>(buf)[size + sizeof(struct capacity_and_size<size_type>)] = '\0';
+                }
+                _core.external = {.c_str_ptr = reinterpret_cast<int64_t>(head + 1),
+                                  .idle = {.idle_or_ignore = static_cast<uint16_t>(
+                                             calculate_median_long_real_idle_capacity(new_buffer_size, size)),
+                                           .flag = kIsMedian}};
+                break;
+            }
+            case CoreType::Long: {
+                void* buf = nullptr;
+                if constexpr (core_type::use_std_allocator::value) {
+                    buf = std::malloc(new_buffer_size);
+                } else {
+                    buf = _core.pmr_allocator.allocate(new_buffer_size);
+                }
+                auto* head = reinterpret_cast<capacity_and_size<size_type>*>(buf);
+                head->capacity = new_buffer_size;
+                head->size = size;
+                if constexpr (NullTerminated) {
+                    reinterpret_cast<Char*>(buf)[size + sizeof(struct capacity_and_size<size_type>)] = '\0';
+                }
+                _core.external = {.c_str_ptr = reinterpret_cast<int64_t>(head + 1),
+                                  .idle = {.idle_or_ignore = 0, .flag = kIsLong}};
+                break;
+            }
         }
         return;
     }
@@ -845,40 +899,42 @@ class small_string_buffer
             case 0:
                 break;
             case 1: {
-                auto cap = _core.capacity_from_buffer_header(1);
-                auto size_to_copy = cap - _core.external.idle.idle_or_ignore;
+                auto cap = (_core.external.cap_size.cap + 1) * 8UL;
                 char* new_buffer;
                 if constexpr (core_type::use_std_allocator::value) {
                     new_buffer = reinterpret_cast<char*>(std::malloc(cap));
                 } else {
                     new_buffer = _core.pmr_allocator.allocate(cap);
                 }
-                std::memcpy(new_buffer, _core.external.get_buffer_ptr(), size_to_copy);
-                _core.external.c_str_ptr = reinterpret_cast<int64_t>(new_buffer + sizeof(size_type));
+                if constexpr (NullTerminated) {
+                    // the \0 will be memcpy-ed as well
+                    std::memcpy(new_buffer, _core.external.get_buffer_ptr(), _core.external.cap_size.size + 1);
+                } else {
+                    std::memcpy(new_buffer, _core.external.get_buffer_ptr(), _core.external.cap_size.size);
+                }
+                _core.external.c_str_ptr = reinterpret_cast<int64_t>(new_buffer);
                 break;
             }
-            case 2: {
+            default: {
                 auto [cap, size] = _core.get_capacity_and_size_from_buffer_header();
+                char* new_buffer;
+                if constexpr (core_type::use_std_allocator::value) {
+                    new_buffer = reinterpret_cast<char*>(std::malloc(cap));
+                } else {
+                    new_buffer = _core.pmr_allocator.allocate(cap);
+                }
                 size_type size_to_copy;
                 if constexpr (NullTerminated) {
                     size_to_copy = size + sizeof(struct capacity_and_size<size_type>) + 1;
                 } else {
                     size_to_copy = size + sizeof(struct capacity_and_size<size_type>);
                 }
-                char* new_buffer;
-                if constexpr (core_type::use_std_allocator::value) {
-                    new_buffer = reinterpret_cast<char*>(std::malloc(cap));
-                } else {
-                    new_buffer = _core.pmr_allocator.allocate(cap);
-                }
-                std::memcpy(new_buffer, get_buffer(), size_to_copy);
+
+                std::memcpy(new_buffer, _core.external.get_buffer_ptr(), size_to_copy);
                 _core.external.c_str_ptr =
                   reinterpret_cast<int64_t>(new_buffer + sizeof(struct capacity_and_size<size_type>));
                 break;
             }
-            default:
-                Assert(false, "the flag should be 01 or 10");
-                __builtin_unreachable();
         }
     }
 
@@ -1094,6 +1150,9 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     // get_allocator
     [[nodiscard]] constexpr auto get_allocator() const -> Allocator { return buffer_type::get_allocator(); }
+
+    // get_core_type
+    [[nodiscard]] constexpr auto get_core_type() const -> size_type { return buffer_type::get_core_type(); }
 
     // copy assignment
     auto operator=(const basic_small_string& other) -> basic_small_string& {
