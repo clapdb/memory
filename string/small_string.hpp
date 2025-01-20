@@ -265,9 +265,9 @@ struct malloc_core
                 Assert(external.cap_size.cap <= 32, "the cap should be no more than 32");
                 Assert(external.cap_size.size <= 256, "the size should be no more than 256");
                 if constexpr (NullTerminated) {
-                    return (external.cap_size.cap + 1) * 8 - external.cap_size.size - 1;
+                    return (external.cap_size.cap + 1UL) * 8UL - external.cap_size.size - 1UL;
                 } else {
-                    return (external.cap_size.cap + 1) * 8 - external.cap_size.size;
+                    return (external.cap_size.cap + 1UL) * 8UL - external.cap_size.size;
                 }
             }
             case 2:  // median
@@ -287,9 +287,9 @@ struct malloc_core
                 return internal_buffer_size();
             case 1:
                 if constexpr (NullTerminated) {
-                    return (external.cap_size.cap + 1) * 8 - 1;
+                    return (external.cap_size.cap + 1UL) * 8UL - 1UL;
                 } else {
-                    return (external.cap_size.cap + 1) * 8;
+                    return (external.cap_size.cap + 1UL) * 8UL;
                 }
             default:
                 if constexpr (NullTerminated) {
@@ -327,7 +327,7 @@ struct malloc_core
                 break;
             }
             case 1:
-                Assert(new_size <= (external.cap_size.cap + 1) * 8 - (NullTerminated ? 1 : 0),
+                Assert(new_size <= (external.cap_size.cap + 1UL) * 8UL - (NullTerminated ? 1UL : 0UL),
                        "the new size should be less than the max real capacity");
                 external.cap_size.size = new_size;
                 if constexpr (NullTerminated) {
@@ -658,6 +658,8 @@ class small_string_buffer
                 return {.c_str_ptr = reinterpret_cast<int64_t>(head + 1),
                         .idle = {.idle_or_ignore = 0, .flag = kIsLong}};
             }
+            default:
+                __builtin_unreachable();
         }
     }
 
@@ -1617,7 +1619,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     template <bool Safe = true>
     [[gnu::always_inline]] inline void push_back(Char c) {
         if constexpr (Safe) {
-            this->template allocate_more<buffer_type::Need0::No>(1);
+            this->template allocate_more<buffer_type::Need0::No>(1UL);
         }
         data()[size()] = c;
         buffer_type::increase_size(1);
