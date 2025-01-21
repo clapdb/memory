@@ -895,51 +895,6 @@ class small_string_buffer
 #endif
     }
 
-    auto init_clone_buffer_if_needed() -> void {
-        auto flag = _core.internal.flag;
-        switch (flag) {
-            case 0:
-                break;
-            case 1: {
-                auto cap = (_core.external.cap_size.cap + 1) * 8UL;
-                char* new_buffer;
-                if constexpr (core_type::use_std_allocator::value) {
-                    new_buffer = reinterpret_cast<char*>(std::malloc(cap));
-                } else {
-                    new_buffer = _core.pmr_allocator.allocate(cap);
-                }
-                if constexpr (NullTerminated) {
-                    // the \0 will be memcpy-ed as well
-                    std::memcpy(new_buffer, _core.external.get_buffer_ptr(), _core.external.cap_size.size + 1);
-                } else {
-                    std::memcpy(new_buffer, _core.external.get_buffer_ptr(), _core.external.cap_size.size);
-                }
-                _core.external.c_str_ptr = reinterpret_cast<int64_t>(new_buffer);
-                break;
-            }
-            default: {
-                auto [cap, size] = _core.get_capacity_and_size_from_buffer_header();
-                char* new_buffer;
-                if constexpr (core_type::use_std_allocator::value) {
-                    new_buffer = reinterpret_cast<char*>(std::malloc(cap));
-                } else {
-                    new_buffer = _core.pmr_allocator.allocate(cap);
-                }
-                size_type size_to_copy;
-                if constexpr (NullTerminated) {
-                    size_to_copy = size + sizeof(struct capacity_and_size<size_type>) + 1;
-                } else {
-                    size_to_copy = size + sizeof(struct capacity_and_size<size_type>);
-                }
-
-                std::memcpy(new_buffer, _core.external.get_buffer_ptr(), size_to_copy);
-                _core.external.c_str_ptr =
-                  reinterpret_cast<int64_t>(new_buffer + sizeof(struct capacity_and_size<size_type>));
-                break;
-            }
-        }
-    }
-
    public:
     constexpr small_string_buffer([[maybe_unused]] const Allocator& allocator) noexcept : _core{allocator} {
         if constexpr (not core_type::use_std_allocator::value) {
@@ -947,17 +902,9 @@ class small_string_buffer
         }
     }
 
-    constexpr small_string_buffer(const small_string_buffer& other) : _core(other._core) {
-        init_clone_buffer_if_needed();
-    }
-
-    constexpr small_string_buffer(const small_string_buffer& other, [[maybe_unused]] const Allocator& allocator)
-        : _core(other._core) {
-        if constexpr (not core_type::use_std_allocator::value) {
-            Assert(check_the_allocator(), "the pmr default allocator is not allowed to be used in small_string");
-        }
-        init_clone_buffer_if_needed();
-    }
+    constexpr small_string_buffer(const small_string_buffer& other) = delete;
+    constexpr small_string_buffer(const small_string_buffer& other,
+                                  [[maybe_unused]] const Allocator& allocator) = delete;
 
     constexpr small_string_buffer(small_string_buffer&& other) noexcept = delete;
 
@@ -1084,10 +1031,15 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     // copy constructor
 
-    constexpr basic_small_string(const basic_small_string& other) : buffer_type(other) {}
+    constexpr basic_small_string(const basic_small_string& other)
+        : basic_small_string(initialized_later{}, other.size(), other.get_allocator()) {
+        std::memcpy(data(), other.data(), other.size());
+    }
 
     constexpr basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& allocator)
-        : buffer_type(other, allocator) {}
+        : basic_small_string(initialized_later{}, other.size(), allocator) {
+        std::memcpy(data(), other.data(), other.size());
+    }
 
     constexpr basic_small_string(const basic_small_string& other, size_type pos,
                                  [[maybe_unused]] const Allocator& allocator = Allocator())
