@@ -1037,7 +1037,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
     }
 
     constexpr basic_small_string(const basic_small_string& other, [[maybe_unused]] const Allocator& allocator)
-        : basic_small_string(initialized_later{}, other.size(), allocator) {
+        : basic_small_string(initialized_later{}, other.size(), other.get_allocator()) {
         std::memcpy(data(), other.data(), other.size());
     }
 
