@@ -39,9 +39,6 @@
 #include <string>    // for string, operator==, basic_string
 #include <typeinfo>  // for type_info
 #include <vector>    // for vector, vector<>::allocator_type
-#ifndef _MULTI_THREAD_TEST_
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#endif
 
 #include "arena/arenahelper.hpp"  // for ArenaFullManagedTag, ArenaManagedCr...
 #include "doctest/doctest.h"      // for binary_assert, CHECK_EQ, TestCase
