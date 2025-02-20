@@ -103,7 +103,8 @@ TEST_CASE("inplace_set.smoke") {
     CHECK(not set.contains(4));
 }
 
-struct no_hash_hash {
+struct no_hash_hash
+{
     using is_avalanching = void;
     auto operator()(const uint64_t& key) const { return key; }
 };
@@ -321,8 +322,7 @@ TEST_CASE("inplace_table.erase") {
     auto it_after_erase1 = table.find(1);
     CHECK(it_after_erase1 == table.end());
 
-
-    auto r =table.erase(3);
+    auto r = table.erase(3);
     auto it_after_erase3 = table.find(3);
     CHECK(it_after_erase3 == table.end());
     auto find_2 = table.find(2);
@@ -441,7 +441,7 @@ TEST_CASE("inplace_table.insert") {
     CHECK_EQ(table.size(), 2);
 }
 
-TEST_CASE("inplace_set.insert") {   
+TEST_CASE("inplace_set.insert") {
     inplace_table<uint32_t, void, std::hash<uint32_t>, std::equal_to<uint32_t>> set;
     auto [it, success] = set.insert(1);
     CHECK(success);
@@ -645,7 +645,6 @@ TEST_CASE("inplace_table.equal_range") {
     table.emplace(uint64_t{2}, uint32_t{2});
     table.emplace(uint64_t{3}, uint32_t{3});
 
-    
     auto [it, it2] = table.equal_range(1);
     CHECK(it != table.end());
     CHECK_EQ(it->first, 1);
@@ -653,7 +652,5 @@ TEST_CASE("inplace_table.equal_range") {
     bool check = (it2 == table.end() || it2->first != 1);
     CHECK(check);
 }
-
-
 
 }  // namespace stdb::container
