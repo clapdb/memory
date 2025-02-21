@@ -5,6 +5,12 @@
 #include <utility>
 
 #include "fmt/core.h"
+#if __has_include(<ankerl/unordered_dense.hpp>)
+#include <ankerl/unordered_dense.hpp>
+#define HAS_ANKERL_UNORDERED_DENSE
+#else
+#include <xxhash.h>
+#endif
 
 namespace stdb::container {
 
@@ -42,6 +48,9 @@ constexpr bool is_detected_v = is_detected<Op, Args...>::value;
 
 template <typename T>
 using detect_is_transparent = typename T::is_transparent;
+
+template <typename T>
+using detect_avalanching = typename T::is_avalanching;
 
 template <typename Hash, typename KeyEqual>
 constexpr bool is_transparent_v =
@@ -607,7 +616,24 @@ class inplace_table
     template <typename K>
     [[nodiscard]] constexpr auto well_hash(K const& key) const -> uint64_t {
         // TODO(leo): just use the hash function by now, optimize later
-        return _hasher(key);
+        if constexpr (detail::is_detected_v<detail::detect_avalanching, Hash>) {
+            // the hash function is avalanching, so we can use it directly
+            if constexpr (sizeof(decltype(_hasher(key))) < sizeof(uint64_t)) {
+                // 32bit hash and is_avalanching => multiply with a constant to avalanche bits upwards
+                return _hasher(key) * UINT64_C(0x9ddfea08eb382d69);
+            } else {
+                // 64bit and is_avalanching => only use the hash itself.
+                return _hasher(key);
+            }
+        } else {
+            // not is_avalanching => apply wyhash or use xxhash
+#if defined(HAS_ANKERL_UNORDERED_DENSE)
+            return wyhash::hash(_hasher(key));
+#else
+            return XXH3_64bits_withSeed(&key, sizeof(key), 0);
+#endif
+        }
+
     }
 
     [[nodiscard]] constexpr auto extract_distance_and_fingerprint(uint64_t hash) const -> distance_and_fingerprint_t {
