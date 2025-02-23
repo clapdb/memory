@@ -5,6 +5,12 @@
 #include <utility>
 
 #include "fmt/core.h"
+#if __has_include(<ankerl/unordered_dense.hpp>)
+#include <ankerl/unordered_dense.hpp>
+#define HAS_ANKERL_UNORDERED_DENSE
+#else
+#include <xxhash.h>
+#endif
 
 namespace stdb::container {
 
@@ -42,6 +48,9 @@ constexpr bool is_detected_v = is_detected<Op, Args...>::value;
 
 template <typename T>
 using detect_is_transparent = typename T::is_transparent;
+
+template <typename T>
+using detect_avalanching = typename T::is_avalanching;
 
 template <typename Hash, typename KeyEqual>
 constexpr bool is_transparent_v =
@@ -512,20 +521,25 @@ class inplace_table
         if constexpr (std::is_same_v<BucketContainer, void>) {
             auto new_buckets = create_buckets(num_of_new_buckets);
             auto fill_count = _size;
+            auto old_buckets = _buckets;
+
+            // assign the new buckets to the _buckets
+            _buckets = new_buckets;
+            _max_bucket_capacity =
+              static_cast<bucket_index_t>(static_cast<float>(num_of_new_buckets) * _max_load_factor);
             // TODO(leo): maybe check the size will be slower then just use check with end().
             // benchmark it later.
-            for (auto iter = _buckets.begin(); fill_count > 0 and iter != _buckets.end(); ++iter) {
-                auto [dist_and_fingerprint, bucket_ptr] = next_while_less(new_buckets, iter->layout.key);
+            for (auto iter = old_buckets.begin_bucket; fill_count > 0 and iter != old_buckets.end_bucket; ++iter) {
+                if (iter->layout.dist_and_fingerprint == 0) [[unlikely]] {
+                    continue;
+                }
+                auto [dist_and_fingerprint, bucket_ptr] = next_while_less(iter->layout.key);
                 place_and_shift_up<false>(new_bucket_with_new_dist_and_fingerprint(iter, dist_and_fingerprint),
                                           bucket_ptr);
                 --fill_count;
             }
             // free the old buckets's memory
-            std::free(_buckets.begin_bucket);
-            // assign the new buckets to the _buckets
-            _buckets = new_buckets;
-            _max_bucket_capacity =
-              static_cast<bucket_index_t>(static_cast<float>(num_of_new_buckets) * _max_load_factor);
+            std::free(old_buckets.begin_bucket);
             return;
         } else {
             Assert(false, "not implemented");
@@ -535,14 +549,14 @@ class inplace_table
     template <typename Q = Value, std::enable_if_t<is_map_v<Q>, bool> = true>
     auto do_rehash_and_emplace_one(uint8_t new_shifts, Key&& new_key, Q&& new_value) -> bucket_t* {
         do_rehash_with_new_shift(new_shifts);
-        auto [dist_and_fingerprint, bucket_ptr] = next_while_less(_buckets, new_key);
+        auto [dist_and_fingerprint, bucket_ptr] = next_while_less(new_key);
         return place_and_shift_up(
           bucket_t{Layout{dist_and_fingerprint, std::forward<Key>(new_key), std::forward<Q>(new_value)}}, bucket_ptr);
     }
 
     auto do_rehash_and_emplace_one(uint8_t new_shifts, Key&& new_key) -> bucket_t* {
         do_rehash_with_new_shift(new_shifts);
-        auto [dist_and_fingerprint, bucket_ptr] = next_while_less(_buckets, new_key);
+        auto [dist_and_fingerprint, bucket_ptr] = next_while_less(new_key);
         if constexpr (Layout::layout == layout_type::K) {
             return do_place_element(dist_and_fingerprint, bucket_ptr, std::forward<Key>(new_key));
         } else {
@@ -570,6 +584,13 @@ class inplace_table
     }
 
     // functions
+    [[nodiscard]] constexpr auto next(const bucket_t* bucket_ptr) const -> const bucket_t* {
+        if (++bucket_ptr == _buckets.end_bucket) [[unlikely]] {
+            return _buckets.begin_bucket;
+        }
+        return bucket_ptr;
+    }
+
     [[nodiscard]] constexpr auto next(bucket_t* bucket_ptr) const -> bucket_t* {
         if (++bucket_ptr == _buckets.end_bucket) [[unlikely]] {
             return _buckets.begin_bucket;
@@ -607,7 +628,25 @@ class inplace_table
     template <typename K>
     [[nodiscard]] constexpr auto well_hash(K const& key) const -> uint64_t {
         // TODO(leo): just use the hash function by now, optimize later
-        return _hasher(key);
+        if constexpr (detail::is_detected_v<detail::detect_avalanching, Hash>) {
+            // the hash function is avalanching, so we can use it directly
+            if constexpr (sizeof(decltype(_hasher(key))) < sizeof(uint64_t)) {
+                // 32bit hash and is_avalanching => multiply with a constant to avalanche bits upwards
+                return _hasher(key) * UINT64_C(0x9ddfea08eb382d69);
+            } else {
+                // 64bit and is_avalanching => only use the hash itself.
+                return _hasher(key);
+            }
+        } else {
+            // not is_avalanching => apply wyhash or use xxhash
+#if defined(HAS_ANKERL_UNORDERED_DENSE)
+            return wyhash::hash(_hasher(key));
+#else
+            auto original_hash = _hasher(key);
+            return XXH3_64bits_withSeed(&original_hash, sizeof(original_hash), 0);
+#endif
+        }
+
     }
 
     [[nodiscard]] constexpr auto extract_distance_and_fingerprint(uint64_t hash) const -> distance_and_fingerprint_t {
@@ -630,11 +669,11 @@ class inplace_table
     };
 
     template <typename K>
-    [[nodiscard]] auto next_while_less(bucket_container_t& new_buckets, K const& key) const -> bucket_slot {
+    [[nodiscard]] auto next_while_less(K const& key) -> bucket_slot {
         auto hash = well_hash(key);
         auto dist_and_fingerprint = extract_distance_and_fingerprint(hash);
         auto bucket_idx = calculate_bucket_idx_from_hash(hash);
-        auto* current_bucket = new_buckets.at(bucket_idx);
+        auto* current_bucket = _buckets.at(bucket_idx);
         while (dist_and_fingerprint < current_bucket->layout.dist_and_fingerprint) {
             dist_and_fingerprint = distance_increase(dist_and_fingerprint);
             current_bucket = next(current_bucket);
@@ -832,7 +871,7 @@ class inplace_table
             return 0;
         }
 
-        auto [dist_and_fingerprint, bucket_ptr] = next_while_less(_buckets, key);
+        auto [dist_and_fingerprint, bucket_ptr] = next_while_less(key);
 
         while (dist_and_fingerprint == bucket_ptr->layout.dist_and_fingerprint and
                not _key_eq(key, bucket_ptr->layout.key)) {
