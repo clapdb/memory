@@ -1479,7 +1479,7 @@ class non_copyable
 {
    private:
     int* ptr;
-    int size;
+    [[maybe_unused]] int size;
 
    public:
     non_copyable() : ptr(new int(0)), size(0) {

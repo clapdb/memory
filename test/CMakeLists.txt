@@ -27,8 +27,10 @@ add_executable(map_test EXCLUDE_FROM_ALL map_test.cc test_main.cc)
 list(APPEND TEST_FLAGS
   #-DBOOST_STACKTRACE_USE_BACKTRACE
   -DDOCTEST_CONFIG_SUPER_FAST_ASSERTS
+  -Wno-deprecated
 )
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-error=cpp")
 ### include arena src
 #target_include_directories(memory_test PRIVATE ${MEMORY_SOURCE_DIR}/)
 
