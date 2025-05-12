@@ -3,6 +3,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <array>
 
 #include "fmt/core.h"
 #if __has_include(<ankerl/unordered_dense.hpp>)
@@ -920,7 +921,7 @@ class inplace_table
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wclass-memaccess"
 #endif
-            std::memcpy(_buckets.begin_bucket, other._buckets.begin_bucket, _max_bucket_capacity * sizeof(bucket_t));
+            std::memcpy((void*)_buckets.begin_bucket, other._buckets.begin_bucket, _max_bucket_capacity * sizeof(bucket_t));
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
