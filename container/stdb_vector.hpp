@@ -216,7 +216,7 @@ template <typename T>
     Assert(dst != nullptr and src != nullptr, "dst and src can not be nullptr");
     Assert(dst != src, "move_range_without_overlap should make sure dst != src");
     if constexpr (IsRelocatable<T>) {
-        std::memcpy(dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
+        std::memcpy((void*)dst, src, (size_t)(src_end - src) * sizeof(T));  // NOLINT
         return dst + (src_end - src);
     } else if constexpr (std::is_move_constructible_v<T>) {
         for (; src != src_end; ++src, ++dst) {
