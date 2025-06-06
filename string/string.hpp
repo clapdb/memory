@@ -17,9 +17,7 @@
 
 #pragma once
 
-#include <ctype.h>     // for isspace
-#include <fmt/core.h>  // for string_view, formatter, formatter<>...
-#include <fmt/format.h>
+#include <ctype.h>   // for isspace
 #include <stdint.h>  // for uint8_t, int64_t, int32_t
 #include <stdio.h>   // for getline, ssize_t
 #include <stdlib.h>  // for free, malloc, realloc
@@ -27,8 +25,9 @@
 #include <algorithm>  // for min, max, copy, fill
 #include <bit>        // for endian, endian::little, endian::native
 #include <compare>
-#include <cstddef>           // for size_t, offsetof
-#include <cstring>           // for memcpy, memcmp, memmove, memset
+#include <cstddef>  // for size_t, offsetof
+#include <cstring>  // for memcpy, memcmp, memmove, memset
+#include <format>
 #include <functional>        // for less_equal
 #include <initializer_list>  // for initializer_list
 #include <iosfwd>            // for basic_istream
@@ -2754,20 +2753,16 @@ struct hash<::stdb::memory::basic_string<wchar_t>>
 
 // #undef FBSTRING_DISABLE_SSO
 
-namespace fmt {
-
 template <>
-struct formatter<stdb::memory::string> : formatter<string_view>
+struct std::formatter<stdb::memory::string> : formatter<string_view>
 {
-    using formatter<fmt::string_view>::parse;
+    using formatter<std::string_view>::parse;
 
     template <typename Context>
     auto format(const stdb::memory::string& str, Context& ctx) const noexcept {
         return formatter<string_view>::format({str.data(), str.size()}, ctx);
     }
 };
-
-}  // namespace fmt
 
 namespace std {
 

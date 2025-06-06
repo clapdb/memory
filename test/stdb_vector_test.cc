@@ -929,7 +929,7 @@ TEST_CASE("Hilbert::stdb_vector::int") {
     }
     SUBCASE("fmt") {
         stdb_vector<int> vec = {1, 2, 3, 4, 5};
-        std::string str = fmt::format("{}", vec);
+        std::string str = std::format("{}", vec);
         CHECK_EQ(str, "[1, 2, 3, 4, 5]");
     }
 }
@@ -1418,7 +1418,7 @@ TEST_CASE("Hilbert::stdb_vector::memory::string") {
     }
     SUBCASE("format") {
         stdb_vector<memory::string> vec = {"hello", "world", "!"};
-        // fmt::print("==={}===", vec);
+        // std::print("==={}===", vec);
     }
     SUBCASE("assign_empty") {
         auto a = memory::string("");
@@ -1869,7 +1869,7 @@ TEST_CASE("vector of bool works well") {
 
 TEST_CASE("format stdb_vector<STring>") {
     stdb_vector<memory::string> vec_str{"ab", "cd"};
-    auto result = fmt::format("{}", vec_str);
+    auto result = std::format("{}", vec_str);
     CHECK_EQ("[\"ab\", \"cd\"]", result);
 }
 

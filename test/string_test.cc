@@ -16,7 +16,6 @@
 #include "string/string.hpp"
 
 #include <cxxabi.h>     // for __forced_unwind
-#include <fmt/core.h>   // for format
 #include <sys/types.h>  // for uint
 
 #include <algorithm>  // for for_each
@@ -25,6 +24,7 @@
 #include <compare>
 #include <cstddef>  // for size_t
 #include <cstdlib>
+#include <format>
 #include <iostream>  // for cout
 #include <iterator>  // for move_iterator, make_move_iterator, oper...
 #include <list>      // for list, operator==, _List_iterator, _List...
@@ -71,7 +71,7 @@ void randomString(String* toFill, unsigned int maxSize = 1000) {
 
 template <class String, class Integral>
 void Num2String(String& str, Integral n) {
-    std::string tmp = fmt::format("{}", n);
+    std::string tmp = std::format("{}", n);
     str = String(tmp.begin(), tmp.end(), str.get_allocator());
 }
 
@@ -2807,7 +2807,7 @@ TEST_CASE("string::convertToStringView") {
     CHECK_EQ(sv2, "bar");
 }
 
-TEST_CASE("string::Format") { CHECK_EQ("  foo", fmt::format("{:>5}", stdb::memory::string("foo"))); }
+TEST_CASE("string::Format") { CHECK_EQ("  foo", std::format("{:>5}", stdb::memory::string("foo"))); }
 
 TEST_CASE("string::OverLarge") {
     CHECK_THROWS_AS(string().reserve((size_t)0xFFFF'FFFF'FFFF'FFFF), std::length_error);

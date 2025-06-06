@@ -31,8 +31,7 @@
 */
 
 #pragma once
-#include <fmt/format.h>
-
+#include <format>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -392,9 +391,8 @@ class OptionParser
 
 }  // namespace stdb::optparse
 
-namespace fmt {
 template <>
-struct formatter<stdb::optparse::Type> : formatter<string_view>
+struct std::formatter<stdb::optparse::Type> : formatter<string_view>
 {
     template <typename FormatContext>
     auto format(stdb::optparse::Type opt_type, FormatContext& ctx) const noexcept {
@@ -425,4 +423,3 @@ struct formatter<stdb::optparse::Type> : formatter<string_view>
         return formatter<string_view>::format(str, ctx);
     }
 };
-}  // namespace fmt

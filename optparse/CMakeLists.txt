@@ -18,5 +18,5 @@
 
 aux_source_directory(. OPTPARSE_SRC)
 add_library(optparse ${OPTPARSE_SRC})
-target_link_libraries(optparse fmt::fmt)
+target_link_libraries(optparse)
 

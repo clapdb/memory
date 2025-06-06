@@ -32,14 +32,13 @@
 
 #pragma once
 
-#include <fmt/core.h>  // for format
-
 #include <array>   // for array, array<>::value_type
 #include <atomic>  // for atomic, memory_order, memory...
 #include <boost/assert/source_location.hpp>
 #include <chrono>         // for operator""ms, duration, stea...
 #include <compare>        // for operator<=, strong_ordering
 #include <cstdint>        // for uint64_t, uint32_t
+#include <format>         // for format
 #include <memory>         // for allocator, unique_ptr
 #include <string>         // for string, char_traits, hash
 #include <typeinfo>       // for type_info
@@ -48,10 +47,9 @@
 
 #include "arena.hpp"  // for Arena
                       //
-namespace fmt {
 using std::atomic;
 template <typename T>
-struct formatter<atomic<T>> : formatter<T>
+struct std::formatter<atomic<T>> : formatter<T>
 {
     template <typename FormatContext>
     auto format(const atomic<T>& data, FormatContext& ctx) const noexcept {
@@ -59,8 +57,6 @@ struct formatter<atomic<T>> : formatter<T>
     }
 
 };  // struct formatter
-
-}  // namespace fmt
 
 namespace stdb::memory {
 
@@ -128,7 +124,7 @@ struct GlobalArenaMetrics
     [[nodiscard]] auto string() const -> std::string {
         std::string str;
         //        str.reserve(kKiloByte);
-        str += fmt::format(
+        str += std::format(
           "Summary:\n"
           "  init_count: {}\n"
           "  reset_count: {}\n"
@@ -146,19 +142,19 @@ struct GlobalArenaMetrics
         for (uint64_t i = 0, count = 0; i < kAllocBucketSize; i++) {
             count += alloc_size_bucket_counter.at(i);
             // count < alloc_count
-            str += fmt::format("\n  le={}: {}%", alloc_size_bucket.at(i), count * kPercentMagic / alloc_count);
+            str += std::format("\n  le={}: {}%", alloc_size_bucket.at(i), count * kPercentMagic / alloc_count);
         }
 
         str += "\nLifetime distribution:";
         for (uint64_t i = 0, count = 0; i < kLifetimeBucketSize; i++) {
             count += destruct_lifetime_bucket_counter.at(i);
-            str += fmt::format("\n  le={}ms: {}", destruct_lifetime_bucket.at(i).count(),
+            str += std::format("\n  le={}ms: {}", destruct_lifetime_bucket.at(i).count(),
                                (count * kPercentMagic) / destruct_count);
         }
 
         str += "\nArena Location/AllocSize:";  // TODO(longqimin): re-evaluate str.reserve size
         for (const auto& [loc, counter] : arena_alloc_counter) {
-            str += fmt::format("\n  {}: {}", loc, counter);
+            str += std::format("\n  {}: {}", loc, counter);
         }
 
         return str;
