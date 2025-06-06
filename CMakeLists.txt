@@ -64,8 +64,6 @@ OPTION(CODE_COVERAGE
        "build with code coverage, only work in DEBUG"
         OFF
         )
-# fmt
-find_package(fmt REQUIRED)
 # xxhash
 find_package(xxHash REQUIRED)
 # boost

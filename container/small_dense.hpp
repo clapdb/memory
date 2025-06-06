@@ -1,11 +1,11 @@
+#include <array>
 #include <cstdint>
+#include <format>
+#include <print>
 #include <string/small_string.hpp>
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include <array>
-
-#include "fmt/core.h"
 #if __has_include(<ankerl/unordered_dense.hpp>)
 #include <ankerl/unordered_dense.hpp>
 #define HAS_ANKERL_UNORDERED_DENSE
@@ -73,9 +73,9 @@ struct k8_v4_bucket
     K key;
     void print() const {
         if (dist_and_fingerprint != 0) {
-            fmt::print("k8v4 bucket: dist_and_fingerprint: {}, key: {}, value: {}\n", dist_and_fingerprint, value, key);
+            std::print("k8v4 bucket: dist_and_fingerprint: {}, key: {}, value: {}\n", dist_and_fingerprint, value, key);
         } else {
-            fmt::print("k8v4 bucket: empty\n");
+            std::print("k8v4 bucket: empty\n");
         }
     }
     struct view
@@ -112,9 +112,9 @@ struct k4_bucket
     K key;
     void print() const {
         if (dist_and_fingerprint != 0) {
-            fmt::print("k4 bucket: dist_and_fingerprint: {}, key: {}\n", dist_and_fingerprint, key);
+            std::print("k4 bucket: dist_and_fingerprint: {}, key: {}\n", dist_and_fingerprint, key);
         } else {
-            fmt::print("k4 bucket: empty\n");
+            std::print("k4 bucket: empty\n");
         }
     }
     struct view
@@ -144,9 +144,9 @@ struct k8_bucket
     K key;
     void print() const {
         if (dist_and_fingerprint != 0) {
-            fmt::print("k8 bucket: dist_and_fingerprint: {}, key: {}\n", dist_and_fingerprint, key);
+            std::print("k8 bucket: dist_and_fingerprint: {}, key: {}\n", dist_and_fingerprint, key);
         } else {
-            fmt::print("k8 bucket: empty\n");
+            std::print("k8 bucket: empty\n");
         }
     }
     struct view
@@ -176,9 +176,9 @@ struct k12_bucket
     K key;
     void print() const {
         if (dist_and_fingerprint != 0) {
-            fmt::print("k12 bucket: dist_and_fingerprint: {}, key: {}\n", dist_and_fingerprint, key);
+            std::print("k12 bucket: dist_and_fingerprint: {}, key: {}\n", dist_and_fingerprint, key);
         } else {
-            fmt::print("k12 bucket: empty\n");
+            std::print("k12 bucket: empty\n");
         }
     }
     struct view
@@ -214,9 +214,9 @@ struct k4_v8_bucket
     };
     void print() const {
         if (dist_and_fingerprint != 0) {
-            fmt::print("k4v8 bucket: dist_and_fingerprint: {}, key: {}, value: {}\n", dist_and_fingerprint, key, value);
+            std::print("k4v8 bucket: dist_and_fingerprint: {}, key: {}, value: {}\n", dist_and_fingerprint, key, value);
         } else {
-            fmt::print("k4v8 bucket: empty\n");
+            std::print("k4v8 bucket: empty\n");
         }
     }
     k4_v8_bucket() = default;
@@ -246,9 +246,9 @@ struct k8_v8_bucket
     V value;
     void print() const {
         if (dist_and_fingerprint != 0) {
-            fmt::print("k8v8 bucket: dist_and_fingerprint: {}, key: {}, value: {}\n", dist_and_fingerprint, key, value);
+            std::print("k8v8 bucket: dist_and_fingerprint: {}, key: {}, value: {}\n", dist_and_fingerprint, key, value);
         } else {
-            fmt::print("k8v8 bucket: empty\n");
+            std::print("k8v8 bucket: empty\n");
         }
     }
     struct view
@@ -647,7 +647,6 @@ class inplace_table
             return XXH3_64bits_withSeed(&original_hash, sizeof(original_hash), 0);
 #endif
         }
-
     }
 
     [[nodiscard]] constexpr auto extract_distance_and_fingerprint(uint64_t hash) const -> distance_and_fingerprint_t {
@@ -765,7 +764,7 @@ class inplace_table
         current_bucket = next(current_bucket);
 
         while (true) {
-            // fmt::print("bucket id = {}, dist_and_fingerprint = {}\n", bucket_idx, dist_and_fingerprint);
+            // std::print("bucket id = {}, dist_and_fingerprint = {}\n", bucket_idx, dist_and_fingerprint);
             if (dist_and_fingerprint == current_bucket->layout.dist_and_fingerprint) {
                 if (_key_eq(key, current_bucket->layout.key)) [[likely]] {
                     return iterator{current_bucket, _buckets.end_bucket};
@@ -921,7 +920,8 @@ class inplace_table
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wclass-memaccess"
 #endif
-            std::memcpy((void*)_buckets.begin_bucket, other._buckets.begin_bucket, _max_bucket_capacity * sizeof(bucket_t));
+            std::memcpy((void*)_buckets.begin_bucket, other._buckets.begin_bucket,
+                        _max_bucket_capacity * sizeof(bucket_t));
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
@@ -1349,10 +1349,10 @@ class inplace_table
 
     // debug & print functions
     void print() const {
-        fmt::print("inplace_table: size: {}, bucket_count: {}, max_bucket_capacity: {}\n", _size, _buckets.capacity(),
+        std::print("inplace_table: size: {}, bucket_count: {}, max_bucket_capacity: {}\n", _size, _buckets.capacity(),
                    _max_bucket_capacity);
         for (auto& bucket : _buckets) {
-            fmt::print("bucket: ");
+            std::print("bucket: ");
             bucket.layout.print();
         }
     }

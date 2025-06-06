@@ -38,8 +38,9 @@
 #include <boost/core/demangle.hpp>  // for demangle
 #include <concepts>
 #include <cstdint>
-#include <cstdlib>        // for free, malloc, size_t
-#include <exception>      // for type_info
+#include <cstdlib>    // for free, malloc, size_t
+#include <exception>  // for type_info
+#include <format>
 #include <iostream>       // for endl, basic_ostream, cerr
 #include <limits>         // for numeric_limits
 #include <new>            // for operator new, bad_alloc
@@ -53,7 +54,7 @@
 #include "align/align.hpp"  // for AlignUpTo
 #include "arenahelper.hpp"  // for ArenaHelper
 #include "assert_config.hpp"
-#include "fmt/core.h"                                                // for format
+
 #define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
 
 #include "string/arena_string.hpp"
@@ -453,7 +454,7 @@ class Arena
         requires TriviallyDestructible<T>
     {
         if (num > std::numeric_limits<uint64_t>::max() / sizeof(T)) {
-            auto output_message = fmt::format(
+            auto output_message = std::format(
               "CreateArray need too many memory, that more than max of uint64_t, the num of array is {}, and the Type "
               "is {}, sizeof T is {}",
               num, TYPENAME(T), sizeof(T));

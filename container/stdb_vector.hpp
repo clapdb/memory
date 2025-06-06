@@ -31,13 +31,11 @@
 */
 
 #pragma once
-#include <fmt/format.h>
-#include <fmt/ranges.h>
-
 #include <concepts>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <format>
 #include <iterator>
 #include <limits>
 #include <new>
@@ -1463,7 +1461,7 @@ constexpr auto erase_if(stdb::container::stdb_vector<T>& vec, Predicate pred) ->
 // {
 //     template <typename FormatContext>
 //     auto format(const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) const noexcept {
-//         return fmt::format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));
+//         return std::format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));
 //     }
 // };
 

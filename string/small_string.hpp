@@ -10,13 +10,13 @@
  */
 
 #pragma once
-#include <fmt/core.h>
 #include <sys/types.h>
 
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <format>
 #include <initializer_list>
 #include <iterator>
 #include <limits>
@@ -2978,9 +2978,9 @@ static_assert(sizeof(small_byte_string) == 8, "small_byte_string should be same 
 
 template <typename String, typename T>
 auto to_small_string(T value) -> String {
-    auto size = fmt::formatted_size("{}", value);
+    auto size = std::formatted_size("{}", value);
     auto formatted = String::create_uninitialized_string(size);
-    fmt::format_to(formatted.data(), "{}", value);
+    std::format_to(formatted.data(), "{}", value);
     return formatted;
 }
 
@@ -3002,15 +3002,14 @@ auto to_small_string(std::string_view view) -> String {
 }  // namespace stdb::memory
 
 // decl the formatter of small_string
-namespace fmt {
 
 template <typename Char,
           template <typename, template <class, bool> class, class T, class A, bool N, float G> class Buffer,
           template <typename, bool> class Core, class Traits, class Allocator, bool NullTerminated, float Growth>
-struct formatter<stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated, Growth>>
+struct std::formatter<stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated, Growth>>
     : formatter<string_view>
 {
-    using formatter<fmt::string_view>::parse;
+    using formatter<std::string_view>::parse;
 
     template <typename Context>
     auto format(const stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& str,
@@ -3018,7 +3017,6 @@ struct formatter<stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Al
         return formatter<string_view>::format({str.data(), str.size()}, ctx);
     }
 };
-}  // namespace fmt
 
 namespace stdb::memory::pmr {
 using small_string = basic_small_string<char, small_string_buffer, pmr_core, std::char_traits<char>,
@@ -3030,9 +3028,9 @@ static_assert(sizeof(small_string) == 16, "small_string should be same as a poin
 
 template <typename String, typename T>
 auto to_small_string(T value, std::pmr::polymorphic_allocator<char> allocator) -> String {
-    auto size = fmt::formatted_size("{}", value);
+    auto size = std::formatted_size("{}", value);
     auto formatted = String::create_uninitialized_string(size, allocator);
-    fmt::format_to(formatted.data(), "{}", value);
+    std::format_to(formatted.data(), "{}", value);
     return formatted;
 }
 

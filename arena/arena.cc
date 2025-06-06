@@ -63,7 +63,7 @@ auto Arena::newBlock(uint64_t min_bytes, Block* prev_block) noexcept -> Arena::B
     uint64_t size = 0;
 
     if (min_bytes > std::numeric_limits<uint64_t>::max() - kBlockHeaderSize) {
-        auto output_message = fmt::format(
+        auto output_message = std::format(
           "newBlock need too many min_bytes : {}, it add kBlockHeaderSize more than uint64_t max.", min_bytes);
         _options.logger_func(output_message);
     }
