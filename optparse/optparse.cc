@@ -641,3 +641,53 @@ auto OptionParser::get_raw_argv() const -> std::unique_ptr<const char*[]> {  // 
     return rst;
 }
 }  // namespace stdb::optparse
+
+namespace std {
+
+auto formatter<stdb::optparse::OptionType>::format(stdb::optparse::OptionType opt_type,
+                                                   std::format_context& ctx) const noexcept -> decltype(ctx.out()) {
+    std::string str;
+    switch (opt_type) {
+        // generate all the option type names.
+        case stdb::optparse::OptionType::ShortOpt:
+            str = "short option";
+            break;
+        case stdb::optparse::OptionType::LongOpt:
+            str = "long option";
+            break;
+        case stdb::optparse::OptionType::InvalidOpt:
+            str = "invalid option";
+            break;
+    }
+    return formatter<string>::format(str, ctx);
+}
+
+auto formatter<stdb::optparse::Type>::format(stdb::optparse::Type opt_type, std::format_context& ctx) const noexcept
+  -> decltype(ctx.out()) {
+    std::string str;
+    switch (opt_type) {
+        case stdb::optparse::Type::Bool:
+            str = "bool";
+            break;
+        case stdb::optparse::Type::Int:
+            str = "int";
+            break;
+        case stdb::optparse::Type::Long:
+            str = "long";
+            break;
+        case stdb::optparse::Type::Float:
+            str = "float";
+            break;
+        case stdb::optparse::Type::Double:
+            str = "double";
+            break;
+        case stdb::optparse::Type::Choice:
+            str = "choice";
+            break;
+        case stdb::optparse::Type::String:
+            str = "string";
+            break;
+    }
+    return formatter<string_view>::format(str, ctx);
+}
+}  // namespace std

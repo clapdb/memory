@@ -13,23 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- +------------------------------------------------------------------------------+
- |                                                                              |
- |                                                                              |
- |                    ..######..########.########..########.                    |
- |                    .##....##....##....##.....##.##.....##                    |
- |                    .##..........##....##.....##.##.....##                    |
- |                    ..######.....##....##.....##.########.                    |
- |                    .......##....##....##.....##.##.....##                    |
- |                    .##....##....##....##.....##.##.....##                    |
- |                    ..######.....##....########..########.                    |
- |                                                                              |
- |                                                                              |
- |                                                                              |
- +------------------------------------------------------------------------------+
-*/
 #include "metrics.hpp"
+
+#include <atomic>
+#include <cstdint>
+#include <format>
 
 namespace stdb::memory {
 
@@ -38,3 +26,11 @@ GlobalArenaMetrics global_arena_metrics = GlobalArenaMetrics();
 thread_local LocalArenaMetrics local_arena_metrics = LocalArenaMetrics();
 
 }  // namespace stdb::memory
+
+namespace std {
+auto std::formatter<atomic<uint64_t>>::format(const atomic<uint64_t>& data, std::format_context& ctx) const noexcept
+  -> decltype(ctx.out()) {
+    uint64_t value = data.load(std::memory_order::relaxed);
+    return std::formatter<uint64_t>::format(value, ctx);
+}
+}  // namespace std
