@@ -3011,9 +3011,8 @@ struct std::formatter<stdb::memory::basic_small_string<Char, Buffer, Core, Trait
 {
     using formatter<std::string_view>::parse;
 
-    template <typename Context>
     auto format(const stdb::memory::basic_small_string<Char, Buffer, Core, Traits, Allocator, NullTerminated>& str,
-                Context& ctx) const noexcept {
+                std::format_context& ctx) const noexcept {
         return formatter<string_view>::format({str.data(), str.size()}, ctx);
     }
 };

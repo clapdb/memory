@@ -1870,7 +1870,7 @@ TEST_CASE("vector of bool works well") {
 TEST_CASE("format stdb_vector<STring>") {
     stdb_vector<memory::string> vec_str{"ab", "cd"};
     auto result = std::format("{}", vec_str);
-    CHECK_EQ("[\"ab\", \"cd\"]", result);
+    CHECK_EQ("[ab, cd]", result);
 }
 
 }  // namespace stdb::container

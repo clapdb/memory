@@ -391,35 +391,16 @@ class OptionParser
 
 }  // namespace stdb::optparse
 
+namespace std {
 template <>
-struct std::formatter<stdb::optparse::Type> : formatter<string_view>
+struct formatter<stdb::optparse::OptionType> : std::formatter<std::string>
 {
-    template <typename FormatContext>
-    auto format(stdb::optparse::Type opt_type, FormatContext& ctx) const noexcept {
-        std::string str;
-        switch (opt_type) {
-            case stdb::optparse::Bool:
-                str = "bool";
-                break;
-            case stdb::optparse::Int:
-                str = "int";
-                break;
-            case stdb::optparse::Long:
-                str = "long";
-                break;
-            case stdb::optparse::Float:
-                str = "float";
-                break;
-            case stdb::optparse::Double:
-                str = "double";
-                break;
-            case stdb::optparse::Choice:
-                str = "choice";
-                break;
-            case stdb::optparse::String:
-                str = "string";
-                break;
-        }
-        return formatter<string_view>::format(str, ctx);
-    }
+    auto format(stdb::optparse::OptionType opt_type, std::format_context& ctx) const noexcept -> decltype(ctx.out());
 };
+
+template <>
+struct formatter<stdb::optparse::Type> : std::formatter<std::string_view>
+{
+    auto format(stdb::optparse::Type type, std::format_context& ctx) const noexcept -> decltype(ctx.out());
+};
+}  // namespace std

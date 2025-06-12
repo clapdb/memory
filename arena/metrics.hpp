@@ -13,24 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- +------------------------------------------------------------------------------+
- |                                                                              |
- |                                                                              |
- |                    ..######..########.########..########.                    |
- |                    .##....##....##....##.....##.##.....##                    |
- |                    .##..........##....##.....##.##.....##                    |
- |                    ..######.....##....##.....##.########.                    |
- |                    .......##....##....##.....##.##.....##                    |
- |                    .##....##....##....##.....##.##.....##                    |
- |                    ..######.....##....########..########.                    |
- |                                                                              |
- |                                                                              |
- |                                                                              |
- +------------------------------------------------------------------------------+
-*/
 
 #pragma once
+
+#include <sys/types.h>
 
 #include <array>   // for array, array<>::value_type
 #include <atomic>  // for atomic, memory_order, memory...
@@ -47,16 +33,16 @@
 
 #include "arena.hpp"  // for Arena
                       //
-using std::atomic;
-template <typename T>
-struct std::formatter<atomic<T>> : formatter<T>
-{
-    template <typename FormatContext>
-    auto format(const atomic<T>& data, FormatContext& ctx) const noexcept {
-        return formatter<T>::format(data.load(), ctx);
-    }
+namespace std {
 
-};  // struct formatter
+template <>
+struct formatter<atomic<uint64_t>> : std::formatter<uint64_t>
+{
+    // format atomic<uint64_t> as uint64_t
+    auto format(const atomic<uint64_t>& data, std::format_context& ctx) const noexcept -> decltype(ctx.out());
+};
+
+}  // namespace std
 
 namespace stdb::memory {
 

@@ -868,8 +868,7 @@ inline auto toStdString(arena_string&& str) -> std::string { return std::string(
 template <>
 struct std::formatter<stdb::memory::arena_string> : formatter<string_view>
 {
-    template <typename Context>
-    auto format(const stdb::memory::arena_string& str, Context& ctx) const noexcept {
+    auto format(const stdb::memory::arena_string& str, std::format_context& ctx) const noexcept {
         return formatter<string_view>::format({str.data(), str.size()}, ctx);
     }
 };

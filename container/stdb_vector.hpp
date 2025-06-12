@@ -1453,16 +1453,20 @@ constexpr auto erase_if(stdb::container::stdb_vector<T>& vec, Predicate pred) ->
     return vec.erase_if(pred);
 }
 
+template <typename T>
+struct formatter<stdb::container::stdb_vector<T>> : std::formatter<std::string>
+{
+    auto format(const stdb::container::stdb_vector<T>& vec, std::format_context& ctx) const {
+        std::string result = "[";
+        for (std::size_t i = 0; i < vec.size(); ++i) {
+            if (i > 0) {
+                result += ", ";
+            }
+            result += std::format("{}", vec[i]);
+        }
+        result += "]";
+        return std::formatter<std::string>::format(result, ctx);
+    }
+};
+
 }  // namespace std
-
-// namespace fmt {
-// template <typename T>
-// struct formatter<stdb::container::stdb_vector<T>> : formatter<string_view>
-// {
-//     template <typename FormatContext>
-//     auto format(const stdb::container::stdb_vector<T>& vec, FormatContext& ctx) const noexcept {
-//         return std::format_to(ctx.out(), "[{}]", fmt::join(vec, ", "));
-//     }
-// };
-
-// }  // namespace fmt
