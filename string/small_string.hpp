@@ -107,15 +107,15 @@ struct malloc_core
         // the cap <= 32, the size <= 256
         struct cap_and_size
         {
-            uint8_t cap : 5;    // cap * 8, max cap == 256/8 = 32
-            uint16_t size : 9;  // the size <= 256
+            uint8_t cap : 5;    // the real capacity = (cap + 1) * 8, so the max(capacity) = 32 * 8 = 256
+                                // the min(cap) = 0, means the min(capacity) is 8
+            uint16_t size : 9;  // the size <= 256, size will never be larger than 256
             uint8_t flag : 2;   // the flag must be 01
         };
 
         struct idle_cap
         {
-            // 12bits: size, just use 12 bits to store the size, the max size is 4095, if the size is 4096, the shift
-            // will be 11, and the external_size will be 0
+            // the idle_or_ignore is the max idle size, which is 4k - 1
             uint16_t idle_or_ignore : 14;  // max idle size = 2**14 - 1
             uint8_t flag : 2;              // the flag must be 10
         };  // struct size_and_shift
@@ -174,8 +174,12 @@ struct malloc_core
     }
 
     consteval static inline auto max_median_buffer_size() noexcept -> size_type {
-        // if the buffer size is not larger than the size_max = (1UL << 14UL) - 1, the core_type will be Median
-        return (1UL << 14UL) - 2;
+        // the idle is a 14bits value, so the max idle is 2**14 - 1, the max size is 2**14 - 1 + 8
+        return (1UL << 14UL) - 1;
+    }
+
+    consteval static inline auto max_long_buffer_size() noexcept -> size_type {
+        return std::numeric_limits<size_type>::max() - median_long_buffer_header_size();
     }
 
     constexpr static uint8_t kInterCore = static_cast<uint8_t>(CoreType::Internal);
@@ -245,14 +249,14 @@ struct malloc_core
     }
 
     [[nodiscard, gnu::always_inline]] constexpr auto get_idle_capacity_from_buffer_header() const noexcept
-      -> size_type {
+      -> uint16_t {
         Assert(external.idle.flag > 1, "the flag should be 10 / 11");
         Assert(capacity_from_buffer_header() > 256, "the capacity should be more than 256");
         auto [cap, size] = get_capacity_and_size_from_buffer_header();
         if constexpr (NullTerminated) {
-            return cap - size - 1 - sizeof(struct capacity_and_size<size_type>);
+            return static_cast<uint16_t>(cap - size - 1 - sizeof(struct capacity_and_size<size_type>));
         } else {
-            return cap - size - sizeof(struct capacity_and_size<size_type>);
+            return static_cast<uint16_t>(cap - size - sizeof(struct capacity_and_size<size_type>));
         }
     }
 
@@ -319,22 +323,26 @@ struct malloc_core
         auto flag = external.idle.flag;
         switch (flag) {
             case 0: {
-                internal.internal_size = new_size;
+                // Internal buffer, the size is stored in the internal_core
+                internal.internal_size = static_cast<uint8_t>(new_size);
                 // set the terminator
                 if constexpr (NullTerminated) {
                     internal.data[internal.internal_size] = '\0';
                 }
                 break;
             }
-            case 1:
+            case 1: {
+                // Short buffer, the size is stored in the external_core
                 Assert(new_size <= (external.cap_size.cap + 1UL) * 8UL - (NullTerminated ? 1UL : 0UL),
                        "the new size should be less than the max real capacity");
-                external.cap_size.size = new_size;
+                external.cap_size.size = static_cast<uint16_t>(new_size);
                 if constexpr (NullTerminated) {
                     reinterpret_cast<Char*>(external.c_str_ptr)[new_size] = '\0';
                 }
                 break;
+            }
             case 2: {
+                // Median buffer, the size is stored in the buffer header, the idle_or_ignore is the idle size
                 set_size_to_buffer_header(new_size);
                 external.idle.idle_or_ignore = get_idle_capacity_from_buffer_header();
                 if constexpr (NullTerminated) {
@@ -664,27 +672,30 @@ class small_string_buffer
     }
 
    protected:
-    [[nodiscard, gnu::always_inline]] constexpr static inline auto calculate_new_buffer_size(size_type size) noexcept
+    [[nodiscard, gnu::always_inline]] constexpr static inline auto calculate_new_buffer_size(size_t size) noexcept
       -> buffer_type_and_size<size_type> {
         if (size <= core_type::internal_buffer_size()) [[unlikely]] {
             return {.buffer_size = core_type::internal_buffer_size(), .core_type = CoreType::Internal};
         }
         if (size <= core_type::max_short_buffer_size()) [[likely]] {
             if constexpr (NullTerminated) {
-                return {.buffer_size = align::AlignUpTo<8>(size + 1), .core_type = CoreType::Short};
+                return {.buffer_size = static_cast<size_type>(align::AlignUpTo<8>(size + 1)), .core_type = CoreType::Short};
             } else {
-                return {.buffer_size = align::AlignUpTo<8>(size), .core_type = CoreType::Short};
+                return {.buffer_size = static_cast<size_type>(align::AlignUpTo<8>(size)), .core_type = CoreType::Short};
             }
         }
         if (size <= core_type::max_median_buffer_size()) [[likely]] {  // faster than 3-way compare
-            return {.buffer_size = align::AlignUpTo<8>(size + core_type::median_long_buffer_header_size()),
+            return {.buffer_size =
+                      static_cast<size_type>(align::AlignUpTo<8>(size + core_type::median_long_buffer_header_size())),
                     .core_type = CoreType::Median};
         }
-        return {.buffer_size = align::AlignUpTo<8>(size + core_type::median_long_buffer_header_size()),
+        Assert(size <= core_type::max_long_buffer_size(),
+               "the buffer size should be less than the max value of size_type");
+        return {.buffer_size = static_cast<size_type>(align::AlignUpTo<8>(size + core_type::median_long_buffer_header_size())),
                 .core_type = CoreType::Long};
     }
 
-    [[nodiscard, gnu::always_inline]] constexpr static inline auto calculate_new_buffer_size(size_type size,
+    [[nodiscard, gnu::always_inline]] constexpr static inline auto calculate_new_buffer_size(size_t size,
                                                                                              float growth) noexcept
       -> buffer_type_and_size<size_type> {
         return calculate_new_buffer_size(size * growth);
@@ -700,7 +711,7 @@ class small_string_buffer
         switch (type) {
             case CoreType::Internal:
                 _core.internal.flag = kIsInternal;
-                _core.internal.internal_size = size;
+                _core.internal.internal_size = static_cast<uint8_t>(size);
                 if constexpr (NullTerminated) {
                     _core.internal.data[size] = '\0';
                 }
@@ -763,10 +774,11 @@ class small_string_buffer
     }
 
     [[gnu::always_inline]] constexpr inline void initial_allocate(size_t new_string_size) noexcept {
-        Assert(new_string_size <= std::numeric_limits<size_type>::max(),
+        // Assert(new_string_size <= std::numeric_limits<size_type>::max(),
+        Assert(new_string_size < core_type::max_long_buffer_size(),
                "the new_string_size should be less than the max value of size_type");
         auto cap_and_type = calculate_new_buffer_size(new_string_size);
-        initial_allocate(cap_and_type, new_string_size);
+        initial_allocate(cap_and_type, static_cast<size_type>(new_string_size));
     }
 
     // this funciion will not change the size, but the capacity or delta
@@ -977,7 +989,7 @@ template <typename Char,
           template <typename, template <typename, bool> class, class, class, bool, float> class Buffer =
             small_string_buffer,
           template <typename, bool> class Core = malloc_core, class Traits = std::char_traits<Char>,
-          class Allocator = std::allocator<Char>, bool NullTerminated = true, float Growth = 1.5f>
+          class Allocator = std::allocator<Char>, bool NullTerminated = true, float Growth = 1.5F>
 class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTerminated, Growth>
 {
    public:
@@ -1007,7 +1019,9 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
    public:
     constexpr basic_small_string(initialized_later, size_t new_string_size, const Allocator& allocator = Allocator())
         : buffer_type(allocator) {
-        buffer_type::initial_allocate(new_string_size);
+        Assert((new_string_size + Core<Char, NullTerminated>::median_long_buffer_header_size()) <= std::numeric_limits<size_type>::max(),
+               "the new_string_size should be less than the max value of size_type");
+        buffer_type::initial_allocate(static_cast<size_type>(new_string_size));
     }
 
     constexpr basic_small_string(initialized_later, buffer_type_and_size<size_type> type_and_size,
@@ -1199,6 +1213,7 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
 
     template <bool Safe = true>
     auto assign(const Char* s, size_type count) -> basic_small_string& {
+        Assert(s != nullptr, "assign: s should not be nullptr");
         if constexpr (Safe) {
             this->template buffer_reserve<buffer_type::Need0::No, false>(count);
         }
@@ -1207,6 +1222,13 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
         std::memmove(buffer, s, count);
         buffer_type::set_size(count);
         return *this;
+    }
+
+    template <bool Safe = true>
+    auto assign(const Char* s, size_t count) -> basic_small_string& {
+        Assert((count <= Core<Char, NullTerminated>::max_long_buffer_size()),
+               "assign: count should be less than the max value of size_type");
+        return assign(s, static_cast<size_type>(count));
     }
 
     template <bool Safe = true>
