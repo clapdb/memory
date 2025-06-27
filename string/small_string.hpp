@@ -977,7 +977,7 @@ template <typename Char,
           template <typename, template <typename, bool> class, class, class, bool, float> class Buffer =
             small_string_buffer,
           template <typename, bool> class Core = malloc_core, class Traits = std::char_traits<Char>,
-          class Allocator = std::allocator<Char>, bool NullTerminated = true, float Growth = 1.5f>
+          class Allocator = std::allocator<Char>, bool NullTerminated = true, float Growth = 1.5F>
 class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTerminated, Growth>
 {
    public:
