@@ -18,6 +18,7 @@
 #include <cstring>
 #include <format>
 #include <initializer_list>
+#include <ios>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -248,8 +249,7 @@ struct malloc_core
         return *(reinterpret_cast<capacity_and_size<size_type>*>(external.c_str_ptr) - 1);
     }
 
-    [[nodiscard, gnu::always_inline]] constexpr auto get_idle_capacity_from_buffer_header() const noexcept
-      -> uint16_t {
+    [[nodiscard, gnu::always_inline]] constexpr auto get_idle_capacity_from_buffer_header() const noexcept -> uint16_t {
         Assert(external.idle.flag > 1, "the flag should be 10 / 11");
         Assert(capacity_from_buffer_header() > 256, "the capacity should be more than 256");
         auto [cap, size] = get_capacity_and_size_from_buffer_header();
@@ -679,7 +679,8 @@ class small_string_buffer
         }
         if (size <= core_type::max_short_buffer_size()) [[likely]] {
             if constexpr (NullTerminated) {
-                return {.buffer_size = static_cast<size_type>(align::AlignUpTo<8>(size + 1)), .core_type = CoreType::Short};
+                return {.buffer_size = static_cast<size_type>(align::AlignUpTo<8>(size + 1)),
+                        .core_type = CoreType::Short};
             } else {
                 return {.buffer_size = static_cast<size_type>(align::AlignUpTo<8>(size)), .core_type = CoreType::Short};
             }
@@ -691,7 +692,8 @@ class small_string_buffer
         }
         Assert(size <= core_type::max_long_buffer_size(),
                "the buffer size should be less than the max value of size_type");
-        return {.buffer_size = static_cast<size_type>(align::AlignUpTo<8>(size + core_type::median_long_buffer_header_size())),
+        return {.buffer_size =
+                  static_cast<size_type>(align::AlignUpTo<8>(size + core_type::median_long_buffer_header_size())),
                 .core_type = CoreType::Long};
     }
 
@@ -1019,7 +1021,8 @@ class basic_small_string : private Buffer<Char, Core, Traits, Allocator, NullTer
    public:
     constexpr basic_small_string(initialized_later, size_t new_string_size, const Allocator& allocator = Allocator())
         : buffer_type(allocator) {
-        Assert((new_string_size + Core<Char, NullTerminated>::median_long_buffer_header_size()) <= std::numeric_limits<size_type>::max(),
+        Assert((new_string_size + Core<Char, NullTerminated>::median_long_buffer_header_size()) <=
+                 std::numeric_limits<size_type>::max(),
                "the new_string_size should be less than the max value of size_type");
         buffer_type::initial_allocate(static_cast<size_type>(new_string_size));
     }
