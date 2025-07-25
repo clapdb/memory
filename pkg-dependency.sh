@@ -11,12 +11,14 @@ else
   exit 1
 fi
 
-fbe_fedora_packages=(
+memory_fedora_packages=(
   boost-devel
   llvm
   llvm-devel
   clang
   clang-tools-extra
+  libcxx-devel
+  libcxxabi-devel
   lld
   cmake
   fmt-devel
@@ -26,7 +28,7 @@ fbe_fedora_packages=(
   google-benchmark-devel
 )
 
-fbe_debian_packages=(
+memory_debian_packages=(
   cloc
   curl
   git
@@ -42,13 +44,15 @@ fbe_debian_packages=(
   clang
   clangd
   clang-tidy
+  libc++-dev
+  libc++abi-dev
   libxxhash-dev
   libboost-dev
   libfmt-dev
   libbenchmark-dev
 )
 
-fbe_darwin_packages=(
+memory_darwin_packages=(
   rapidjson
   cmake
   ninja
@@ -61,14 +65,14 @@ fbe_darwin_packages=(
 case "$ID" in
 ubuntu | debian)
   apt-get update -y
-  apt-get install -y "${fbe_debian_packages[@]}"
+  apt-get install -y "${memory_debian_packages[@]}"
   ;;
 fedora)
   dnf update -y
-  dnf install -y "${fbe_fedora_packages[@]}"
+  dnf install -y "${memory_fedora_packages[@]}"
   ;;
 darwin)
-  brew install -f "${fbe_darwin_packages[@]}"
+  brew install -f "${memory_darwin_packages[@]}"
   ;;
 *)
   echo "Your system ($ID) is not supported by this script. Please install dependencies manually."
