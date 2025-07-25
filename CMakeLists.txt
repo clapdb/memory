@@ -1,21 +1,9 @@
 #[[
  Copyright (C) 2020 hurricane <l@stdb.io>. All rights reserved.
-  +------------------------------------------------------------------+
-   |                                                                  |
-   |                                                                  |
-   |  #####                                                           |
-   | #     # #####   ##   #####  #####  # #    # ######  ####   ####  |
-   | #         #    #  #  #    # #    # # ##   # #      #      #      |
-   |  #####    #   #    # #    # #    # # # #  # #####   ####   ####  |
-   |       #   #   ###### #####  #####  # #  # # #           #      # |
-   | #     #   #   #    # #   #  #   #  # #   ## #      #    # #    # |
-   |  #####    #   #    # #    # #    # # #    # ######  ####   ####  |
-   |                                                                  |
-   |                                                                  |
-   +------------------------------------------------------------------+
 ]]
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
+
 # position matters, must define before project
 if(DEFINED ENV{CC})
   set(CMAKE_C_COMPILER $ENV{CC})
@@ -27,6 +15,7 @@ else()
     endif()
 endif()
 
+
 if(DEFINED ENV{CXX})
   set(CMAKE_CXX_COMPILER $ENV{CXX})
 else()
@@ -37,10 +26,7 @@ else()
     endif()
 endif()
 
-
 project(memory)
-
-aux_source_directory(. ARENA_SRC)
 
 set(CMAKE_CXX_STANDARD 23)
 set(COMMON_WARNING_FLAGS "${COMMON_WARNING_FLAGS} -Wall -Werror -Wextra -Wendif-labels -Wshadow -Wunused-parameter -Wunused-variable  -Wparentheses -Wuninitialized -Wcomment -Wformat -Wimplicit-fallthrough -Wsign-conversion")
@@ -67,7 +53,7 @@ OPTION(CODE_COVERAGE
 # xxhash
 find_package(xxHash REQUIRED)
 # boost
-find_package(Boost REQUIRED)
+find_package(Boost CONFIG)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 # pmr for apple Mac OSX
