@@ -1,21 +1,9 @@
 #[[
  Copyright (C) 2020 hurricane <l@stdb.io>. All rights reserved.
-  +------------------------------------------------------------------+
-   |                                                                  |
-   |                                                                  |
-   |  #####                                                           |
-   | #     # #####   ##   #####  #####  # #    # ######  ####   ####  |
-   | #         #    #  #  #    # #    # # ##   # #      #      #      |
-   |  #####    #   #    # #    # #    # # # #  # #####   ####   ####  |
-   |       #   #   ###### #####  #####  # #  # # #           #      # |
-   | #     #   #   #    # #   #  #   #  # #   ## #      #    # #    # |
-   |  #####    #   #    # #    # #    # # #    # ######  ####   ####  |
-   |                                                                  |
-   |                                                                  |
-   +------------------------------------------------------------------+
 ]]
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
+
 # position matters, must define before project
 if(DEFINED ENV{CC})
   set(CMAKE_C_COMPILER $ENV{CC})
@@ -27,6 +15,7 @@ else()
     endif()
 endif()
 
+
 if(DEFINED ENV{CXX})
   set(CMAKE_CXX_COMPILER $ENV{CXX})
 else()
@@ -37,8 +26,13 @@ else()
     endif()
 endif()
 
-
 project(memory)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-stdlib=libc++)
+    add_link_options(-stdlib=libc++)
+endif()
+
 
 aux_source_directory(. ARENA_SRC)
 
@@ -67,7 +61,7 @@ OPTION(CODE_COVERAGE
 # xxhash
 find_package(xxHash REQUIRED)
 # boost
-find_package(Boost REQUIRED)
+find_package(Boost CONFIG)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 # pmr for apple Mac OSX
