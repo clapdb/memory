@@ -1,9 +1,10 @@
 #include <array>
 #include <bit>
 #include <cstdint>
+#include <cstring>
 #include <format>
 #include <print>
-#include <string/small_string.hpp>
+#include "assert_config.hpp"
 #include <tuple>
 #include <type_traits>
 #include <utility>
