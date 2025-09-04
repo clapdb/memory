@@ -57,8 +57,6 @@
 
 #define TYPENAME(type) ::boost::core::demangle(typeid(type).name())  // NOLINT
 
-#include "string/arena_string.hpp"
-#include "string/string.hpp"
 namespace stdb::memory {
 
 using ::std::size_t;
@@ -102,17 +100,13 @@ void arena_delete_object(void* obj) noexcept {
 inline constexpr uint64_t kKiloByte = 1024;
 inline constexpr uint64_t kMegaByte = 1024 * 1024;
 
-template <typename T>
-concept VariantWithString =
-  requires(T a) { std::holds_alternative<string>(a) || std::holds_alternative<arena_string>(a); };  // NOLINT
-
 /*
  * Creatable concept requires the T is simple enough, or has Tags
  * otherwise it is a pmr container.
  */
 template <typename T>
 concept Creatable = Constructable<T> || (std::is_standard_layout<T>::value && std::is_trivial<T>::value) ||
-                    std::is_constructible_v<T, std::pmr::polymorphic_allocator<T>> || VariantWithString<T>;
+                    std::is_constructible_v<T, std::pmr::polymorphic_allocator<T>>;
 
 /*
  * TriviallyDestructible concept requires T just has default destructor.
